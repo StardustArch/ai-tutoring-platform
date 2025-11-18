@@ -1,0 +1,173 @@
+// 1. Configuração do Cliente (Prisma) e da Base de Dados (PostgreSQL)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // 
+}
+
+// --- 2. O NÚCLEO: Login e Perfis ---
+// (Implementa "Funções Dinâmicas" e "OAuth")
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Usuario {
+  id                Int           @id @default(autoincrement())
+  email             String        @unique
+  nome              String
+  sobrenome         String
+  telefone          String  
+  role              Role          @default(USER)
+  // Para cadastro manual
+  passwordHash      String?
+  
+  // Para OAuth (Google, etc.)
+  oauthProvider     String?       // Ex: "google"
+  oauthId           String?       @unique // O ID 'sub' do Google
+
+  // Relações 1-para-1 com os Perfis
+  perfilProfessor   Professor?
+  perfilEncarregado Encarregado?
+}
+
+model Professor {
+  id        Int       @id @default(autoincrement())
+  escola    String?
+  isVerificado Boolean @default(false) // Admin precisa de mudar isto para 'true'
+  // Ligação 1-para-1 com Usuario
+  usuarioId Int       @unique // A chave estrangeira
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id])
+
+  // Relações Muitos-para-Muitos (M-N)
+  // O Prisma cria a 'ProfessorDisciplinaLink' automaticamente
+  disciplinas Disciplina[] @relation("ProfessorDisciplinas")
+  alunos      Aluno[]      @relation("ProfessorAlunos")
+}
+
+model Encarregado {
+  id        Int     @id @default(autoincrement())
+
+  // Ligação 1-para-1 com Usuario
+  usuarioId Int     @unique
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  // Relação Um-para-Muitos (1-M)
+  alunos    Aluno[]
+}
+
+model Aluno {
+  id              Int       @id @default(autoincrement())
+  nome            String
+  sobrenome       String
+  dataNascimento  DateTime? @db.Date
+  
+  // O "Ponto de Partida" que você sugeriu
+  classe          Int       // Ex: 3 (para 3ª classe)
+
+  // Ligação 1-M com Encarregado
+  encarregadoId   Int
+  encarregado     Encarregado @relation(fields: [encarregadoId], references: [id])
+
+  // Ligação M-N com Professor
+  // O Prisma cria a 'ProfessorAlunoLink' automaticamente
+  professores     Professor[] @relation("ProfessorAlunos")
+  
+  // Relações com os resultados (o "outro lado" da relação)
+  chatMensagens       ChatMensagem[]
+  exercicioResultados ExercicioResultado[]
+  proficienciaTopicos AlunoProficienciaTopico[]
+}
+
+
+// --- 3. O CONTEÚDO: Disciplinas e Tópicos ---
+
+model Disciplina {
+  id    Int    @id @default(autoincrement())
+  nome  String @unique // "matematica", "portugues"
+
+  professores Professor[] @relation("ProfessorDisciplinas")
+  topicos     Topico[]
+}
+
+model Topico {
+  id           Int    @id @default(autoincrement())
+  nome         String // "Soma Simples", "Verbos Presente"
+  nivelClasse  Int    // 3 (para 3ª classe)
+
+  disciplinaId Int
+  disciplina   Disciplina @relation(fields: [disciplinaId], references: [id])
+  
+  // Relações com os resultados
+  chatMensagens       ChatMensagem[]
+  exercicioResultados ExercicioResultado[]
+  proficienciaTopicos AlunoProficienciaTopico[]
+}
+
+// --- 4. OS RESULTADOS (O Dashboard e a Adaptação) ---
+
+// (Enum para "Enriquecer" as Mensagens)
+enum TipoInteracaoChat {
+  EXPLICACAO
+  EXERCICIO
+  SAUDACAO
+  DESCONHECIDO
+}
+
+model ChatMensagem {
+  id            Int               @id @default(autoincrement())
+  timestamp     DateTime          @default(now())
+  mensagemAluno String            @db.Text
+  respostaIa    String            @db.Text
+  
+  // O "Enriquecimento" que você sugeriu
+  tipoInteracao TipoInteracaoChat @default(DESCONHECIDO)
+
+  alunoId       Int
+  aluno         Aluno             @relation(fields: [alunoId], references: [id])
+
+  topicoId      Int? // Opcional
+  topico        Topico?           @relation(fields: [topicoId], references: [id])
+}
+
+model ExercicioResultado {
+  id           Int      @id @default(autoincrement())
+  timestamp    DateTime @default(now())
+  acertou      Boolean
+  detalhesJson Json?    // Guarda a pergunta/resposta exacta
+
+  alunoId      Int
+  aluno        Aluno    @relation(fields: [alunoId], references: [id])
+
+  topicoId     Int
+  topico       Topico   @relation(fields: [topicoId], references: [id])
+}
+
+// (Enum para o "Nível Real" de proficiência)
+enum NivelProficiencia {
+  INICIANTE
+  ABAIXO_MEDIA
+  NA_MEDIA
+  AVANCADO
+  NAO_DIAGNOSTICADO
+}
+
+model AlunoProficienciaTopico {
+  id     Int               @id @default(autoincrement())
+  
+  // O "Nível Real" que você sugeriu
+  nivel  NivelProficiencia @default(NAO_DIAGNOSTICADO)
+
+  alunoId  Int
+  aluno    Aluno           @relation(fields: [alunoId], references: [id])
+
+  topicoId Int
+  topico   Topico          @relation(fields: [topicoId], references: [id])
+
+  // Um aluno só pode ter um nível por tópico
+  @@unique([alunoId, topicoId])
+}

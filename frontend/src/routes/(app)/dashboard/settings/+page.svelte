@@ -1,0 +1,288 @@
+<!-- src/routes/dashboard/settings/+page.svelte -->
+<script lang="ts">
+    import { auth } from '$lib/store/auth';
+    import { apiFetch } from '$lib/utils/api';
+    import { PUBLIC_API_URL_HOST } from '$env/static/public';
+    import { User, Mail, Phone, Save, Loader } from 'lucide-svelte';
+    import '../../../../app.css'
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+
+    let isLoading = false;
+    let successMessage = '';
+    let errorMessage = '';
+        let isUserLoaded = false;
+
+
+    // Dados do formulário
+    let formData = {
+        nome: $auth.user?.nome || '',
+        sobrenome: $auth.user?.sobrenome || '',
+        email: $auth.user?.email || '',
+        telefone: $auth.user?.telefone || ''
+    };
+
+    // Reset messages quando os dados mudam
+    $: if (formData.nome || formData.sobrenome || formData.email || formData.telefone) {
+        successMessage = '';
+        errorMessage = '';
+    }
+
+    async function updateProfile() {
+        isLoading = true;
+        errorMessage = '';
+        successMessage = '';
+
+        try {
+            const response = await apiFetch(`${PUBLIC_API_URL_HOST}/api/profile`, {
+                method: 'PUT',
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                successMessage = 'Perfil atualizado com sucesso!';
+                // Atualizar os dados no store
+                await auth.refreshUser();
+            } else {
+                const error = await response.json();
+                errorMessage = error.message || 'Erro ao atualizar perfil';
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar perfil:', error);
+            errorMessage = 'Erro de conexão. Tente novamente.';
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    function resetForm() {
+        formData = {
+            nome: $auth.user?.nome || '',
+            sobrenome: $auth.user?.sobrenome || '',
+            email: $auth.user?.email || '',
+            telefone: $auth.user?.telefone || ''
+        };
+        successMessage = '';
+        errorMessage = '';
+        goto('/dashboard')
+    }
+
+        // Carregar dados do utilizador quando a store estiver pronta
+    onMount(() => {
+        // Usar uma reactive statement para atualizar quando o auth.user mudar
+        const unsubscribe = auth.subscribe(($auth) => {
+            if ($auth.user && !isUserLoaded) {
+                formData = {
+                    nome: $auth.user.nome || '',
+                    sobrenome: $auth.user.sobrenome || '',
+                    email: $auth.user.email || '',
+                    telefone: $auth.user.telefone || ''
+                };
+                isUserLoaded = true;
+            }
+        });
+
+        return () => unsubscribe();
+    });
+</script>
+
+<div class="max-w-2xl mx-auto space-y-8 animate-fade-in">
+    <!-- Cabeçalho -->
+    <div class="space-y-2">
+        <h1 class="text-3xl font-bold text-surface-900-50-token">Definições da Conta</h1>
+        <p class="text-lg text-surface-600-300-token">
+            Gerir as suas informações pessoais e preferências da conta.
+        </p>
+    </div>
+
+    <!-- Alertas -->
+    {#if successMessage}
+        <div class="p-4 rounded-lg bg-green-50 border border-green-200 text-green-800 animate-fade-in">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium">{successMessage}</p>
+                </div>
+            </div>
+        </div>
+    {/if}
+
+    {#if errorMessage}
+        <div class="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 animate-fade-in">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium">{errorMessage}</p>
+                </div>
+            </div>
+        </div>
+    {/if}
+
+    <!-- Formulário -->
+    <div class="bg-white dark:bg-surface-800 rounded-xl shadow-sm border border-surface-200 dark:border-surface-700 p-6 space-y-6">
+        <h2 class="text-xl font-semibold text-surface-900 dark:text-surface-50 flex items-center gap-3">
+            <User size={24} class="text-primary-500" />
+            Informações Pessoais
+        </h2>
+
+        <form on:submit|preventDefault={updateProfile} class="space-y-6">
+            <!-- Nome e Sobrenome -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label for="nome" class="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                        Nome *
+                    </label>
+                    <input
+                        id="nome"
+                        type="text"
+                        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
+                        bind:value={formData.nome}
+                        required
+                        placeholder="Seu nome"
+                    />
+                </div>
+
+                <div class="space-y-2">
+                    <label for="sobrenome" class="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                        Sobrenome *
+                    </label>
+                    <input
+                        id="sobrenome"
+                        type="text"
+                        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
+                        bind:value={formData.sobrenome}
+                        required
+                        placeholder="Seu sobrenome"
+                    />
+                </div>
+            </div>
+
+            <!-- Email -->
+            <div class="space-y-2">
+                <label for="email" class="block text-sm font-medium text-surface-700 dark:text-surface-300 flex items-center gap-2">
+                    <Mail size={16} class="text-surface-500" />
+                    Email *
+                </label>
+                <input
+                    id="email"
+                    type="email"
+                    class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
+                    bind:value={formData.email}
+                    required
+                    placeholder="seu@email.com"
+                />
+                <p class="text-xs text-surface-500 dark:text-surface-400">
+                    O email é usado para iniciar sessão e receber notificações.
+                </p>
+            </div>
+
+            <!-- Telefone -->
+            <div class="space-y-2">
+                <label for="telefone" class="block text-sm font-medium text-surface-700 dark:text-surface-300 flex items-center gap-2">
+                    <Phone size={16} class="text-surface-500" />
+                    Telefone
+                </label>
+                <input
+                    id="telefone"
+                    type="tel"
+                    class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
+                    bind:value={formData.telefone}
+                    placeholder="+258 8X XXX XXXX"
+                />
+                <p class="text-xs text-surface-500 dark:text-surface-400">
+                    Opcional - usado para contactos importantes.
+                </p>
+            </div>
+
+            <!-- Ações do Formulário -->
+            <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t border-surface-200 dark:border-surface-600">
+                <button
+                    type="submit"
+                    class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading}
+                >
+                    {#if isLoading}
+                        <Loader size={16} class="animate-spin mr-2" />
+                        <span>A Guardar...</span>
+                    {:else}
+                        <Save size={16} class="mr-2" />
+                        <span>Guardar Alterações</span>
+                    {/if}
+                </button>
+
+                <button
+                    type="button"
+                    class="inline-flex items-center justify-center px-4 py-2 border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-700 focus:ring-2 focus:ring-surface-500 focus:ring-offset-2 text-surface-700 dark:text-surface-300 font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    on:click={resetForm}
+                    disabled={isLoading}
+                >
+                    Cancelar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Informações Adicionais -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- ID do Utilizador -->
+        <div class="bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 p-4">
+            <h3 class="text-sm font-medium text-surface-600 dark:text-surface-400 mb-2">ID da Conta</h3>
+            <p class="font-mono text-sm text-surface-900 dark:text-surface-100">#{$auth.user?.id}</p>
+        </div>
+
+        <!-- Tipo de Conta -->
+        <div class="bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 p-4">
+            <h3 class="text-sm font-medium text-surface-600 dark:text-surface-400 mb-2">Tipo de Conta</h3>
+            <p class="text-sm font-medium text-surface-900 dark:text-surface-100 capitalize">
+                {#if !$auth.user?.perfilEncarregado && !$auth.user?.perfilProfessor}
+                    Utilizador
+                {:else if $auth.user?.perfilEncarregado}
+                    Encarregado
+                {:else if $auth.user?.perfilProfessor}
+                    Professor
+                {/if}
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes fadeIn {
+        from { 
+            opacity: 0; 
+            transform: translateY(10px); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0); 
+        }
+    }
+    
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out forwards;
+    }
+
+    /* Melhorias para os inputs no dark mode */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+        -webkit-text-fill-color: #1f2937;
+        -webkit-box-shadow: 0 0 0px 1000px white inset;
+        transition: background-color 5000s ease-in-out 0s;
+    }
+
+    .dark input:-webkit-autofill,
+    .dark input:-webkit-autofill:hover,
+    .dark input:-webkit-autofill:focus {
+        -webkit-text-fill-color: #f9fafb;
+        -webkit-box-shadow: 0 0 0px 1000px #374151 inset;
+    }
+</style>

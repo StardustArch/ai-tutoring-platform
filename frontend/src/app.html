@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt" class="light" data-theme="cerberus" data-mode="dark">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		
+		<!-- Script corrigido -->
+		<script>
+	// Tema simples e direto
+	const saved = localStorage.getItem('theme');
+	const system = window.matchMedia('(prefers-color-scheme: dark)').matches;
+	
+	if (saved === 'dark' || (!saved && system)) {
+		document.documentElement.classList.add('dark');
+	} else {
+		document.documentElement.classList.remove('dark');
+	}
+</script>
+		
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

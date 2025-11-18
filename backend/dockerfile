@@ -1,0 +1,14 @@
+# Dockerfile.dev (para desenvolvimento)
+FROM node:22
+
+WORKDIR /app
+
+# Copia apenas package.json e instala dependências
+COPY package*.json ./
+RUN npm install
+
+# Exponha a porta usada pelo Nest
+EXPOSE 3000
+
+# Comando padrão (modo dev + host 0.0.0.0)
+CMD ["npm", "run", "start:dev"]

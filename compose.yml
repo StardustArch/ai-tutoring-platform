@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # 1. Serviço de IA (Python/Django)
+  # api:
+  #   build: ./api  
+  #   container_name: km_api
+  #   ports:
+  #     - "8000:8000"  
+  #   volumes:
+  #     - ./api:/app 
+  #   depends_on:
+  #     - backend           
+  #   env_file:
+  #     - .env
+
+
+  # 2. Serviço de Backend (NestJS)
+  backend:
+    build: ./backend 
+    container_name: km_backend
+    command: npm run start:dev
+    ports:
+      - "3000:3000"  
+    volumes:
+      - ./backend:/app
+    environment:
+      - TZ=Africa/Maputo 
+      - CHOKIDAR_USEPOLLING=true
+    env_file:
+      - .env
+    depends_on:
+      - db 
+
+  # 3. Serviço de Frontend (Svelte/Skeleton UI)
+  frontend:
+    build: ./frontend 
+    container_name: km_frontend
+    ports:
+      - "5173:5173"  
+    volumes:
+      - ./frontend:/app 
+      - frontend_node_modules:/app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+    depends_on:
+      - backend
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - NODE_ENV=development
+    env_file:
+      - .env      
+
+  # 4. Serviço de Base de Dados (PostgreSQL)
+  db:
+    image: postgres:15 
+    container_name: km_db
+    ports:
+      - "5432:5432" 
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/ 
+    env_file:
+      - .env
+    environment:
+      - TZ=Africa/Maputo
+
+volumes:
+  postgres_data:
+  frontend_node_modules:
