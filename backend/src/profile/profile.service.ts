@@ -33,33 +33,6 @@ export class ProfileService {
     return newProfile;
   }
 
-  /**
-   * Lógica para criar um Perfil de Professor
-   * (Fluxo Universal, passo 2)
-   */
-  async createProfessorProfile(userId: number, dto: CreateProfessorDto) {
-    console.log(`[ProfileService] Utilizador ${userId} a tentar criar perfil de Professor`);
-
-    // 1. Verificar se o utilizador já tem este perfil
-    const existingProfile = await this.prisma.professor.findUnique({
-      where: { usuarioId: userId },
-    });
-    if (existingProfile) {
-      throw new ConflictException('O utilizador já possui um perfil de Professor.');
-    }
-
-    // 2. Criar o novo perfil e ligá-lo ao utilizador
-    const newProfile = await this.prisma.professor.create({
-      data: {
-        escola: dto.escola,
-        usuario: {
-          connect: { id: userId }, // Liga ao 'Usuario' existente
-        },
-      },
-    });
-    return newProfile;
-  }
-
 
   /**
    * Atualiza o perfil do utilizador

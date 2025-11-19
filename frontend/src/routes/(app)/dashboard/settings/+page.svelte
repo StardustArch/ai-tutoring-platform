@@ -229,29 +229,6 @@
             </div>
         </form>
     </div>
-
-    <!-- Informações Adicionais -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- ID do Utilizador -->
-        <div class="bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 p-4">
-            <h3 class="text-sm font-medium text-surface-600 dark:text-surface-400 mb-2">ID da Conta</h3>
-            <p class="font-mono text-sm text-surface-900 dark:text-surface-100">#{$auth.user?.id}</p>
-        </div>
-
-        <!-- Tipo de Conta -->
-        <div class="bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 p-4">
-            <h3 class="text-sm font-medium text-surface-600 dark:text-surface-400 mb-2">Tipo de Conta</h3>
-            <p class="text-sm font-medium text-surface-900 dark:text-surface-100 capitalize">
-                {#if !$auth.user?.perfilEncarregado && !$auth.user?.perfilProfessor}
-                    Utilizador
-                {:else if $auth.user?.perfilEncarregado}
-                    Encarregado
-                {:else if $auth.user?.perfilProfessor}
-                    Professor
-                {/if}
-            </p>
-        </div>
-    </div>
 </div>
 
 <style>

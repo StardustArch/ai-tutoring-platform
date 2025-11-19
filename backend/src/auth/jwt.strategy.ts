@@ -45,6 +45,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       include: {
         perfilEncarregado: true,
         perfilProfessor: true,
+        administradorEscola: true,
+
       },
     });
 

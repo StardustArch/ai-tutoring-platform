@@ -23,19 +23,6 @@ export class ProfileController {
     return this.profileService.createEncarregadoProfile(userId);
   }
 
-  /**
-   * Rota para criar um Perfil de Professor
-   * POST /api/profile/professor
-   */
-  @Post('professor')
-  async createProfessor(
-    @Request() req,
-    @Body(new ValidationPipe()) dto: CreateProfessorDto,
-  ) {
-    const userId = req.user.id;
-    return this.profileService.createProfessorProfile(userId, dto);
-  }
-
     /**
    * Rota para atualizar o perfil do utilizador
    * PUT /api/user/profile

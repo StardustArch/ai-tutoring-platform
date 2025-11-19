@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { auth } from '$lib/store/auth';
+	import { redirect } from '@sveltejs/kit';
 	import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
 	import LogoutButton from '$lib/components/LogoutButton.svelte';
 	
@@ -14,20 +15,35 @@
 		Users,
 		School
 	} from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
 	// Estados do utilizador
 	$: user = $auth.user;
 	$: isEncarregado = !!user?.perfilEncarregado;
 	$: isProfessor = !!user?.perfilProfessor;
-	$: isNeutral = !isEncarregado && !isProfessor;
+	$: isAdmin = !!user?.administradorEscola;
+	$: hasAnyProfile = isEncarregado || isProfessor || isAdmin;
 	$: isProfessorPendente = isProfessor && user?.perfilProfessor?.isVerificado === false;
+	let isUserLoaded = false;
 
+	console.log($auth.user);
+	// REDIRECT: Se está na rota base (/dashboard) e já tem perfil, vai para home
+	$: if ($page.url.pathname === '/dashboard' && isAdmin){
+		goto('/dashboard/admin-school/')
+	}
+	$: if ($page.url.pathname === '/dashboard' && isEncarregado){
+		goto('/dashboard/home')
+	}	
+	$: if ($page.url.pathname === '/dashboard' && isProfessor){
+		goto('/dashboard/home')
+	}
 	// Itens do menu baseados no perfil
 	$: menuItems = getMenuItems();
 
 	function getMenuItems() {
 		const baseItems = [
-			{ label: 'Visão Geral', href: '/dashboard', icon: LayoutDashboard }
+			{ label: 'Visão Geral', href: '/dashboard/home', icon: LayoutDashboard }
 		];
 
 		if (isEncarregado) {
@@ -49,13 +65,52 @@
 			];
 		}
 
-		// Utilizador neutro - menu mínimo
+		if (isAdmin) {
+			return [
+				{ label: 'Visão Geral', href: '/dashboard/admin-school', icon: LayoutDashboard },
+				{ label: 'Minha Escola', href: '/dashboard/admin-school/school', icon: School },
+				{ label: 'Professores', href: '/dashboard/admin-school/list-teachers', icon: Users },
+				{ label: 'Definições', href: '/dashboard/settings', icon: Settings }
+			];
+		}
+
+		// Utilizador neutro - menu mínimo (onboarding)
 		return [
 			{ label: 'Onboarding', href: '/dashboard', icon: LayoutDashboard },
 			{ label: 'Definições', href: '/dashboard/settings', icon: Settings }
 		];
 	}
-</script>
+    onMount(() => {
+        // Usar uma reactive statement para atualizar quando o auth.user mudar
+        const unsubscribe = auth.subscribe(($auth) => {
+            if ($auth.user && !isUserLoaded) {
+				auth.refreshUser();
+                isUserLoaded = true;
+            }
+        });
+
+        return () => unsubscribe();
+    });
+	</script>
+
+{#if $auth.isLoading}
+<div class="min-h-screen bg-surface-50 bg-surface-900 flex items-center justify-center">
+	<div class="text-center space-y-6">
+		<!-- Loading spinner -->
+		<div class="relative">
+			<div class="w-16 h-16 border-4 border-primary-200 border-primary-800 rounded-full animate-spin"></div>
+			<div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 border-4 border-primary-500 rounded-full animate-ping"></div>
+		</div>
+
+		<div class="space-y-2">
+			<h1 class="text-2xl font-bold text-surface-900 dark:text-surface-100">
+				A Carregar...
+			</h1>
+		</div>
+	</div>
+</div>
+
+{:else}
 
 <div class="h-screen flex overflow-hidden bg-surface-50-900-token">
 	
@@ -63,7 +118,7 @@
 	<aside class="w-64 hidden md:flex flex-col bg-surface-100-800-token border-r border-surface-500/30 transition-colors duration-300">
 		
 		<!-- Logo -->
-		<div class="p-6 border-b border-surface-500/30">
+		<div class="p-6  border-surface-500/30">
 			<a href="/" class="text-2xl font-bold text-primary-500 tracking-wide hover:opacity-80 transition-opacity flex items-center gap-2">
 				<span>KaniMente</span>
 			</a>
@@ -97,7 +152,7 @@
 						{user?.nome} {user?.sobrenome}
 					</p>
 					<p class="text-xs text-surface-500-400-token truncate capitalize">
-						{#if isNeutral}
+						{#if !hasAnyProfile}
 							Utilizador
 						{:else if isEncarregado}
 							Encarregado
@@ -105,6 +160,8 @@
 							Professor (Pendente)
 						{:else if isProfessor}
 							Professor
+						{:else if isAdmin}
+							Administrador
 						{/if}
 					</p>
 				</div>
@@ -140,7 +197,7 @@
 		</main>
 	</div>
 </div>
-
+{/if}
 <style>
 	@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 	.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }

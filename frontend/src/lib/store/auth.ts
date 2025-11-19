@@ -3,398 +3,457 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { PUBLIC_API_URL_HOST } from '$env/static/public';
 
-// src/lib/stores/auth.ts
-export interface PerfilEncarregado {
-    id: number;
-    usuarioId: number;
-    alunos: Aluno[];
-}
-
-export interface PerfilProfessor {
-    id: number;
-    escola?: string;
-    isVerificado: boolean;
-    usuarioId: number;
-    disciplinas: Disciplina[];
-    alunos: Aluno[];
-}
-
+/**
+ * Tipagens do domínio (ajusta conforme o teu prisma / resposta do backend)
+ */
 export interface Aluno {
-    id: number;
-    nome: string;
-    sobrenome: string;
-    dataNascimento?: string;
-    classe: number;
-    encarregadoId: number;
+  id: number;
+  nome: string;
+  sobrenome: string;
+  dataNascimento?: string;
+  classe: number;
+  encarregadoId: number;
 }
 
 export interface Disciplina {
-    id: number;
-    nome: string;
+  id: number;
+  nome: string;
+}
+
+export interface PerfilEncarregado {
+  id: number;
+  usuarioId: number;
+  alunos: Aluno[];
+}
+
+export interface PerfilProfessor {
+  id: number;
+  escola?: string;
+  isVerificado: boolean;
+  usuarioId: number;
+  disciplinas: Disciplina[];
+  alunos: Aluno[];
+}
+
+export interface AdministradorEscola {
+  id: number;
+  usuarioId: number;
+  escolaId: number;
+  isVerificado: boolean;
+  criadoEm: string;
+  atualizadoEm: string;
 }
 
 export interface User {
-    id: number;
-    email: string;
-    nome: string;
-    role: string;
-    sobrenome: string;
-    telefone: string;
-    oauthProvider?: string | null;
-    oauthId?: string | null;
-    perfilEncarregado?: PerfilEncarregado | null;
-    perfilProfessor?: PerfilProfessor | null;
+  id: number;
+  email: string;
+  nome: string;
+  sobrenome?: string;
+  telefone?: string;
+  role?: string;
+  oauthProvider?: string | null;
+  oauthId?: string | null;
+  perfilEncarregado?: PerfilEncarregado | null;
+  perfilProfessor?: PerfilProfessor | null;
+  administradorEscola?: AdministradorEscola | null;
 }
 
+/**
+ * Estado do auth store
+ */
 export interface AuthState {
-    isAuthenticated: boolean;
-    accessToken: string | null;
-    refreshToken: string | null;
-    user: User | null;
-    isLoading: boolean;
+  isAuthenticated: boolean;
+  accessToken: string | null;
+  refreshToken: string | null;
+  user: User | null;
+  isLoading: boolean;
 }
 
 const initialState: AuthState = {
-    isAuthenticated: false,
-    accessToken: null,
-    refreshToken: null,
-    user: null,
-    isLoading: true
+  isAuthenticated: false,
+  accessToken: null,
+  refreshToken: null,
+  user: null,
+  isLoading: true
 };
 
+const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+const USER_KEY = 'user';
 
-    const { subscribe, set, update } = writable<AuthState>(initialState);
+/**
+ * Cria o store base (writable)
+ */
+const { subscribe, set, update } = writable<AuthState>({ ...initialState });
 
-    // Função de debug
-    const debugTokens = () => {
-        if (!browser) return;
+/**
+ * Função de debug: tenta decodificar o JWT (apenas para debugging)
+ */
+const debugTokens = () => {
+  if (!browser) return;
+  const raw = localStorage.getItem(ACCESS_TOKEN_KEY);
+  if (!raw) return;
+  try {
+    const payload = JSON.parse(atob(raw.split('.')[1]));
+    console.debug('[AUTH DEBUG] accessToken payload:', payload);
+  } catch (e) {
+    console.debug('[AUTH DEBUG] Não foi possível decodificar access token');
+  }
+};
 
-        const accessToken = localStorage.getItem('accessToken');
-        const refreshToken = localStorage.getItem('refreshToken');
+/**
+ * Função que obtém o utilizador atual usando o endpoint /api/auth/me
+ * Lança exceção se falhar (o chamador decide como tratar)
+ */
+const getCurrentUser = async (token: string): Promise<User> => {
+  const res = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/me`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    credentials: 'include'
+  });
 
+  if (!res.ok) {
+    const text = await res.text();
+    console.error('❌ [AUTH] Falha ao buscar /api/auth/me:', res.status, text);
+    throw new Error(`Failed to fetch user data: ${res.status}`);
+  }
 
-        if (accessToken) {
-            // Tentar decodificar o token JWT (se for JWT)
+  const user = await res.json();
+  return user;
+};
+
+/**
+ * Função de logout: limpa localStorage e reseta o store
+ */
+const logout = () => {
+  if (browser) {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  }
+  set({ ...initialState, isLoading: false });
+};
+
+/**
+ * Função de refresh: usa o refresh token para obter novos tokens e user
+ * Retorna os tokens em caso de sucesso
+ */
+const refresh = async (): Promise<{ accessToken: string; refreshToken?: string }> => {
+  // debug opcional
+  debugTokens();
+
+  if (!browser) throw new Error('Refresh só disponível no browser');
+
+  const storedRefresh = localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!storedRefresh) {
+    logout();
+    throw new Error('No refresh token available');
+  }
+
+  try {
+    // Envia request para refresh (a rota espera Authorization: Bearer <refreshToken> conforme teu backend)
+    const response = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${storedRefresh}`
+      },
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      // tenta ler mensagem de erro para melhor debug
+      let message = `Refresh failed: ${response.status}`;
+      try {
+        const err = await response.json();
+        message = err?.message || message;
+      } catch {
+        // fallback
+      }
+      throw new Error(message);
+    }
+
+    const tokens = await response.json();
+
+    // Gravar tokens no localStorage
+    localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+    if (tokens.refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+    }
+
+    // Buscar user com o novo access token
+    const user = await getCurrentUser(tokens.accessToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+
+    // Atualizar state
+    set({
+      isAuthenticated: true,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken || storedRefresh,
+      user,
+      isLoading: false
+    });
+
+    return tokens;
+  } catch (error) {
+    console.error('❌ [AUTH REFRESH] Falha ao refrescar tokens:', error);
+    logout();
+    throw error;
+  }
+};
+
+/**
+ * Factory do store com funções públicas
+ */
+function createAuthStore() {
+  /**
+   * initializeAuth:
+   * - Restaura user do localStorage (se existir) para evitar flash de logout
+   * - Tenta validar accessToken (se existir)
+   * - Se o accessToken falhar, tenta refresh
+   * - Se nada funcionar, faz logout
+   */
+  async function initializeAuth() {
+    update(s => ({ ...s, isLoading: true }));
+
+    if (!browser) {
+      // SSR: manter estado como não autenticado (mas não desligar isLoading para SSR)
+      set({ ...initialState, isLoading: false });
+      return;
+    }
+
+    const storedAccess = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const storedRefresh = localStorage.getItem(REFRESH_TOKEN_KEY);
+    const storedUserRaw = localStorage.getItem(USER_KEY);
+
+    // 1) Restaura user localmente (melhora UX: evita piscar)
+    let parsedUser: User | null = null;
+    if (storedUserRaw) {
+      try {
+        parsedUser = JSON.parse(storedUserRaw);
+        // Atualiza estado imediatamente com o user armazenado
+        update(s => ({
+          ...s,
+          user: parsedUser,
+          isAuthenticated: !!storedAccess,
+        }));
+      } catch (e) {
+        console.warn('[AUTH] Falha ao parsear user do localStorage:', e);
+      }
+    }
+
+    // 2) Se temos access token, tenta validar /me (faz em background)
+    if (storedAccess) {
+      try {
+        const freshUser = await getCurrentUser(storedAccess);
+        // Atualiza localStorage e state com user mais recente
+        localStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+        set({
+          isAuthenticated: true,
+          accessToken: storedAccess,
+          refreshToken: storedRefresh,
+          user: freshUser,
+          isLoading: false
+        });
+        return;
+      } catch (err) {
+        console.info('[AUTH] Access token inválido ou expirado, tentando refresh se possível');
+        // cairá para a parte de refresh abaixo
+      }
+    }
+
+    // 3) Se chegámos aqui e temos refresh token, tentar refresh
+    if (storedRefresh) {
+      try {
+        await refresh();
+        return;
+      } catch (err) {
+        console.warn('[AUTH] Refresh falhou:', err);
+        logout();
+        return;
+      }
+    }
+
+    // 4) Não há tokens válidos -> estado inicial limpo
+    set({ ...initialState, isLoading: false });
+  }
+
+  // Inicia só no browser
+  if (browser) {
+    // Não await aqui; chama e deixamos correr (mas initializeAuth já gere isLoading)
+    initializeAuth();
+  }
+
+  return {
+    subscribe,
+    set,
+
+    /**
+     * login: unificado para login por credenciais (email/password) e OAuth (tokens)
+     * - Se receber { email, password } faz POST /api/auth/token
+     * - Se receber { accessToken, refreshToken } usa diretamente (OAuth)
+     * - Garante que user seja buscado antes de salvar no localStorage
+     */
+    login: async (credentials: { email: string; password: string } | { accessToken: string; refreshToken?: string }) => {
+      update(s => ({ ...s, isLoading: true }));
+
+      try {
+        let tokens: { accessToken: string; refreshToken?: string } | null = null;
+
+        if ('email' in credentials) {
+          // Login com email/password
+          const res = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(credentials)
+          });
+
+          if (!res.ok) {
+            let errMsg = `Login failed: ${res.status}`;
             try {
-                const payload = JSON.parse(atob(accessToken.split('.')[1]));
-            } catch (e) {
-            }
+              const err = await res.json();
+              errMsg = err?.message || errMsg;
+            } catch {}
+            throw new Error(errMsg);
+          }
+
+          tokens = await res.json();
+        } else {
+          // Login via OAuth (tokens já fornecidos)
+          tokens = {
+            accessToken: credentials.accessToken,
+            refreshToken: credentials.refreshToken || ''
+          };
         }
-    };
 
-    // Função auxiliar para buscar dados do usuário
-    // Função auxiliar para buscar dados do usuário
-    const getCurrentUser = async (token: string): Promise<User> => {
+        if (!tokens || !tokens.accessToken) {
+          throw new Error('No access token returned from login');
+        }
 
+        // PRIMEIRO: Testar /me com o token antes de persistir (garante token válido)
+        const user = await getCurrentUser(tokens.accessToken);
 
-        const response = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/me`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+        // SEGUNDO: Persistir tokens e user
+        if (browser) {
+          localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+          if (tokens.refreshToken) {
+            localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+          }
+          localStorage.setItem(USER_KEY, JSON.stringify(user));
+        }
+
+        // TERCEIRO: Atualizar store
+        set({
+          isAuthenticated: true,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken || null,
+          user,
+          isLoading: false
         });
 
-
-
-        if (!response.ok) {
-            console.error('❌ [GET USER] Erro ao buscar dados do usuário:', response.status);
-            const errorText = await response.text();
-            console.error('❌ [GET USER] Detalhes do erro:', errorText);
-            throw new Error('Failed to fetch user data');
-        }
-
-        const userData = await response.json();
-
-
-        return userData;
-    };
-
-    // Função de logout
-    const logout = () => {
-
+        return { success: true, user };
+      } catch (error) {
+        console.error('❌ [AUTH LOGIN] erro:', error);
+        // limpeza em caso de falha
         if (browser) {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
+          localStorage.removeItem(ACCESS_TOKEN_KEY);
+          localStorage.removeItem(REFRESH_TOKEN_KEY);
+          localStorage.removeItem(USER_KEY);
         }
-        set({ ...initialState, isLoading: false });
-    };
-
-    // Função de refresh
-    const refresh = async (): Promise<{ accessToken: string; refreshToken?: string }> => {
-
-        // Debug dos tokens
-        debugTokens();
-
-        const refreshTokenLocalStorage = browser ? localStorage.getItem('refreshToken') : null;
-
-        if (!refreshTokenLocalStorage) {
-            logout();
-            throw new Error('No refresh token available');
-        }
-
-        try {
-            const headers: any = {
-                'Content-Type': 'application/json'
-            };
-
-            // Para OAuth, enviamos no header Authorization
-            headers['Authorization'] = `Bearer ${refreshTokenLocalStorage}`;
-
-
-            const response = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/refresh`, {
-                method: 'POST',
-                headers: headers,
-                credentials: 'include' // Para cookies (login manual)
-            });
-
-
-            if (!response.ok) {
-                let errorMessage = `Token refresh failed: ${response.status}`;
-
-                // Tentar obter mais informações do erro
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.message || errorMessage;
-                } catch (e) {
-                    const errorText = await response.text();
-                }
-
-                throw new Error(errorMessage);
-            }
-
-            const tokens = await response.json();
-
-            // Atualizar tokens
-            if (browser) {
-                localStorage.setItem('accessToken', tokens.accessToken);
-
-                if (tokens.refreshToken) {
-                    localStorage.setItem('refreshToken', tokens.refreshToken);
-                }
-            }
-
-            // Buscar dados do usuário com o novo token
-            const user = await getCurrentUser(tokens.accessToken);
-
-            set({
-                isAuthenticated: true,
-                accessToken: tokens.accessToken,
-                refreshToken: tokens.refreshToken || refreshTokenLocalStorage,
-                user,
-                isLoading: false
-            });
-
-            return tokens;
-        } catch (error) {
-            logout();
-            throw error;
-        }
-    };
-    
-function createAuthStore() {
-    // InitializeAuth corrigido
-    async function initializeAuth() {
-        update(state => ({ ...state, isLoading: true }));
-
-        const accessToken = browser ? localStorage.getItem('accessToken') : null;
-        const refreshToken = browser ? localStorage.getItem('refreshToken') : null;
-
-
-        // Se não temos access token mas temos refresh token, tentar renovar
-        if (!accessToken && refreshToken) {
-            try {
-                await refresh();
-                return;
-            } catch (error) {
-                // Se o refresh falhar, limpar tudo
-                logout();
-                return;
-            }
-        }
-
-        // Se temos access token, verificar se é válido
-        if (accessToken) {
-            try {
-                const user = await getCurrentUser(accessToken);
-                set({
-                    isAuthenticated: true,
-                    accessToken,
-                    refreshToken,
-                    user,
-                    isLoading: false
-                });
-            } catch (error) {
-
-                // Se o access token é inválido mas temos refresh token, tentar renovar
-                if (refreshToken) {
-                    try {
-                        await refresh();
-                        return;
-                    } catch (refreshError) {
-                        // Se ambos falharem, limpar tudo
-                        logout();
-                    }
-                } else {
-                    // Se não temos refresh token, limpar tudo
-                    logout();
-                }
-            }
-        } else {
-            // Sem tokens, estado inicial
-            set({ ...initialState, isLoading: false });
-        }
-    }
-
-    // Inicializar com tokens do localStorage e buscar dados do usuário
-    if (browser) {
-        initializeAuth();
-    }
-
-    return {
-        subscribe,
-        set,
-
-        // Login unificado para ambos os métodos
-        login: async (credentials: { email: string; password: string } | { accessToken: string; refreshToken: string }) => {
-
-            if ('email' in credentials) {
-            } else {
-            }
-
-            update(state => ({ ...state, isLoading: true }));
-
-            try {
-                let tokens: { accessToken: string; refreshToken: string };
-
-                if ('email' in credentials) {
-                    // Login manual
-
-                    const response = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/token`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(credentials)
-                    });
-
-
-                    if (!response.ok) {
-                        console.error('❌ [AUTH LOGIN] Erro na resposta do servidor');
-                        const error = await response.json();
-                        console.error('❌ [AUTH LOGIN] Detalhes do erro:', error);
-                        throw new Error(error.message || 'Login failed');
-                    }
-
-                    tokens = await response.json();
-
-                } else {
-                    // Login OAuth
-                    tokens = {
-                        accessToken: credentials.accessToken,
-                        refreshToken: credentials.refreshToken || ''
-                    };
-                }
-
-                // PRIMEIRO: Buscar dados do usuário ANTES de salvar (para testar se o token é válido)
-                try {
-                    const user = await getCurrentUser(tokens.accessToken);
-
-                    // SEGUNDO: Guardar tokens no localStorage (após confirmar que funcionam)
-                    if (browser) {
-                        localStorage.setItem('accessToken', tokens.accessToken);
-
-                        if (tokens.refreshToken) {
-                            localStorage.setItem('refreshToken', tokens.refreshToken);
-                        } else {
-                            console.warn('⚠️ [AUTH LOGIN] Nenhum refresh token recebido');
-                        }
-                    }
-
-                    // TERCEIRO: Atualizar estado com todos os dados
-                    set({
-                        isAuthenticated: true,
-                        accessToken: tokens.accessToken,
-                        refreshToken: tokens.refreshToken,
-                        user: user,
-                        isLoading: false
-                    });
-
-
-                    return { success: true, user };
-
-                } catch (userError) {
-
-                    throw new Error('Falha ao carregar dados do usuário: ' + userError);
-                }
-
-            } catch (error) {
-
-
-                // Limpar tokens em caso de erro
-                if (browser) {
-                    localStorage.removeItem('accessToken');
-                    localStorage.removeItem('refreshToken');
-                }
-
-                update(state => ({ ...state, isLoading: false }));
-
-                throw error;
-            }
-        },
-        // Registar novo usuário
-        register: async (userData: { email: string; password: string; name: string }) => {
-            update(state => ({ ...state, isLoading: true }));
-
-            try {
-                const response = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/register`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(userData)
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Registration failed');
-                }
-
-                const result = await response.json();
-                update(state => ({ ...state, isLoading: false }));
-
-                return { success: true, message: result.message };
-            } catch (error) {
-                update(state => ({ ...state, isLoading: false }));
-                throw error;
-            }
-        },
-
-        // Refresh token (expor a função)
-        refresh,
-
-        refreshUser: async () => {
-        const token = localStorage.getItem('accessToken');
-        if (!token) return;
-        try {
-            const user = await getCurrentUser(token);
-            update(s => ({ ...s, user }));
-        } catch (e) {
-            console.error(e);
-        }
+        update(s => ({ ...s, isLoading: false }));
+        throw error;
+      }
     },
-        // Logout (expor a função)
-        logout,
 
-        // Atualizar dados do usuário
-        updateUser: (userData: Partial<User>) => {
-            update(state => ({
-                ...state,
-                user: state.user ? { ...state.user, ...userData } : null
-            }));
-        },
+    /**
+     * register: registar novo utilizador (chama o endpoint /api/auth/register)
+     * Ajusta payload conforme teu DTO do backend.
+     */
+    register: async (userData: { email: string; password: string; nome?: string; sobrenome?: string; telefone?: string }) => {
+      update(s => ({ ...s, isLoading: true }));
+      try {
+        const res = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userData)
+        });
 
-        // Debug function (opcional)
-        debugTokens
-    };
+        if (!res.ok) {
+          let message = `Registration failed: ${res.status}`;
+          try {
+            const err = await res.json();
+            message = err?.message || message;
+          } catch {}
+          throw new Error(message);
+        }
+
+        const result = await res.json();
+
+        update(s => ({ ...s, isLoading: false }));
+        return { success: true, message: result.message || 'Registered' };
+      } catch (error) {
+        console.error('❌ [AUTH REGISTER] erro:', error);
+        update(s => ({ ...s, isLoading: false }));
+        throw error;
+      }
+    },
+
+    // expor refresh para uso manual
+    refresh,
+
+    /**
+     * refreshUser: reconsulta /api/auth/me com o token atual e atualiza user no store e localStorage
+     */
+    refreshUser: async () => {
+      if (!browser) return;
+      const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+      if (!token) return;
+      try {
+        const user = await getCurrentUser(token);
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+        update(s => ({ ...s, user }));
+      } catch (err) {
+        console.error('❌ [AUTH refreshUser] falha ao atualizar user:', err);
+      }
+    },
+
+    // logout público
+    logout,
+
+    /**
+     * updateUser: atualiza o objecto user no store e persiste no localStorage
+     */
+    updateUser: (userData: Partial<User>) => {
+      update(state => {
+        const newUser = state.user ? { ...state.user, ...userData } : null;
+        if (browser && newUser) {
+          try {
+            localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+          } catch (e) {
+            console.warn('[AUTH] Falha ao salvar user no localStorage:', e);
+          }
+        }
+        return {
+          ...state,
+          user: newUser
+        };
+      });
+    },
+
+    // debug
+    debugTokens,
+
+    // função auxiliar para obter o user síncrono (poderás não precisar)
+    getUserSync: () => {
+      let current: AuthState;
+      const unsub = subscribe(s => (current = s));
+      unsub();
+      // @ts-ignore
+      return current!.user as User | null;
+    }
+  };
 }
 
 export const auth = createAuthStore();
