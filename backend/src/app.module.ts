@@ -5,10 +5,13 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProfileModule } from './profile/profile.module';
-import { SchoolModule } from './school/school.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { TeacherModule } from './teacher/teacher.module';
+import { ClassModule } from './class/class.module';
+import { DisciplineModule } from './discipline/discipline.module';
+import { StudentModule } from './student/student.module';
 
 @Module({
   imports: [AuthModule,
@@ -17,7 +20,6 @@ import { extname } from 'path';
     }),
     PrismaModule,
     ProfileModule,
-    SchoolModule,
     MulterModule.register({
       storage: diskStorage({
         destination: './uploads/escolas',
@@ -38,6 +40,10 @@ import { extname } from 'path';
         fileSize: 10 * 1024 * 1024, // 10MB
       },
     }),
+    TeacherModule,
+    ClassModule,
+    DisciplineModule,
+    StudentModule,
     ],
   controllers: [AppController],
   providers: [AppService],

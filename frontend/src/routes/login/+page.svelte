@@ -1,30 +1,40 @@
 <script lang="ts">
   import axios from 'axios';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores'; // 👈 ADICIONAR ISTO
   import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { auth } from '$lib/store/auth'; // ✅ IMPORTAR A STORE
-  import '../../app.css';
+  import { auth } from '$lib/store/auth';
+  import '../../app.css'
+	import { notifications } from '$lib/store/notifications';
+	import Notification from '$lib/components/Notification.svelte'; 
+	import { LogIn, Mail, Lock } from 'lucide-svelte';
   
+
   let email = '';
   let password = '';
   let isLoading = false;
   let error = '';
 
+  // 👇 Captura erros vindos pela URL (ex: ?error=processing_failed)
+  $: {
+    const errorParam = $page.url.searchParams.get('error');
+    if (errorParam) {
+      if (errorParam === "processing_failed") {
+        notifications.send("Falha ao processar o login. Tente novamente.", "error")
+      } else {
+        error = "Ocorreu um erro durante o login.";
+      }
+    }
+  }
+
   async function handleLogin() {
     isLoading = true;
     error = '';
     try {
-      console.log('🖱️ [LOGIN PAGE] Iniciando login manual...');
-      
-      // ✅ USAR A STORE AUTH EM VEZ DE AXIOS DIRETO
       const result = await auth.login({ email, password });
-      
-      console.log('✅ [LOGIN PAGE] Login bem-sucedido via store auth:', result);
       goto('/dashboard');
-      
     } catch (err: any) {
-      console.error('❌ [LOGIN PAGE] Erro no login:', err);
       error = err.message || 'Email ou password inválidos';
     } finally {
       isLoading = false;
@@ -36,6 +46,7 @@
   }
 </script>
 
+<Notification/>
 <!-- O resto do código permanece igual -->
 
 <!-- Fundo da página já é definido no app.css (surface-50-900) -->
@@ -52,11 +63,16 @@
   -->
   <div class="card p-10 w-full max-w-md shadow-xl space-y-8 bg-surface-100-800-token border border-surface-200-700-token">
     
-    <div class="text-center">
-      <!-- Título com a cor primária do tema -->
-      <h2 class="h2 font-bold text-primary-500">KaniMente</h2>
-      <p class="mt-2 opacity-75">O seu tutor com IA</p>
+    
+    <!-- Cabeçalho / Logo -->
+    <div class="text-center mb-8 space-y-2">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary-500 to-secondary-500 text-white shadow-lg mb-4">
+            <span class="text-3xl font-bold">K</span>
+        </div>
+        <h1 class="h2 font-bold text-surface-900 dark:text-surface-50">Bem-vindo de volta</h1>
+        <p class="text-surface-500">Aceda ao seu tutor inteligente KaniMente</p>
     </div>
+
 
     {#if error}
       <aside class="alert variant-filled-error">
@@ -65,20 +81,35 @@
     {/if}
 
     <form class="space-y-6" on:submit|preventDefault={handleLogin}>
-      <label class="label">
-        <span>Email</span>
-        <input class="input p-3" type="email" bind:value={email} required placeholder="email@exemplo.com" />
-      </label>
+            <label class="label">
+                <span class="font-medium text-sm ml-1">Email</span>
+                <div class="input-group input-group-divider grid-cols-1">
+                    <input type="email" bind:value={email} placeholder="seu@email.com" class="bg-transparent border-none focus:ring-0" />
+                </div>
+            </label>
 
-      <label class="label">
-        <span>Password</span>
-        <input class="input p-3" type="password" bind:value={password} required placeholder="••••••••" />
-      </label>
+            <!-- Input Password -->
+            <label class="label">
+                <span class="font-medium text-sm ml-1">Palavra-passe</span>
+                <div class="input-group input-group-divider grid-cols-1">
+                    <input type="password" bind:value={password} placeholder="••••••••" class="bg-transparent border-none focus:ring-0" />
+                </div>
+            </label>
+
+            <!-- Links Auxiliares -->
+            <div class="flex justify-end">
+                <a href="/reset-password" class="text-sm text-primary-500 hover:underline">Esqueceu a senha?</a>
+            </div>
 
       <!-- Botão Primário (Azul Wintry) -->
-      <button type="submit" class="btn variant-filled-primary w-full font-bold py-3" disabled={isLoading}>
-        {#if isLoading}A entrar...{:else}Entrar{/if}
-      </button>
+            <button type="submit" class="btn variant-filled-primary w-full font-bold py-3 shadow-md" disabled={isLoading}>
+                {#if isLoading}
+                    <span class="loading loading-spinner loading-sm"></span>
+                {:else}
+                    <span>Entrar</span>
+                    <LogIn size={18} class="ml-2"/>
+                {/if}
+            </button>
     </form>
 
     <div class="relative flex py-2 items-center">

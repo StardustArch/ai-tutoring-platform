@@ -15,80 +15,82 @@ enum Role {
 }
 
 model Usuario {
-  id                Int           @id @default(autoincrement())
-  email             String        @unique
-  nome              String
-  sobrenome         String
-  telefone          String  
-  role              Role          @default(USER)
-  passwordHash      String?
-  oauthProvider     String?
-  oauthId           String?       @unique
+  id            Int     @id @default(autoincrement())
+  email         String  @unique
+  nome          String
+  sobrenome     String
+  telefone      String
+  role          Role    @default(USER)
+  passwordHash  String?
+  oauthProvider String?
+  oauthId       String? @unique
 
   // Relações 1-para-1 com os Perfis
-  perfilProfessor   Professor?
-  perfilEncarregado Encarregado?
-  administradorEscola AdministradorEscola?
+  perfilProfessor     Professor?
+  perfilEncarregado   Encarregado?
 
   @@map("usuarios")
 }
 
 model Professor {
-  id           Int       @id @default(autoincrement())
-  escolaId     Int?      // Tornar opcional para compatibilidade
-  isVerificado Boolean   @default(false)
-  usuarioId    Int       @unique
-  usuario      Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  escola       Escola?   @relation(fields: [escolaId], references: [id])
-
-  // Relações Muitos-para-Muitos (M-N)
-  disciplinas Disciplina[] @relation("ProfessorDisciplinas")
-  alunos      Aluno[]      @relation("ProfessorAlunos")
+  id           Int     @id @default(autoincrement())
+  
+  // 1. O nome da escola é agora apenas uma string (auto-declaração)
+  escolaNome   String? 
+  
+  // 2. Não há mais isVerificado (confiança no professor, como decidimos)
+  
+  usuarioId    Int     @unique
+  usuario      Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  turmas       Turma[]
+  alunos       Aluno[] @relation("ProfessorAlunos")
 
   @@map("professores")
 }
 
 model Encarregado {
-  id        Int       @id @default(autoincrement())
-  usuarioId Int       @unique
-  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  usuarioId Int     @unique
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   alunos    Aluno[]
 
   @@map("encarregados")
 }
 
 model Aluno {
-  id              Int       @id @default(autoincrement())
-  nome            String
-  sobrenome       String
-  dataNascimento  DateTime? @db.Date
-  classe          Int
-  encarregadoId   Int
-  encarregado     Encarregado @relation(fields: [encarregadoId], references: [id], onDelete: Cascade)
-  professores     Professor[] @relation("ProfessorAlunos")
+  id                  Int                       @id @default(autoincrement())
+  nome                String
+  sobrenome           String
+  dataNascimento      DateTime?                 @db.Date
+  classe              Int
+  encarregadoId       Int
+  encarregado         Encarregado               @relation(fields: [encarregadoId], references: [id], onDelete: Cascade)
+  professores         Professor[]               @relation("ProfessorAlunos")
   chatMensagens       ChatMensagem[]
   exercicioResultados ExercicioResultado[]
   proficienciaTopicos AlunoProficienciaTopico[]
+  alunoTurmas         AlunoTurma[]
 
   @@map("alunos")
 }
 
 // --- 3. O CONTEÚDO: Disciplinas e Tópicos ---
 model Disciplina {
-  id    Int    @id @default(autoincrement())
-  nome  String @unique
-  professores Professor[] @relation("ProfessorDisciplinas")
+  id          Int         @id @default(autoincrement())
+  nome        String      @unique
   topicos     Topico[]
+  turmas      Turma[]
 
   @@map("disciplinas")
 }
 
 model Topico {
-  id           Int    @id @default(autoincrement())
-  nome         String
-  nivelClasse  Int
-  disciplinaId Int
-  disciplina   Disciplina @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  id                  Int                       @id @default(autoincrement())
+  nome                String
+  nivelClasse         Int
+  disciplinaId        Int
+  disciplina          Disciplina                @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
   chatMensagens       ChatMensagem[]
   exercicioResultados ExercicioResultado[]
   proficienciaTopicos AlunoProficienciaTopico[]
@@ -151,82 +153,40 @@ model AlunoProficienciaTopico {
   @@map("aluno_proficiencia_topicos")
 }
 
-// --- 5. NOVOS MODELOS PARA SISTEMA DE CÓDIGOS ---
-model Escola {
-  id          Int               @id @default(autoincrement())
-  nome        String
-  codigo      String?           @unique
-  localizacao String?
-  emailInstitucional String?
-  telefoneInstitucional String?
-  isVerificada Boolean          @default(false)
-  ativa       Boolean           @default(true)
-  
-  // Documentos de verificação institucional
-  documentosVerificacao DocumentoEscola[]
-  
-  // Relações
-  administradores AdministradorEscola[]
-  codigosProfessor CodigoProfessor[]
-  professores     Professor[]
-  
-  criadoEm    DateTime          @default(now())
-  atualizadoEm DateTime         @updatedAt
-  
-  @@map("escolas")
-}
+// Adicione isto ao seu schema.prisma
 
-model AdministradorEscola {
-  id                Int                      @id @default(autoincrement())
-  usuarioId         Int                      @unique
-  escolaId          Int
-  isVerificado      Boolean                  @default(false)
+model Turma {
+  id           Int     @id @default(autoincrement())
+  nome         String
+  codigo       String  @unique
+  disciplinaId Int
+  professorId  Int
   
-  usuario           Usuario                  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  escola            Escola                   @relation(fields: [escolaId], references: [id], onDelete: Cascade)
-  
-  criadoEm          DateTime                 @default(now())
-  atualizadoEm      DateTime                 @updatedAt
-  
-  @@map("administradores_escola")
-}
+  // 3. O campo escolaId (que apontava para a tabela Escola) é substituído pelo nome
+  escolaNome   String? // Nome da escola (redundância segura)
 
-model CodigoProfessor {
-  id        Int      @id @default(autoincrement())
-  codigo    String   @unique
-  escolaId  Int
-  criadoPor Int      // Usuario ID do administrador que criou
-  usadoPor  Int?     // Usuario ID que consumiu o código
-  usadoEm   DateTime?
-  validoAte DateTime
-  isUsado   Boolean  @default(false)
-  ativo     Boolean  @default(true)
+  ativa        Boolean @default(true)
 
   // Relações
-  escola    Escola   @relation(fields: [escolaId], references: [id], onDelete: Cascade)
-  
-  criadoEm  DateTime @default(now())
+  disciplina Disciplina   @relation(fields: [disciplinaId], references: [id])
+  professor  Professor    @relation(fields: [professorId], references: [id])
+  // REMOVIDA: escola Escola @relation(fields: [escolaId], references: [id])
+  alunos     AlunoTurma[]
+
+  criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
-  
-  @@map("codigos_professor")
-}
 
-model DocumentoEscola {
-  id          Int      @id @default(autoincrement())
-  escolaId    Int
-  tipo        String   // "alvara", "certificado_registro", "outro"
-  url         String
-  nomeArquivo String
-  numeroDocumento String? // Número do alvará/certificado
-  dataEmissao DateTime?
-  dataValidade DateTime?
-  aprovado    Boolean? 
-  observacoes String?
-  
-  escola      Escola   @relation(fields: [escolaId], references: [id], onDelete: Cascade)
-  criadoEm    DateTime @default(now())
-  aprovadoEm  DateTime?
-  
-  @@map("documentos_escola")
+  @@map("turmas")
 }
+model AlunoTurma {
+  id      Int   @id @default(autoincrement())
+  alunoId Int
+  turmaId Int
+  aluno   Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  turma   Turma @relation(fields: [turmaId], references: [id], onDelete: Cascade)
 
+  criadoEm DateTime @default(now())
+
+  @@unique([alunoId, turmaId])
+  @@map("aluno_turma")
+}

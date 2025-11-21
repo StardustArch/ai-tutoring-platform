@@ -28,21 +28,12 @@ export interface PerfilEncarregado {
 
 export interface PerfilProfessor {
   id: number;
-  escola?: string;
+  escolaNome?: string;
   isVerificado: boolean;
   usuarioId: number;
-  disciplinas: Disciplina[];
-  alunos: Aluno[];
 }
 
-export interface AdministradorEscola {
-  id: number;
-  usuarioId: number;
-  escolaId: number;
-  isVerificado: boolean;
-  criadoEm: string;
-  atualizadoEm: string;
-}
+
 
 export interface User {
   id: number;
@@ -55,7 +46,6 @@ export interface User {
   oauthId?: string | null;
   perfilEncarregado?: PerfilEncarregado | null;
   perfilProfessor?: PerfilProfessor | null;
-  administradorEscola?: AdministradorEscola | null;
 }
 
 /**
@@ -106,7 +96,7 @@ const debugTokens = () => {
  * Lança exceção se falhar (o chamador decide como tratar)
  */
 const getCurrentUser = async (token: string): Promise<User> => {
-  const res = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/me`, {
+  const res = await fetch(`${PUBLIC_API_URL_HOST}/api/profile/me`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -116,7 +106,7 @@ const getCurrentUser = async (token: string): Promise<User> => {
 
   if (!res.ok) {
     const text = await res.text();
-    console.error('❌ [AUTH] Falha ao buscar /api/auth/me:', res.status, text);
+    console.error('❌ [AUTH] Falha ao buscar /api/profile/me:', res.status, text);
     throw new Error(`Failed to fetch user data: ${res.status}`);
   }
 
