@@ -122,4 +122,5 @@ export class StudentService {
       throw new NotFoundException('Educando não encontrado ou sem permissão.');
     }
   }
+
 }

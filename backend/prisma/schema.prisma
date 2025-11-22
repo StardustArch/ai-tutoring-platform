@@ -26,25 +26,25 @@ model Usuario {
   oauthId       String? @unique
 
   // Relações 1-para-1 com os Perfis
-  perfilProfessor     Professor?
-  perfilEncarregado   Encarregado?
+  perfilProfessor   Professor?
+  perfilEncarregado Encarregado?
 
   @@map("usuarios")
 }
 
 model Professor {
-  id           Int     @id @default(autoincrement())
-  
+  id Int @id @default(autoincrement())
+
   // 1. O nome da escola é agora apenas uma string (auto-declaração)
-  escolaNome   String? 
-  
+  escolaNome String?
+
   // 2. Não há mais isVerificado (confiança no professor, como decidimos)
-  
-  usuarioId    Int     @unique
-  usuario      Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  
-  turmas       Turma[]
-  alunos       Aluno[] @relation("ProfessorAlunos")
+
+  usuarioId Int     @unique
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  turmas Turma[]
+  alunos Aluno[] @relation("ProfessorAlunos")
 
   @@map("professores")
 }
@@ -65,6 +65,7 @@ model Aluno {
   dataNascimento      DateTime?                 @db.Date
   classe              Int
   encarregadoId       Int
+  xp                  Int                       @default(0) // ✅ NOVO: Pontuação Global
   encarregado         Encarregado               @relation(fields: [encarregadoId], references: [id], onDelete: Cascade)
   professores         Professor[]               @relation("ProfessorAlunos")
   chatMensagens       ChatMensagem[]
@@ -77,10 +78,10 @@ model Aluno {
 
 // --- 3. O CONTEÚDO: Disciplinas e Tópicos ---
 model Disciplina {
-  id          Int         @id @default(autoincrement())
-  nome        String      @unique
-  topicos     Topico[]
-  turmas      Turma[]
+  id      Int      @id @default(autoincrement())
+  nome    String   @unique
+  topicos Topico[]
+  turmas  Turma[]
 
   @@map("disciplinas")
 }
@@ -94,6 +95,7 @@ model Topico {
   chatMensagens       ChatMensagem[]
   exercicioResultados ExercicioResultado[]
   proficienciaTopicos AlunoProficienciaTopico[]
+  exercicios          Exercicio[]
 
   @@map("topicos")
 }
@@ -121,16 +123,37 @@ model ChatMensagem {
 }
 
 model ExercicioResultado {
-  id           Int      @id @default(autoincrement())
-  timestamp    DateTime @default(now())
-  acertou      Boolean
-  detalhesJson Json?
-  alunoId      Int
-  aluno        Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
-  topicoId     Int
-  topico       Topico   @relation(fields: [topicoId], references: [id], onDelete: Cascade)
+  id            Int      @id @default(autoincrement())
+  timestamp     DateTime @default(now())
+  acertou       Boolean
+  respostaAluno String?
+  detalhesJson  Json?
+
+  alunoId     Int
+  topicoId    Int
+  exercicioId Int?
+
+  aluno     Aluno      @relation(fields: [alunoId], references: [id])
+  topico    Topico     @relation(fields: [topicoId], references: [id])
+  exercicio Exercicio? @relation(fields: [exercicioId], references: [id])
 
   @@map("exercicio_resultados")
+}
+
+model Exercicio {
+  id       Int    @id @default(autoincrement())
+  topicoId Int
+  topico   Topico @relation(fields: [topicoId], references: [id])
+
+  tipo String // "multiple_choice", "fill_in_blank", "true_false", etc.
+
+  resultados ExercicioResultado[]
+
+  pergunta    String
+  opcoesJson  Json? // ["A","B","C","D"]
+  resposta    String // resposta correta
+  dificuldade Int // 1-5
+  criadoEm    DateTime @default(now())
 }
 
 enum NivelProficiencia {
@@ -142,12 +165,14 @@ enum NivelProficiencia {
 }
 
 model AlunoProficienciaTopico {
-  id       Int               @id @default(autoincrement())
-  nivel    NivelProficiencia @default(NAO_DIAGNOSTICADO)
-  alunoId  Int
-  aluno    Aluno             @relation(fields: [alunoId], references: [id], onDelete: Cascade)
-  topicoId Int
-  topico   Topico            @relation(fields: [topicoId], references: [id], onDelete: Cascade)
+  id             Int               @id @default(autoincrement())
+  nivel          NivelProficiencia @default(NAO_DIAGNOSTICADO)
+  alunoId        Int
+  aluno          Aluno             @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  topicoId       Int
+  topico         Topico            @relation(fields: [topicoId], references: [id], onDelete: Cascade)
+  bloqueadoAte   DateTime? // Se estiver no futuro, o aluno não pode jogar
+  vidasRestantes Int               @default(3) // Persistência de vidas no servidor (
 
   @@unique([alunoId, topicoId])
   @@map("aluno_proficiencia_topicos")
@@ -156,16 +181,16 @@ model AlunoProficienciaTopico {
 // Adicione isto ao seu schema.prisma
 
 model Turma {
-  id           Int     @id @default(autoincrement())
+  id           Int    @id @default(autoincrement())
   nome         String
-  codigo       String  @unique
+  codigo       String @unique
   disciplinaId Int
   professorId  Int
-  
-  // 3. O campo escolaId (que apontava para a tabela Escola) é substituído pelo nome
-  escolaNome   String? // Nome da escola (redundância segura)
 
-  ativa        Boolean @default(true)
+  // 3. O campo escolaId (que apontava para a tabela Escola) é substituído pelo nome
+  escolaNome String? // Nome da escola (redundância segura)
+
+  ativa Boolean @default(true)
 
   // Relações
   disciplina Disciplina   @relation(fields: [disciplinaId], references: [id])
@@ -178,6 +203,7 @@ model Turma {
 
   @@map("turmas")
 }
+
 model AlunoTurma {
   id      Int   @id @default(autoincrement())
   alunoId Int

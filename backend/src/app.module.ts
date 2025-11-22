@@ -12,6 +12,7 @@ import { TeacherModule } from './teacher/teacher.module';
 import { ClassModule } from './class/class.module';
 import { DisciplineModule } from './discipline/discipline.module';
 import { StudentModule } from './student/student.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [AuthModule,
@@ -20,30 +21,11 @@ import { StudentModule } from './student/student.module';
     }),
     PrismaModule,
     ProfileModule,
-    MulterModule.register({
-      storage: diskStorage({
-        destination: './uploads/escolas',
-        filename: (req, file, cb) => {
-          const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
-          const escolaId = req.params.id;
-          return cb(null, `${escolaId}-${randomName}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (file.mimetype.match(/\/(pdf|jpg|jpeg|png)$/)) {
-          cb(null, true);
-        } else {
-          cb(new Error('Formato de arquivo não suportado'), false);
-        }
-      },
-      limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB
-      },
-    }),
     TeacherModule,
     ClassModule,
     DisciplineModule,
     StudentModule,
+    ChatModule,
     ],
   controllers: [AppController],
   providers: [AppService],
