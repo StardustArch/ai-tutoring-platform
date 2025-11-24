@@ -6,16 +6,21 @@
     import { goto } from '$app/navigation';
     import confetti from 'canvas-confetti';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
-    import '../../../../../../../app.css'
 
     let studentId = $page.params.id || '';
     let studentClass = 5; // TODO: Buscar do perfil do aluno
     
-    type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER' | 'BLOCKED';
+    type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER' | 'BLOCKED' | 'DIAGNOSTIC';
     let currentState: GameState = 'MENU';
 
     let selectedSubject = 'matematica';
     let selectedSubtopic = '';
+    
+    // Estado do diagnóstico
+    let needsDiagnostic = false;
+    let diagnosticQuestions: any[] = [];
+    let currentDiagnosticIndex = 0;
+    let diagnosticAnswers: Array<{ topico: string; acertou: boolean }> = [];
     
     let loading = false;
     let questionData: any = null;
@@ -54,6 +59,125 @@
         }
     });
 
+    // Verifica se precisa de diagnóstico antes de começar o jogo
+    async function checkAndStartGame(subject: string, subtopic: string) {
+        selectedSubject = subject;
+        selectedSubtopic = subtopic;
+        
+        try {
+            // Verifica se precisa de diagnóstico
+            const res = await apiFetch(
+                `${PUBLIC_API_URL_HOST}/api/diagnostic/needs/${studentId}?disciplina=${subject}`
+            );
+            
+            if (res.ok) {
+                const data = await res.json();
+                needsDiagnostic = data.needs;
+                
+                if (needsDiagnostic) {
+                    // Precisa fazer diagnóstico primeiro
+                    await startDiagnostic();
+                } else {
+                    // Pode jogar normalmente
+                    startGame(subject, subtopic);
+                }
+            } else {
+                // Se falhar, permite jogar (fallback)
+                startGame(subject, subtopic);
+            }
+        } catch (error) {
+            console.error('Erro ao verificar diagnóstico:', error);
+            startGame(subject, subtopic);
+        }
+    }
+
+    // Inicia o teste diagnóstico
+    async function startDiagnostic() {
+        loading = true;
+        currentState = 'DIAGNOSTIC';
+        
+        try {
+            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    alunoId: parseInt(studentId),
+                    disciplina: selectedSubject,
+                    classe: studentClass
+                })
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                diagnosticQuestions = data.perguntas || [];
+                currentDiagnosticIndex = 0;
+                diagnosticAnswers = [];
+            } else {
+                throw new Error('Falha ao gerar diagnóstico');
+            }
+        } catch (error) {
+            console.error('Erro ao iniciar diagnóstico:', error);
+            // Fallback: deixa jogar sem diagnóstico
+            currentState = 'MENU';
+            startGame(selectedSubject, selectedSubtopic);
+        } finally {
+            loading = false;
+        }
+    }
+
+    // Responde pergunta do diagnóstico
+    function answerDiagnostic(option: string) {
+        if (!diagnosticQuestions[currentDiagnosticIndex]) return;
+        
+        const currentQuestion = diagnosticQuestions[currentDiagnosticIndex];
+        const acertou = option === currentQuestion.correct_answer;
+        
+        diagnosticAnswers.push({
+            topico: currentQuestion.topico,
+            acertou
+        });
+        
+        // Próxima pergunta ou finaliza
+        if (currentDiagnosticIndex < diagnosticQuestions.length - 1) {
+            currentDiagnosticIndex++;
+            selectedOption = null; // ✅ Reset
+            isCorrect = null; // ✅ Reset
+        } else {
+            // Finaliza diagnóstico
+            finalizeDiagnostic(); // ✅ Remove await (não precisa bloquear)
+        }
+    }
+
+    // Finaliza e processa diagnóstico
+    async function finalizeDiagnostic() {
+        loading = true;
+        
+        try {
+            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    alunoId: parseInt(studentId),
+                    disciplina: selectedSubject,
+                    respostas: diagnosticAnswers
+                })
+            });
+            
+            if (res.ok) {
+                const resultado = await res.json();
+                // Mostra resultado e depois inicia o jogo
+                alert(`Diagnóstico completo!\nNível: ${resultado.analise.nivel}\nAcertos: ${diagnosticAnswers.filter(r => r.acertou).length}/${diagnosticAnswers.length}`);
+            }
+        } catch (error) {
+            console.error('Erro ao processar diagnóstico:', error);
+        } finally {
+            loading = false;
+            needsDiagnostic = false;
+            // Inicia o jogo após diagnóstico
+            startGame(selectedSubject, selectedSubtopic);
+        }
+    }
+
     const TOPICS = {
         matematica: [
             { id: 'Adição e Subtração', icon: Calculator, color: 'bg-blue-500' },
@@ -90,14 +214,14 @@
     $: if (currentState === 'BLOCKED' && blockedUntil) {
         const interval = setInterval(updateBlockTimer, 1000);
         updateBlockTimer();
-        () => clearInterval(interval);
+       () => clearInterval(interval);
     }
 
     function startGame(subject: string, subtopic: string) {
         selectedSubject = subject;
         selectedSubtopic = subtopic;
         currentState = 'PLAYING';
-        lives = 3;
+        lives = 3; // ✅ Reset local
         score = 0;
         loadQuestion();
     }
@@ -112,11 +236,10 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    alunoId: parseInt(studentId), // ✅ Agora enviamos o alunoId
+                    alunoId: parseInt(studentId),
                     classe: studentClass,
                     disciplina: selectedSubject,
-                    subtopico: selectedSubtopic,
-                    
+                    subtopico: selectedSubtopic
                 })
             });
             
@@ -131,6 +254,11 @@
             if (!res.ok) throw new Error('Erro na API');
             
             questionData = await res.json();
+            
+            // ✅ NOVO: Buscar vidas atuais do tópico na primeira pergunta
+            if (score === 0) {
+                await fetchCurrentLives();
+            }
         } catch (e) {
             console.error('Erro:', e);
             questionData = {
@@ -144,12 +272,30 @@
         }
     }
 
+    // ✅ NOVO: Busca vidas atuais do servidor para o tópico específico
+    async function fetchCurrentLives() {
+        try {
+            const res = await apiFetch(
+                `${PUBLIC_API_URL_HOST}/api/rush/lives/${studentId}?disciplina=${selectedSubject}&subtopico=${encodeURIComponent(selectedSubtopic)}&classe=${studentClass}`
+            );
+            if (res.ok) {
+                const data = await res.json();
+                if (data.lives !== undefined) {
+                    lives = data.lives;
+                    console.log(`🎮 Vidas carregadas para ${selectedSubtopic}: ${data.lives}`);
+                }
+            }
+        } catch (e) {
+            console.error('Erro ao buscar vidas:', e);
+        }
+    }
+
     async function handleAnswer(option: string) {
         if (selectedOption) return;
         selectedOption = option;
         
-        // Validação otimista
-        isCorrect = option === questionData.correct_answer;
+        // ✅ NÃO definir isCorrect aqui - deixa null até servidor responder
+        // Isso evita o glitch visual
 
         try {
             const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/answer`, {
@@ -164,9 +310,11 @@
             });
             
             const result = await res.json();
+            
+            // ✅ Só agora define isCorrect após resposta do servidor
             isCorrect = result.acertou;
             
-            // ✅ Atualizar vidas do servidor
+            // ✅ SEMPRE atualizar vidas do servidor (fonte da verdade)
             if (result.livesRemaining !== undefined) {
                 lives = result.livesRemaining;
             }
@@ -174,10 +322,9 @@
             if (isCorrect) {
                 confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
                 score += 10;
-                stats.xp += 10; // Atualiza XP localmente
+                stats.xp += 10;
                 stats.acertos += 1;
             } else {
-                lives--;
                 stats.erros += 1;
             }
             
@@ -186,22 +333,23 @@
             stats.taxaAcerto = total > 0 ? Math.round((stats.acertos / total) * 100) : 0;
             stats.totalExercicios = total;
             
-            // ✅ Verificar bloqueio
-            if (result.blocked) {
+            // ✅ Verificar bloqueio PRIMEIRO
+            if (result.blocked && result.blockedUntil) {
                 blockedUntil = new Date(result.blockedUntil);
-                setTimeout(() => { currentState = 'BLOCKED'; }, 1500);
+                setTimeout(() => { 
+                    currentState = 'BLOCKED';
+                }, 1500);
                 return;
             }
             
+            // Só verifica game over se não bloqueou
             if (lives <= 0) {
                 setTimeout(() => { currentState = 'GAMEOVER'; }, 1500);
             }
         } catch (error) {
             console.error('Erro envio:', error);
-            if (!isCorrect) lives--;
-            if (lives <= 0) {
-                setTimeout(() => { currentState = 'GAMEOVER'; }, 1500);
-            }
+            // Em caso de erro, marca como incorreto para não travar UI
+            isCorrect = false;
         }
     }
 </script>
@@ -305,7 +453,7 @@
                     </h2>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {#each TOPICS.matematica as topic}
-                            <button on:click={() => startGame('matematica', topic.id)}
+                            <button on:click={() => checkAndStartGame('matematica', topic.id)}
                                 class="relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-surface-800 shadow-sm border-2 border-surface-200 dark:border-surface-700 hover:border-blue-500 hover:shadow-md transition-all text-left group">
                                 <div class="relative z-10">
                                     <div class={`w-12 h-12 rounded-xl ${topic.color} text-white flex items-center justify-center mb-3 shadow-sm`}>
@@ -325,7 +473,7 @@
                     </h2>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {#each TOPICS.portugues as topic}
-                            <button on:click={() => startGame('portugues', topic.id)}
+                            <button on:click={() => checkAndStartGame('portugues', topic.id)}
                                 class="relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-surface-800 shadow-sm border-2 border-surface-200 dark:border-surface-700 hover:border-green-500 hover:shadow-md transition-all text-left group">
                                 <div class="relative z-10">
                                     <div class={`w-12 h-12 rounded-xl ${topic.color} text-white flex items-center justify-center mb-3 shadow-sm`}>
@@ -360,17 +508,28 @@
                     {#each questionData.options as option}
                         <button 
                             class="relative p-6 rounded-2xl border-2 border-b-[6px] text-lg font-bold transition-all
-                            {selectedOption === option 
-                                ? (option === questionData.correct_answer
+                            {selectedOption === option && isCorrect === null
+                                ? 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-400 dark:border-yellow-600 animate-pulse'
+                                : selectedOption === option && isCorrect 
                                     ? 'bg-green-500 border-green-700 text-white' 
-                                    : 'bg-red-500 border-red-700 text-white')
-                                : selectedOption && option === questionData.correct_answer
-                                    ? 'bg-green-500 border-green-700 text-white'
-                                    : 'bg-white dark:bg-surface-800 border-surface-200 dark:border-surface-700 hover:border-primary-400'}"
+                                    : selectedOption === option && !isCorrect
+                                        ? 'bg-red-500 border-red-700 text-white'
+                                        : selectedOption && option === questionData.correct_answer
+                                            ? 'bg-green-500 border-green-700 text-white'
+                                            : 'bg-white dark:bg-surface-800 border-surface-200 dark:border-surface-700 hover:border-primary-400'}"
                             on:click={() => handleAnswer(option)}
                             disabled={!!selectedOption}>
                             {option}
-                            {#if selectedOption === option}
+                            
+                            <!-- Loading state -->
+                            {#if selectedOption === option && isCorrect === null}
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/5 rounded-2xl">
+                                    <div class="w-6 h-6 border-3 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                            {/if}
+                            
+                            <!-- Result state -->
+                            {#if selectedOption === option && isCorrect !== null}
                                 <div class="absolute inset-0 flex items-center justify-center bg-black/10 rounded-2xl">
                                     {#if option === questionData.correct_answer}
                                         <Check size={32} class="text-white" />
@@ -428,6 +587,91 @@
                     Tentar de Novo
                 </button>
             </div>
+        </div>
+
+    <!-- DIAGNOSTIC STATE -->
+    {:else if currentState === 'DIAGNOSTIC'}
+        <div class="flex-1 flex flex-col justify-center max-w-3xl mx-auto w-full p-6">
+            {#if loading}
+                <div class="flex flex-col items-center justify-center">
+                    <div class="w-20 h-20 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+                    <p class="text-lg font-medium text-surface-600 dark:text-surface-300">Preparando teste diagnóstico...</p>
+                </div>
+            {:else if diagnosticQuestions.length > 0}
+                <!-- Progresso -->
+                <div class="mb-8">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-bold text-surface-600 dark:text-surface-400">
+                            Teste Diagnóstico de {selectedSubject === 'matematica' ? 'Matemática' : 'Português'}
+                        </span>
+                        <span class="text-sm font-bold text-primary-500">
+                            {currentDiagnosticIndex + 1} / {diagnosticQuestions.length}
+                        </span>
+                    </div>
+                    <div class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2">
+                        <div 
+                            class="bg-gradient-to-r from-primary-500 to-secondary-500 h-2 rounded-full transition-all duration-300"
+                            style="width: {((currentDiagnosticIndex + 1) / diagnosticQuestions.length) * 100}%"
+                        ></div>
+                    </div>
+                </div>
+
+                <!-- Pergunta atual -->
+                {@const currentQ = diagnosticQuestions[currentDiagnosticIndex]}
+                
+                <div class="text-center mb-4">
+                    <span class="bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-xs font-bold px-3 py-1 rounded-full uppercase">
+                        {currentQ.topico}
+                    </span>
+                </div>
+
+                <h2 class="text-2xl md:text-3xl font-bold text-center mb-12 text-surface-900 dark:text-white">
+                    {currentQ.question}
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {#each currentQ.options as option}
+                        <button 
+                            class="relative p-6 rounded-2xl border-2 border-b-[6px] text-lg font-bold transition-all bg-white dark:bg-surface-800 border-surface-200 dark:border-surface-700 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
+                            on:click={() => {
+                                selectedOption = option;
+                                isCorrect = option === currentQ.correct_answer;
+                                setTimeout(() => answerDiagnostic(option), 800);
+                            }}
+                            disabled={!!selectedOption}
+                            class:bg-green-500={selectedOption === option && isCorrect}
+                            class:border-green-700={selectedOption === option && isCorrect}
+                            class:text-white={selectedOption === option && isCorrect}
+                            class:bg-red-500={selectedOption === option && !isCorrect}
+                            class:border-red-700={selectedOption === option && !isCorrect}
+                        >
+                            {option}
+                            {#if selectedOption === option}
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/10 rounded-2xl">
+                                    {#if isCorrect}
+                                        <Check size={32} class="text-white" />
+                                    {:else}
+                                        <X size={32} class="text-white" />
+                                    {/if}
+                                </div>
+                            {/if}
+                        </button>
+                    {/each}
+                </div>
+
+                <!-- Mensagem motivacional -->
+                <div class="mt-8 text-center">
+                    <p class="text-surface-600 dark:text-surface-400 italic">
+                        {#if currentDiagnosticIndex < 3}
+                            🎯 Vamos descobrir o teu nível!
+                        {:else if currentDiagnosticIndex < 7}
+                            💪 Estás a ir muito bem, continua!
+                        {:else}
+                            🌟 Quase lá, mais algumas perguntas!
+                        {/if}
+                    </p>
+                </div>
+            {/if}
         </div>
     {/if}
 </div>

@@ -58,20 +58,63 @@ model Encarregado {
   @@map("encarregados")
 }
 
+// Adicionar ao schema.prisma existente
+
+enum NivelDificuldade {
+  MUITO_FACIL // 1 - Abaixo do esperado para a classe
+  FACIL // 2 - Um pouco abaixo
+  MEDIO // 3 - Adequado à classe
+  DIFICIL // 4 - Acima da média
+  MUITO_DIFICIL // 5 - Avançado
+}
+
+model DiagnosticoInicial {
+  id      Int   @id @default(autoincrement())
+  alunoId Int
+  aluno   Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+
+  // Disciplina do diagnóstico
+  disciplina String // "matematica" ou "portugues"
+
+  // Resultados do teste
+  acertos          Int
+  totalPerguntas   Int
+  percentualAcerto Float
+
+  // Nível diagnosticado
+  nivelDiagnosticado NivelDificuldade
+
+  // Detalhes por tópico (JSON com estrutura {topico: acertos/total})
+  detalhesTopicos Json?
+
+  // Recomendações geradas pela IA
+  recomendacoes String? @db.Text
+
+  // Timestamp
+  realizadoEm DateTime @default(now())
+  validoAte   DateTime // Diagnóstico expira após 3 meses
+
+  @@unique([alunoId, disciplina])
+  @@map("diagnosticos_iniciais")
+}
+
+// Atualizar o modelo Aluno para incluir a relação
 model Aluno {
-  id                  Int                       @id @default(autoincrement())
-  nome                String
-  sobrenome           String
-  dataNascimento      DateTime?                 @db.Date
-  classe              Int
-  encarregadoId       Int
-  xp                  Int                       @default(0) // ✅ NOVO: Pontuação Global
+  id             Int       @id @default(autoincrement())
+  nome           String
+  sobrenome      String
+  dataNascimento DateTime? @db.Date
+  classe         Int
+  encarregadoId  Int
+  xp             Int       @default(0)
+
   encarregado         Encarregado               @relation(fields: [encarregadoId], references: [id], onDelete: Cascade)
   professores         Professor[]               @relation("ProfessorAlunos")
   chatMensagens       ChatMensagem[]
   exercicioResultados ExercicioResultado[]
   proficienciaTopicos AlunoProficienciaTopico[]
   alunoTurmas         AlunoTurma[]
+  diagnosticos        DiagnosticoInicial[] // ✅ NOVO
 
   @@map("alunos")
 }

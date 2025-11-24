@@ -13,6 +13,7 @@ import { ClassModule } from './class/class.module';
 import { DisciplineModule } from './discipline/discipline.module';
 import { StudentModule } from './student/student.module';
 import { ChatModule } from './chat/chat.module';
+import { DiagnosticModule } from './diagnostic/diagnostic.module';
 
 @Module({
   imports: [AuthModule,
@@ -26,6 +27,7 @@ import { ChatModule } from './chat/chat.module';
     DisciplineModule,
     StudentModule,
     ChatModule,
+    DiagnosticModule
     ],
   controllers: [AppController],
   providers: [AppService],

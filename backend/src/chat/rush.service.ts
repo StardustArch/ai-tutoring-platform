@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nest
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom, timeout } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { NivelDificuldade } from '@prisma/client';
 
 @Injectable()
 export class RushService {
@@ -13,6 +14,32 @@ export class RushService {
     private readonly http: HttpService,
     private readonly prisma: PrismaService
   ) {}
+
+  /**
+   * Obtém o nível de dificuldade baseado no diagnóstico do aluno
+   */
+  private async getDifficultyLevel(alunoId: number, disciplina: string): Promise<number> {
+    const diagnostic = await this.prisma.diagnosticoInicial.findUnique({
+      where: {
+        alunoId_disciplina: { alunoId, disciplina }
+      }
+    });
+
+    if (!diagnostic || new Date() > diagnostic.validoAte) {
+      return 3; // Nível médio por padrão se não houver diagnóstico válido
+    }
+
+    // Mapeia o nível para dificuldade numérica
+    const map: Record<NivelDificuldade, number> = {
+      [NivelDificuldade.MUITO_FACIL]: 1,
+      [NivelDificuldade.FACIL]: 2,
+      [NivelDificuldade.MEDIO]: 3,
+      [NivelDificuldade.DIFICIL]: 4,
+      [NivelDificuldade.MUITO_DIFICIL]: 5
+    };
+
+    return map[diagnostic.nivelDiagnosticado] || 3;
+  }
 
   async getNextQuestion(alunoId: number, classe: number, disciplina: string, subtopico: string) {
     const subject = (disciplina || 'matematica').toLowerCase();
@@ -47,11 +74,15 @@ export class RushService {
         })).map(r => r.exercicio?.pergunta).filter(Boolean) as string[]
       : [];
 
-    // 4. CHAMAR IA
+    // 4. OBTER NÍVEL DE DIFICULDADE DO DIAGNÓSTICO
+    const dificuldade = await this.getDifficultyLevel(alunoId, subject);
+
+    // 5. CHAMAR IA COM DIFICULDADE ADAPTADA
     const payload = {
       student_class: classe,
       subject,
       subtopic,
+      difficulty_level: dificuldade, // ✅ NOVO: Passa o nível diagnosticado
       recent_questions: perguntasParaIgnorar
     };
 
@@ -60,7 +91,7 @@ export class RushService {
       const res = await firstValueFrom(obs.pipe(timeout(this.httpTimeoutMs)));
       const data = res.data;
 
-      // 5. GUARDAR EXERCÍCIO
+      // 5. GUARDAR EXERCÍCIO COM DIFICULDADE
       const created = await this.prisma.exercicio.create({
         data: {
           topicoId,
@@ -68,7 +99,7 @@ export class RushService {
           pergunta: data.question,
           opcoesJson: data.options,
           resposta: data.correct_answer,
-          dificuldade: 5
+          dificuldade: dificuldade // ✅ Usa a dificuldade do diagnóstico
         }
       });
 
@@ -159,6 +190,7 @@ export class RushService {
         prof = await tx.alunoProficienciaTopico.create({
           data: { alunoId, topicoId, nivel: 'INICIANTE', vidasRestantes: 3 }
         });
+        this.logger.log(`✨ Novo registro criado para Aluno ${alunoId} no Tópico ${topicoId} com 3 vidas`);
       }
 
       if (acertou) {
@@ -166,6 +198,9 @@ export class RushService {
           where: { id: alunoId },
           data: { xp: { increment: 10 } }
         });
+        
+        this.logger.log(`✅ Aluno ${alunoId} ACERTOU no Tópico ${topicoId}. Vidas mantidas: ${prof.vidasRestantes}/3`);
+        
         return { 
           ...resultado, 
           blocked: false, 
@@ -177,18 +212,21 @@ export class RushService {
         const blocked = novasVidas === 0;
         const bloqueadoAte: Date | null = blocked ? new Date(Date.now() + 5 * 60000) : null;
 
+        this.logger.log(`❌ Aluno ${alunoId} ERROU no Tópico ${topicoId}. Vidas: ${prof.vidasRestantes} → ${novasVidas}. ${blocked ? '🔒 BLOQUEADO!' : ''}`);
+
         await tx.alunoProficienciaTopico.update({
           where: { id: prof.id },
           data: {
-            vidasRestantes: blocked ? 3 : novasVidas,
+            vidasRestantes: blocked ? 3 : novasVidas, // Reseta para 3 no BD se bloquear
             bloqueadoAte
           }
         });
 
+        // ✅ Se bloqueou, retorna 0 para o frontend mostrar corretamente
         return { 
           ...resultado, 
           blocked, 
-          livesRemaining: blocked ? 3 : novasVidas,
+          livesRemaining: blocked ? 0 : novasVidas,
           blockedUntil: bloqueadoAte
         };
       }
@@ -264,5 +302,22 @@ export class RushService {
       this.logger.error(`Erro ao gerar feedback: ${err.message}`);
       return 'Ótimo trabalho! Continue praticando.';
     }
+  }
+
+  /**
+   * Busca vidas atuais do aluno para um tópico específico
+   */
+  async getCurrentLives(alunoId: number, disciplina: string, subtopico: string, classe: number) {
+    // Busca o tópico específico que está sendo jogado
+    const topicoId = await this.getOrCreateTopicoId(disciplina, subtopico, classe);
+
+    const prof = await this.prisma.alunoProficienciaTopico.findUnique({
+      where: { alunoId_topicoId: { alunoId, topicoId } }
+    });
+
+    return { 
+      lives: prof?.vidasRestantes ?? 3,
+      topicoId 
+    };
   }
 }

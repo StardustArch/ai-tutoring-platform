@@ -158,6 +158,8 @@ OUTPUT RULES (STRICT):
 - Audience: {student_class}th grade (3-6).
 - Subject: {subject}
 - Specific Subtopic: {subtopic} (FOCUS HERE!)
+- Difficulty Level: {difficulty_level} (1=muito fácil, 5=muito difícil)
+Generate questions appropriate for this difficulty.
 
 ⚠️ ANTI-REPETITION RULE:
 You MUST NOT generate any of the following questions (or very similar ones):{exclude_list}
@@ -207,6 +209,8 @@ class RushRequest(BaseModel):
     subject: str = "matematica"  # "matematica" | "portugues"
     subtopic: str               # Ex: "Multiplicação", "Verbos", "Frações"
     recent_questions: list[str] = [] # ✅ NOVO: O que a IA não pode criar
+    difficulty_level: int = 3  # ✅ NOVO: 1-5
+
 
 class RushResponse(BaseModel):
     question: str
@@ -245,7 +249,9 @@ async def generate_rush_question(request: RushRequest):
         student_class=request.student_class, 
         subject=subject,
         subtopic=subtopic,
-        exclude_list=exclude_text # ✅ Injeta no prompt
+        exclude_list=exclude_text, # ✅ Injeta no prompt
+        difficulty_level=request.difficulty_level,  # ✅ Adiciona esta linha
+
     )
 
     messages = [
