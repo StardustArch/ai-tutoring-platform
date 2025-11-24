@@ -2,13 +2,20 @@
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { apiFetch } from '$lib/utils/api';
-    import { ArrowLeft, Zap, Check, X, Heart, Brain, BookOpen, Calculator, Shapes, Lock } from 'lucide-svelte';
+    import { 
+        ArrowLeft, Zap, Check, X, Heart, Lock,
+        Hash, ListOrdered, Shapes, Calculator, Divide, Scale, Coins, LineChart,
+        Triangle, Sigma, Ruler, PieChart, Equal,
+        Activity, Tags, RefreshCcw, PenTool, MessageSquare, TrafficCone, 
+        UserCheck, MapPin, GitBranch, Calendar, BookOpen, Mail, Box
+    } from 'lucide-svelte';
     import { goto } from '$app/navigation';
     import confetti from 'canvas-confetti';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
-
+    import '../../../../../../../app.css';
     let studentId = $page.params.id || '';
-    let studentClass = 5; // TODO: Buscar do perfil do aluno
+    let studentClass =  ''; // TODO: Buscar do perfil do aluno
+    let studentData =  null;
     
     type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER' | 'BLOCKED' | 'DIAGNOSTIC';
     let currentState: GameState = 'MENU';
@@ -43,6 +50,27 @@
 
     // Buscar estatísticas ao carregar
     onMount(async () => {
+        let studentDatax;
+ try {
+            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            
+            if (!res.ok) throw new Error('Erro na API, ao buscar dados do aluno');
+            
+            studentData = await res.json();
+            studentDatax = studentData;
+           return studentData;
+        
+
+        } catch (e) {
+            console.error('Erro:', e);
+ 
+        } finally {
+            loading = false;
+        }       
+        
         if (studentId) {
             try {
                 const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/stats/${studentId}`);
@@ -56,6 +84,21 @@
             }
         } else {
             loadingStats = false;
+        }
+
+
+        try {
+            // Podes buscar a classe do aluno via API user profile, ou usar a variável local
+            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/topics?classe=${studentDatax.classe}`);
+            console.log(studentClass)
+            if (res.ok) {
+                availableTopics = await res.json();
+                console.log(availableTopics)
+            }
+        } catch (e) {
+            console.error("Erro topics:", e);
+        } finally {
+            loadingTopics = false;
         }
     });
 
@@ -178,23 +221,18 @@
         }
     }
 
-    const TOPICS = {
-        matematica: [
-            { id: 'Adição e Subtração', icon: Calculator, color: 'bg-blue-500' },
-            { id: 'Multiplicação (Tabuada)', icon: X, color: 'bg-purple-500' },
-            { id: 'Divisão', icon: Zap, color: 'bg-indigo-500' },
-            { id: 'Frações', icon: BookOpen, color: 'bg-teal-500' },
-            { id: 'Geometria', icon: Shapes, color: 'bg-orange-500' },
-            { id: 'Problemas de Lógica', icon: Brain, color: 'bg-pink-500' }
-        ],
-        portugues: [
-            { id: 'Sinónimos e Antónimos', icon: Zap, color: 'bg-green-500' },
-            { id: 'Verbos', icon: Zap, color: 'bg-blue-500' },
-            { id: 'Nomes e Adjetivos', icon: Zap, color: 'bg-yellow-500' },
-            { id: 'Ortografia (S/Z/X/CH)', icon: Zap, color: 'bg-red-500' },
-            { id: 'Interpretação', icon: BookOpen, color: 'bg-purple-500' }
-        ]
+    const ICON_MAP: Record<string, any> = {
+        Hash, ListOrdered, Shapes, Calculator, X, Divide, Scale, Coins, LineChart,
+        Triangle, Sigma, Ruler, PieChart, Equal,
+        Activity, Tags, RefreshCcw, PenTool, MessageSquare, TrafficCone, Heart,
+        UserCheck, MapPin, GitBranch, Calendar, Zap, BookOpen, Mail, Box
     };
+
+    // 2. Estado dos Tópicos (Dinâmico)
+    let availableTopics = { matematica: [], portugues: [] };
+    let loadingTopics = true;
+
+
 
     // Atualiza o tempo restante de bloqueio
     function updateBlockTimer() {
@@ -225,6 +263,7 @@
         score = 0;
         loadQuestion();
     }
+
 
     async function loadQuestion() {
         loading = true;
@@ -290,13 +329,35 @@
         }
     }
 
-    async function handleAnswer(option: string) {
-        if (selectedOption) return;
+async function handleAnswer(option: string) {
+        if (selectedOption) return; // Evita duplo clique
         selectedOption = option;
         
-        // ✅ NÃO definir isCorrect aqui - deixa null até servidor responder
-        // Isso evita o glitch visual
+        // 1. VALIDAÇÃO INSTANTÂNEA (Sem lag, sem glitch)
+        // Usamos a resposta que veio no payload da pergunta
+        const correctAnswer = questionData.correct_answer; 
+        const instantIsCorrect = option === correctAnswer;
+        
+        // Atualiza estado visual IMEDIATAMENTE
+        isCorrect = instantIsCorrect;
 
+        // Feedback visual imediato (Confetti ou Shake)
+        if (isCorrect) {
+            confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+            score += 10;
+            stats.xp += 10;
+            stats.acertos += 1;
+        } else {
+            stats.erros += 1;
+            lives--; // Reduz vida visualmente logo
+        }
+
+        // Atualiza stats
+        const total = stats.acertos + stats.erros;
+        stats.taxaAcerto = total > 0 ? Math.round((stats.acertos / total) * 100) : 0;
+        stats.totalExercicios = total;
+
+        // 2. SINCRONIZAÇÃO EM BACKGROUND (Fire and Forget)
         try {
             const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/answer`, {
                 method: 'POST',
@@ -311,45 +372,29 @@
             
             const result = await res.json();
             
-            // ✅ Só agora define isCorrect após resposta do servidor
-            isCorrect = result.acertou;
-            
-            // ✅ SEMPRE atualizar vidas do servidor (fonte da verdade)
-            if (result.livesRemaining !== undefined) {
-                lives = result.livesRemaining;
-            }
-            
-            if (isCorrect) {
-                confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
-                score += 10;
-                stats.xp += 10;
-                stats.acertos += 1;
-            } else {
-                stats.erros += 1;
-            }
-            
-            // Recalcula taxa de acerto
-            const total = stats.acertos + stats.erros;
-            stats.taxaAcerto = total > 0 ? Math.round((stats.acertos / total) * 100) : 0;
-            stats.totalExercicios = total;
-            
-            // ✅ Verificar bloqueio PRIMEIRO
+            // Apenas verificamos se houve bloqueio (Cooldown)
+            // Não precisamos de atualizar 'isCorrect' porque já sabemos
             if (result.blocked && result.blockedUntil) {
                 blockedUntil = new Date(result.blockedUntil);
                 setTimeout(() => { 
                     currentState = 'BLOCKED';
-                }, 1500);
-                return;
+                }, 1500); // Dá tempo de ver o feedback do erro
             }
             
-            // Só verifica game over se não bloqueou
-            if (lives <= 0) {
-                setTimeout(() => { currentState = 'GAMEOVER'; }, 1500);
+            // Sincroniza vidas reais do servidor (caso haja dessincronia)
+            if (result.livesRemaining !== undefined) {
+                lives = result.livesRemaining;
             }
+
         } catch (error) {
-            console.error('Erro envio:', error);
-            // Em caso de erro, marca como incorreto para não travar UI
-            isCorrect = false;
+            console.error('Erro envio background:', error);
+            // Não faz mal se falhar o envio, o aluno continua a jogar
+            // O progresso pode ser perdido, mas a experiência não trava
+        }
+
+        // 3. VERIFICA GAME OVER (Visual)
+        if (lives <= 0 && currentState !== 'BLOCKED') {
+            setTimeout(() => { currentState = 'GAMEOVER'; }, 1500);
         }
     }
 </script>
@@ -392,11 +437,11 @@
         </div>
 
     <!-- MENU STATE -->
-    {:else if currentState === 'MENU'}
+{:else if currentState === 'MENU'}
         <div class="flex-1 overflow-y-auto p-6">
             <div class="max-w-4xl mx-auto space-y-8">
 
-                <!-- PAINEL DE ESTATÍSTICAS -->
+                                <!-- PAINEL DE ESTATÍSTICAS -->
                 <div class="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-3xl p-6 text-white shadow-lg">
                     {#if loadingStats}
                         <div class="flex items-center justify-center py-4">
@@ -446,49 +491,68 @@
                         </div>
                     {/if}
                 </div>
-
-                <section>
-                    <h2 class="text-2xl font-bold mb-4 text-surface-900 dark:text-white flex items-center gap-2">
-                        <Calculator class="text-blue-500" /> Matemática
-                    </h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {#each TOPICS.matematica as topic}
-                            <button on:click={() => checkAndStartGame('matematica', topic.id)}
-                                class="relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-surface-800 shadow-sm border-2 border-surface-200 dark:border-surface-700 hover:border-blue-500 hover:shadow-md transition-all text-left group">
-                                <div class="relative z-10">
-                                    <div class={`w-12 h-12 rounded-xl ${topic.color} text-white flex items-center justify-center mb-3 shadow-sm`}>
-                                        <svelte:component this={topic.icon} size={24} />
+                {#if loadingTopics}
+                     <div class="text-center py-10">
+                        <div class="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                        <p class="mt-2 text-surface-500">A carregar currículo...</p>
+                     </div>
+                {:else}
+                    <section>
+                        <h2 class="text-2xl font-bold mb-4 text-surface-900 dark:text-white flex items-center gap-2">
+                            <Calculator class="text-blue-500" /> Matemática
+                        </h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {#each availableTopics.matematica as topic}
+                                <button on:click={() => checkAndStartGame('matematica', topic.nome)}
+                                    class="relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-surface-800 shadow-sm border-2 border-surface-200 dark:border-surface-700 hover:border-blue-500 hover:shadow-md transition-all text-left group">
+                                    
+                                    <div class="relative z-10">
+                                        <div class={`w-12 h-12 rounded-xl ${topic.metadata?.color || 'bg-blue-500'} text-white flex items-center justify-center mb-3 shadow-sm`}>
+                                            <svelte:component this={ICON_MAP[topic.metadata?.icon] || Zap} size={24} />
+                                        </div>
+                                        
+                                        <h3 class="font-bold text-lg text-surface-800 dark:text-surface-100 leading-tight">
+                                            {topic.nome}
+                                        </h3>
+                                        
+                                        <p class="text-xs text-surface-500 mt-1 font-medium">
+                                            {topic.metadata?.desc || 'Vamos praticar!'}
+                                        </p>
                                     </div>
-                                    <h3 class="font-bold text-lg text-surface-800 dark:text-surface-100">{topic.id}</h3>
-                                    <p class="text-xs text-surface-500 mt-1 font-medium uppercase tracking-wider">Começar</p>
-                                </div>
-                            </button>
-                        {/each}
-                    </div>
-                </section>
+                                </button>
+                            {/each}
+                        </div>
+                    </section>
 
-                <section>
-                    <h2 class="text-2xl font-bold mb-4 text-surface-900 dark:text-white flex items-center gap-2">
-                        <BookOpen class="text-green-500" /> Português
-                    </h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {#each TOPICS.portugues as topic}
-                            <button on:click={() => checkAndStartGame('portugues', topic.id)}
-                                class="relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-surface-800 shadow-sm border-2 border-surface-200 dark:border-surface-700 hover:border-green-500 hover:shadow-md transition-all text-left group">
-                                <div class="relative z-10">
-                                    <div class={`w-12 h-12 rounded-xl ${topic.color} text-white flex items-center justify-center mb-3 shadow-sm`}>
-                                        <svelte:component this={topic.icon} size={24} />
+                    <section>
+                        <h2 class="text-2xl font-bold mb-4 text-surface-900 dark:text-white flex items-center gap-2">
+                            <BookOpen class="text-green-500" /> Português
+                        </h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {#each availableTopics.portugues as topic}
+                                <button on:click={() => checkAndStartGame('portugues', topic.nome)}
+                                    class="relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-surface-800 shadow-sm border-2 border-surface-200 dark:border-surface-700 hover:border-green-500 hover:shadow-md transition-all text-left group">
+                                    
+                                    <div class="relative z-10">
+                                        <div class={`w-12 h-12 rounded-xl ${topic.metadata?.color || 'bg-green-500'} text-white flex items-center justify-center mb-3 shadow-sm`}>
+                                            <svelte:component this={ICON_MAP[topic.metadata?.icon] || Zap} size={24} />
+                                        </div>
+                                        <h3 class="font-bold text-lg text-surface-800 dark:text-surface-100 leading-tight">
+                                            {topic.nome}
+                                        </h3>
+                                        <p class="text-xs text-surface-500 mt-1 font-medium">
+                                            {topic.metadata?.desc || 'Vamos praticar!'}
+                                        </p>
                                     </div>
-                                    <h3 class="font-bold text-lg text-surface-800 dark:text-surface-100">{topic.id}</h3>
-                                    <p class="text-xs text-surface-500 mt-1 font-medium uppercase tracking-wider">Começar</p>
-                                </div>
-                            </button>
-                        {/each}
-                    </div>
-                </section>
+                                </button>
+                            {/each}
+                        </div>
+                    </section>
+                {/if}
+
             </div>
         </div>
-
+    
     <!-- PLAYING STATE -->
     {:else if currentState === 'PLAYING'}
         {#if loading}

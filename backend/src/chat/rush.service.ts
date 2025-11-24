@@ -8,17 +8,17 @@ import { NivelDificuldade } from '@prisma/client';
 export class RushService {
   private readonly logger = new Logger(RushService.name);
   private readonly aiUrl = process.env.IA_API_URL;
-  private readonly httpTimeoutMs = 10000;
+  private readonly httpTimeoutMs = 20000;
 
   constructor(
     private readonly http: HttpService,
     private readonly prisma: PrismaService
-  ) {}
+  ) { }
 
-  /**
-   * Obtém o nível de dificuldade baseado no diagnóstico do aluno
-   */
+  // --- 1. LÓGICA DE DIFICULDADE ---
   private async getDifficultyLevel(alunoId: number, disciplina: string): Promise<number> {
+    if (!alunoId) return 3;
+
     const diagnostic = await this.prisma.diagnosticoInicial.findUnique({
       where: {
         alunoId_disciplina: { alunoId, disciplina }
@@ -26,10 +26,9 @@ export class RushService {
     });
 
     if (!diagnostic || new Date() > diagnostic.validoAte) {
-      return 3; // Nível médio por padrão se não houver diagnóstico válido
+      return 3;
     }
 
-    // Mapeia o nível para dificuldade numérica
     const map: Record<NivelDificuldade, number> = {
       [NivelDificuldade.MUITO_FACIL]: 1,
       [NivelDificuldade.FACIL]: 2,
@@ -41,14 +40,39 @@ export class RushService {
     return map[diagnostic.nivelDiagnosticado] || 3;
   }
 
+  // --- 2. GERAR PERGUNTA ---
   async getNextQuestion(alunoId: number, classe: number, disciplina: string, subtopico: string) {
     const subject = (disciplina || 'matematica').toLowerCase();
-    const subtopic = subtopico || (subject === 'matematica' ? 'Aritmética' : 'Vocabulário');
+    const subtopicName = subtopico || 'Geral';
+    const classeInt = Number(classe);
 
-    // 1. OBTER TÓPICO (método único!)
-    const topicoId = await this.getOrCreateTopicoId(subject, subtopic, classe);
+    // A. Tenta encontrar o tópico
+    let topicoDb = await this.prisma.topico.findFirst({
+      where: {
+        nome: subtopicName,
+        nivelClasse: classeInt
+      }
+    });
 
-    // 2. VERIFICAR BLOQUEIO (apenas se temos alunoId válido)
+    let topicoId: number;
+
+    // B. Fallback seguro: Se não existir, cria ou busca genérico
+    if (topicoDb) {
+      topicoId = topicoDb.id;
+    } else {
+      topicoId = await this.getOrCreateTopicoId(subject, subtopicName, classeInt);
+      // Recarrega o objeto topicoDb para ter acesso ao metadata
+      topicoDb = await this.prisma.topico.findUnique({ where: { id: topicoId } });
+    }
+
+    // C. Extrair regras (com verificação de null)
+    let contextRules = "";
+    if (topicoDb && topicoDb.metadata) {
+      const meta = topicoDb.metadata as any;
+      if (meta.ai_rules) contextRules = meta.ai_rules;
+    }
+
+    // D. Verificar Bloqueio
     if (alunoId) {
       const proficiencia = await this.prisma.alunoProficienciaTopico.findUnique({
         where: { alunoId_topicoId: { alunoId, topicoId } }
@@ -57,33 +81,33 @@ export class RushService {
       if (proficiencia?.bloqueadoAte && new Date() < proficiencia.bloqueadoAte) {
         const minutos = Math.ceil((proficiencia.bloqueadoAte.getTime() - Date.now()) / 60000);
         throw new ForbiddenException({
-          message: `Tópico bloqueado! Descansa a mente e volta em ${minutos} minutos.`,
+          message: `Tópico bloqueado! Volta em ${minutos} minutos.`,
           blockedUntil: proficiencia.bloqueadoAte,
           minutesRemaining: minutos
         });
       }
     }
 
-    // 3. BUSCAR ÚLTIMAS 5 PERGUNTAS (ANTI-REPETIÇÃO)
-    const perguntasParaIgnorar = alunoId 
+    // E. Histórico
+    const perguntasParaIgnorar = alunoId
       ? (await this.prisma.exercicioResultado.findMany({
-          where: { alunoId, topicoId },
-          orderBy: { timestamp: 'desc' },
-          take: 5,
-          include: { exercicio: true }
-        })).map(r => r.exercicio?.pergunta).filter(Boolean) as string[]
+        where: { alunoId, topicoId },
+        orderBy: { timestamp: 'desc' },
+        take: 5,
+        include: { exercicio: true }
+      })).map(r => r.exercicio?.pergunta).filter(Boolean) as string[]
       : [];
 
-    // 4. OBTER NÍVEL DE DIFICULDADE DO DIAGNÓSTICO
+    // F. Chamada IA
     const dificuldade = await this.getDifficultyLevel(alunoId, subject);
 
-    // 5. CHAMAR IA COM DIFICULDADE ADAPTADA
     const payload = {
-      student_class: classe,
+      student_class: classeInt,
       subject,
-      subtopic,
-      difficulty_level: dificuldade, // ✅ NOVO: Passa o nível diagnosticado
-      recent_questions: perguntasParaIgnorar
+      subtopic: subtopicName,
+      difficulty_level: dificuldade,
+      recent_questions: perguntasParaIgnorar,
+      context_rules: contextRules
     };
 
     try {
@@ -91,7 +115,6 @@ export class RushService {
       const res = await firstValueFrom(obs.pipe(timeout(this.httpTimeoutMs)));
       const data = res.data;
 
-      // 5. GUARDAR EXERCÍCIO COM DIFICULDADE
       const created = await this.prisma.exercicio.create({
         data: {
           topicoId,
@@ -99,76 +122,33 @@ export class RushService {
           pergunta: data.question,
           opcoesJson: data.options,
           resposta: data.correct_answer,
-          dificuldade: dificuldade // ✅ Usa a dificuldade do diagnóstico
+          dificuldade: dificuldade
         }
       });
 
       return {
         exercicioId: created.id,
-        topicoId, // Devolver para o frontend usar
+        topicoId,
         question: data.question,
         options: data.options,
-        correct_answer: data.correct_answer, // Necessário para validação
+        correct_answer: data.correct_answer,
         explanation: data.explanation ?? '',
       };
 
     } catch (err) {
       this.logger.error(`Erro Rush AI: ${err.message}`);
-      
-      // Criar exercício fallback na BD também
-      const fallback = await this.prisma.exercicio.create({
-        data: {
-          topicoId,
-          tipo: 'multiple_choice',
-          pergunta: 'Quanto é 3 × 3?',
-          opcoesJson: ['6', '9', '12'],
-          resposta: '9',
-          dificuldade: 1
-        }
-      });
-
       return {
-        exercicioId: fallback.id,
+        exercicioId: null,
         topicoId,
-        question: 'Quanto é 3 × 3?',
-        options: ['6', '9', '12'],
-        correct_answer: '9',
-        explanation: 'Erro de conexão. Tabuada do 3.'
+        question: 'Quanto é 2 + 2?',
+        options: ['3', '4', '5'],
+        correct_answer: '4',
+        explanation: 'Erro de conexão.'
       };
     }
   }
 
-  /**
-   * MÉTODO ÚNICO para criar/obter tópicos
-   * Formato: "Matemática: Frações" ou "Português: Verbos"
-   */
-  async getOrCreateTopicoId(disciplinaKey: string, subtopicoNome: string, classe: number): Promise<number> {
-    const discNome = disciplinaKey === 'matematica' ? 'Matemática' : 'Português';
-    const nomeTopicoBD = `${discNome}: ${subtopicoNome}`;
-
-    let topico = await this.prisma.topico.findFirst({
-      where: { nome: nomeTopicoBD, nivelClasse: classe }
-    });
-
-    if (!topico) {
-      let disciplina = await this.prisma.disciplina.findUnique({
-        where: { nome: discNome }
-      });
-
-      if (!disciplina) {
-        disciplina = await this.prisma.disciplina.create({
-          data: { nome: discNome }
-        });
-      }
-
-      topico = await this.prisma.topico.create({
-        data: { nome: nomeTopicoBD, nivelClasse: classe, disciplinaId: disciplina.id }
-      });
-    }
-
-    return topico.id;
-  }
-
+  // --- 3. SALVAR RESPOSTA ---
   async saveExerciseResult(alunoId: number, exercicioId: number | null, respostaAluno: string, acertou: boolean, topicoId: number) {
     return await this.prisma.$transaction(async (tx) => {
       const resultado = await tx.exercicioResultado.create({
@@ -178,7 +158,7 @@ export class RushService {
           exercicioId: exercicioId ?? undefined,
           respostaAluno,
           acertou,
-          detalhesJson: { note: 'gerado pelo rush service' }
+          detalhesJson: { note: 'rush' }
         }
       });
 
@@ -190,7 +170,6 @@ export class RushService {
         prof = await tx.alunoProficienciaTopico.create({
           data: { alunoId, topicoId, nivel: 'INICIANTE', vidasRestantes: 3 }
         });
-        this.logger.log(`✨ Novo registro criado para Aluno ${alunoId} no Tópico ${topicoId} com 3 vidas`);
       }
 
       if (acertou) {
@@ -198,34 +177,30 @@ export class RushService {
           where: { id: alunoId },
           data: { xp: { increment: 10 } }
         });
-        
-        this.logger.log(`✅ Aluno ${alunoId} ACERTOU no Tópico ${topicoId}. Vidas mantidas: ${prof.vidasRestantes}/3`);
-        
-        return { 
-          ...resultado, 
-          blocked: false, 
+
+        // ✅ CORREÇÃO 1: Retornar objeto consistente
+        return {
+          ...resultado,
+          blocked: false,
           livesRemaining: prof.vidasRestantes,
-          blockedUntil: null as Date | null
+          blockedUntil: null // Obrigatório definir explicitamente
         };
       } else {
         const novasVidas = Math.max(0, prof.vidasRestantes - 1);
         const blocked = novasVidas === 0;
-        const bloqueadoAte: Date | null = blocked ? new Date(Date.now() + 5 * 60000) : null;
-
-        this.logger.log(`❌ Aluno ${alunoId} ERROU no Tópico ${topicoId}. Vidas: ${prof.vidasRestantes} → ${novasVidas}. ${blocked ? '🔒 BLOQUEADO!' : ''}`);
+        const bloqueadoAte = blocked ? new Date(Date.now() + 5 * 60000) : null;
 
         await tx.alunoProficienciaTopico.update({
           where: { id: prof.id },
           data: {
-            vidasRestantes: blocked ? 3 : novasVidas, // Reseta para 3 no BD se bloquear
+            vidasRestantes: blocked ? 3 : novasVidas,
             bloqueadoAte
           }
         });
 
-        // ✅ Se bloqueou, retorna 0 para o frontend mostrar corretamente
-        return { 
-          ...resultado, 
-          blocked, 
+        return {
+          ...resultado,
+          blocked,
           livesRemaining: blocked ? 0 : novasVidas,
           blockedUntil: bloqueadoAte
         };
@@ -233,38 +208,21 @@ export class RushService {
     });
   }
 
+  // --- HELPERS ---
+
   async findExercicio(exercicioId: number) {
-    const exercicio = await this.prisma.exercicio.findUnique({
-      where: { id: exercicioId }
-    });
+    const exercicio = await this.prisma.exercicio.findUnique({ where: { id: exercicioId } });
     if (!exercicio) throw new NotFoundException(`Exercício ${exercicioId} não encontrado`);
     return exercicio;
   }
 
-  /**
-   * Busca XP e estatísticas do aluno
-   */
   async getStudentStats(alunoId: number) {
     const aluno = await this.prisma.aluno.findUnique({
       where: { id: alunoId },
-      select: {
-        id: true,
-        nome: true,
-        xp: true,
-        classe: true,
-        _count: {
-          select: {
-            exercicioResultados: true
-          }
-        }
-      }
+      select: { id: true, nome: true, xp: true, classe: true }
     });
+    if (!aluno) throw new NotFoundException('Aluno não encontrado');
 
-    if (!aluno) {
-      throw new NotFoundException(`Aluno ${alunoId} não encontrado`);
-    }
-
-    // Buscar estatísticas adicionais
     const resultados = await this.prisma.exercicioResultado.groupBy({
       by: ['acertou'],
       where: { alunoId },
@@ -276,10 +234,7 @@ export class RushService {
     const total = acertos + erros;
 
     return {
-      id: aluno.id,
-      nome: aluno.nome,
-      classe: aluno.classe,
-      xp: aluno.xp,
+      ...aluno,
       totalExercicios: total,
       acertos,
       erros,
@@ -287,7 +242,7 @@ export class RushService {
     };
   }
 
-  async generateRushFeedback(payload: { alunoId: number; student_class: number; user_query: string }) {
+  async generateRushFeedback(payload: any) {
     try {
       const obs = this.http.post(`${this.aiUrl}/generate-chat-response`, {
         student_id: payload.alunoId,
@@ -296,28 +251,72 @@ export class RushService {
         mode: 'rush_feedback',
         history: []
       });
-      const res = await firstValueFrom(obs.pipe(timeout(this.httpTimeoutMs)));
-      return res.data?.response_text || 'Feedback indisponível.';
+      const res = await firstValueFrom(obs.pipe(timeout(5000)));
+      return res.data?.response_text || 'Muito bem!';
     } catch (err) {
-      this.logger.error(`Erro ao gerar feedback: ${err.message}`);
-      return 'Ótimo trabalho! Continue praticando.';
+      return 'Continua assim!';
     }
   }
 
-  /**
-   * Busca vidas atuais do aluno para um tópico específico
-   */
   async getCurrentLives(alunoId: number, disciplina: string, subtopico: string, classe: number) {
-    // Busca o tópico específico que está sendo jogado
-    const topicoId = await this.getOrCreateTopicoId(disciplina, subtopico, classe);
+    const classeInt = Number(classe);
+    
+    // ✅ CORREÇÃO 2: Lógica segura para encontrar o ID
+    let topico = await this.prisma.topico.findFirst({
+      where: { nome: subtopico, nivelClasse: classeInt }
+    });
+
+    let topicoId: number;
+
+    if (topico) {
+        topicoId = topico.id;
+    } else {
+        topicoId = await this.getOrCreateTopicoId(disciplina, subtopico, classeInt);
+    }
 
     const prof = await this.prisma.alunoProficienciaTopico.findUnique({
       where: { alunoId_topicoId: { alunoId, topicoId } }
     });
 
-    return { 
-      lives: prof?.vidasRestantes ?? 3,
-      topicoId 
+    return { lives: prof?.vidasRestantes ?? 3, topicoId };
+  }
+
+  async getOrCreateTopicoId(disciplinaKey: string, subtopicoNome: string, classe: number): Promise<number> {
+    const discNome = disciplinaKey === 'matematica' ? 'Matemática' : 'Português';
+    const nomeTopicoBD = subtopicoNome; 
+
+    let topico = await this.prisma.topico.findFirst({
+      where: { nome: nomeTopicoBD, nivelClasse: Number(classe) }
+    });
+
+    if (!topico) {
+      let disciplina = await this.prisma.disciplina.findUnique({ where: { nome: discNome } });
+      if (!disciplina) {
+        disciplina = await this.prisma.disciplina.create({ data: { nome: discNome } });
+      }
+      topico = await this.prisma.topico.create({
+        data: { 
+            nome: nomeTopicoBD, 
+            nivelClasse: Number(classe), 
+            disciplinaId: disciplina.id,
+            metadata: { desc: "Gerado auto" }
+        }
+      });
+    }
+    return topico.id;
+  }
+
+  async getTopicsByClass(classe: number) {
+    const topicos = await this.prisma.topico.findMany({
+      where: { nivelClasse: classe },
+      include: { disciplina: true },
+      orderBy: { id: 'asc' }
+    });
+    console.log('------',classe)
+    // Formata para o frontend separar por abas
+    return {
+      matematica: topicos.filter(t => t.disciplina.nome === 'Matemática'),
+      portugues: topicos.filter(t => t.disciplina.nome === 'Português')
     };
   }
 }

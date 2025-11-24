@@ -134,6 +134,7 @@ model Topico {
   nome                String
   nivelClasse         Int
   disciplinaId        Int
+  metadata            Json?
   disciplina          Disciplina                @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
   chatMensagens       ChatMensagem[]
   exercicioResultados ExercicioResultado[]

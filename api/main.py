@@ -161,6 +161,10 @@ OUTPUT RULES (STRICT):
 - Difficulty Level: {difficulty_level} (1=muito fácil, 5=muito difícil)
 Generate questions appropriate for this difficulty.
 
+⚠️ STRICT CURRICULUM CONSTRAINTS:
+{context_rules}
+(You MUST follow these constraints. E.g., if it says "no multiplication", do not generate multiplication).
+
 ⚠️ ANTI-REPETITION RULE:
 You MUST NOT generate any of the following questions (or very similar ones):{exclude_list}
 
@@ -210,6 +214,7 @@ class RushRequest(BaseModel):
     subtopic: str               # Ex: "Multiplicação", "Verbos", "Frações"
     recent_questions: list[str] = [] # ✅ NOVO: O que a IA não pode criar
     difficulty_level: int = 3  # ✅ NOVO: 1-5
+    context_rules: str = ""  # ✅ NOVO: Regras pedagógicas do livro
 
 
 class RushResponse(BaseModel):
@@ -227,56 +232,51 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response_text: str
-
 # ----------------------------
-# RUSH: gerar questão estruturada (ATUALIZADO)
+# ENDPOINT RUSH (ATUALIZADO)
 # ----------------------------
 @app.post("/generate-rush-question", response_model=RushResponse)
 async def generate_rush_question(request: RushRequest):
-    if client is None:
-        raise HTTPException(status_code=503, detail="API key missing")
+    if client is None: raise HTTPException(503, "API key missing")
 
-    # Sanitiza inputs
     subject = request.subject.lower()
-    if subject not in ("matematica", "portugues"):
-        subject = "matematica"
+    if subject not in ("matematica", "portugues"): subject = "matematica"
     
-    # Se não vier subtópico, usa um padrão genérico, mas o ideal é vir do front
-    subtopic = request.subtopic if request.subtopic else ("Geral" if subject == "matematica" else "Gramática")
+    subtopic = request.subtopic if request.subtopic else "Geral"
     exclude_text = "\n- ".join(request.recent_questions) if request.recent_questions else "None"
+
+    # ✅ Injeção das regras no prompt
     system_prompt = PROMPT_RUSH_JSON.format(
         lang=LANG_VARIANT, 
         student_class=request.student_class, 
         subject=subject,
         subtopic=subtopic,
-        exclude_list=exclude_text, # ✅ Injeta no prompt
-        difficulty_level=request.difficulty_level,  # ✅ Adiciona esta linha
-
+        exclude_list=exclude_text,
+        difficulty_level=request.difficulty_level,
+        context_rules=request.context_rules # <--- AQUI
     )
 
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"Generate one distinct question about {subtopic}."}
+        {"role": "user", "content": f"Generate one question about {subtopic}."}
     ]
 
     try:
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages,
-            temperature=0.6,  # Aumentei um pouco a temperatura para variar as perguntas
+            temperature=0.6, 
             max_tokens=300,
+            response_format={"type": "json_object"}
         )
-
-        # ... (Resto da lógica de parsing JSON mantém-se igual ao anterior)
-        raw = completion.choices[0].message.content
-        obj = safe_load_json_object(raw)
         
-        # ... (Validações mantidas)
+        raw = completion.choices[0].message.content
+        obj = safe_load_json_object(raw) # Usa a tua função helper existente
         
         if not obj: raise ValueError("JSON inválido")
         
         return RushResponse(
-            question=obj["question"].strip(),
+            question=obj.get("question", "Erro").strip(),
             options=[str(o).strip() for o in obj.get("options", [])],
             correct_answer=str(obj.get("correct_answer", "")).strip(),
             explanation=str(obj.get("explanation", "")).strip()
@@ -285,10 +285,10 @@ async def generate_rush_question(request: RushRequest):
     except Exception as e:
         print("ERRO RUSH:", e)
         return RushResponse(
-            question="Quanto é 2 + 2?",
-            options=["3", "4", "5"],
-            correct_answer="4",
-            explanation="Fallback error."
+            question="Quanto é 1 + 1?",
+            options=["1", "2", "3", "4"],
+            correct_answer="2",
+            explanation="Erro técnico. Tente novamente."
         )
 
 # ----------------------------

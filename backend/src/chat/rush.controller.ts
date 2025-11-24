@@ -4,14 +4,14 @@ import { AnswerExerciseDto } from './dto/answer-exercise.dto';
 
 @Controller('api/rush')
 export class RushController {
-  constructor(private readonly rushService: RushService) {}
+  constructor(private readonly rushService: RushService) { }
 
   @Post('next')
-  async nextQuestion(@Body() body: { 
-    alunoId?: number; 
-    classe: number; 
-    disciplina: string; 
-    subtopico: string 
+  async nextQuestion(@Body() body: {
+    alunoId?: number;
+    classe: number;
+    disciplina: string;
+    subtopico: string
   }) {
     if (!body.classe) {
       throw new BadRequestException('classe é obrigatório');
@@ -19,13 +19,20 @@ export class RushController {
     if (!body.subtopico) {
       throw new BadRequestException('subtopico é obrigatório');
     }
-
+    
     return this.rushService.getNextQuestion(
       body.alunoId ?? 0, // 0 = anónimo (sem verificação de bloqueio)
       body.classe,
       body.disciplina || 'matematica',
       body.subtopico
     );
+  }
+  
+  // Adicionar este endpoint
+  @Get('topics')
+  async getTopics(@Query('classe') classe: number) {
+    if (!classe) throw new BadRequestException('Classe é obrigatória');
+    return this.rushService.getTopicsByClass(Number(classe));
   }
 
   @Post('answer')
@@ -83,4 +90,5 @@ export class RushController {
   ) {
     return this.rushService.getCurrentLives(alunoId, disciplina, subtopico, classe);
   }
+
 }
