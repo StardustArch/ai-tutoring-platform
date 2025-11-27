@@ -19,7 +19,7 @@ export class RushController {
     if (!body.subtopico) {
       throw new BadRequestException('subtopico é obrigatório');
     }
-    
+
     return this.rushService.getNextQuestion(
       body.alunoId ?? 0, // 0 = anónimo (sem verificação de bloqueio)
       body.classe,

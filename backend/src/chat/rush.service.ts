@@ -45,7 +45,6 @@ export class RushService {
     const subject = (disciplina || 'matematica').toLowerCase();
     const subtopicName = subtopico || 'Geral';
     const classeInt = Number(classe);
-
     // A. Tenta encontrar o tópico
     let topicoDb = await this.prisma.topico.findFirst({
       where: {
@@ -113,8 +112,10 @@ export class RushService {
     try {
       const obs = this.http.post(`${this.aiUrl}/generate-rush-question`, payload);
       const res = await firstValueFrom(obs.pipe(timeout(this.httpTimeoutMs)));
+      console.log('🚩 [DEBUG] Python respondeu com sucesso!', res);
       const data = res.data;
 
+      console.log('🚩 [DEBUG] A salvar exercício na BD...');
       const created = await this.prisma.exercicio.create({
         data: {
           topicoId,
@@ -126,6 +127,7 @@ export class RushService {
         }
       });
 
+      console.log(`🚩 [DEBUG] Exercício salvo com ID: ${created.id}`);
       return {
         exercicioId: created.id,
         topicoId,
@@ -312,7 +314,6 @@ export class RushService {
       include: { disciplina: true },
       orderBy: { id: 'asc' }
     });
-    console.log('------',classe)
     // Formata para o frontend separar por abas
     return {
       matematica: topicos.filter(t => t.disciplina.nome === 'Matemática'),

@@ -1,22 +1,24 @@
-import { IsInt, IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsInt, IsString, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
 
 export class SendChatDto {
   @IsInt()
+  @IsNotEmpty()
   alunoId: number;
 
   @IsString()
+  @IsNotEmpty()
   userQuery: string;
 
   @IsOptional()
   @IsString()
-  @IsEnum(['tutor', 'rush']) // Validação extra
-  mode?: 'tutor' | 'rush' = 'tutor'; // Padrão é tutor
+  @IsIn(['tutor', 'rush_feedback']) // Valida se o modo é permitido
+  mode?: string = 'tutor';
 }
 
 export class MicroserviceChatRequestDto {
-    student_id: number;
-    student_class: number;
-    user_query: string;
-    mode: string; // ✅ Adicionado para o Python
-    history: Array<{ role: string, text: string }>;
+  student_id: number;
+  student_class: number;
+  user_query: string;
+  mode: string;
+  history: Array<{ role: string; text: string }>;
 }

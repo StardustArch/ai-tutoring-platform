@@ -58,7 +58,7 @@
 
   // Navegar para o Chat
   function entrarNaSala(studentId: number) {
-    goto(`/dashboard/student/${studentId}/chat`);
+    goto(`/dashboard/student/${studentId}/`);
   }
 </script>
 

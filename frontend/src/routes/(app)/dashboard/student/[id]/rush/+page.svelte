@@ -12,9 +12,9 @@
     import { goto } from '$app/navigation';
     import confetti from 'canvas-confetti';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
-    import '../../../../../../../app.css';
+    import '../../../../../../app.css';
     let studentId = $page.params.id || '';
-    let studentClass =  ''; // TODO: Buscar do perfil do aluno
+    let studentClass: any =  3; // TODO: Buscar do perfil do aluno
     let studentData =  null;
     
     type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER' | 'BLOCKED' | 'DIAGNOSTIC';
@@ -49,51 +49,44 @@
     let loadingStats = true;
 
     // Buscar estatísticas ao carregar
+// --- INICIALIZAÇÃO (ON MOUNT) ---
     onMount(async () => {
-        let studentDatax;
- try {
-            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-            
-            if (!res.ok) throw new Error('Erro na API, ao buscar dados do aluno');
-            
-            studentData = await res.json();
-            studentDatax = studentData;
-           return studentData;
-        
-
-        } catch (e) {
-            console.error('Erro:', e);
- 
-        } finally {
-            loading = false;
-        }       
-        
-        if (studentId) {
-            try {
-                const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/stats/${studentId}`);
-                if (res.ok) {
-                    stats = await res.json();
-                }
-            } catch (e) {
-                console.error('Erro ao buscar stats:', e);
-            } finally {
-                loadingStats = false;
-            }
-        } else {
-            loadingStats = false;
-        }
-
+        loading = true;
+        loadingStats = true;
+        loadingTopics = true;
 
         try {
-            // Podes buscar a classe do aluno via API user profile, ou usar a variável local
-            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/topics?classe=${studentDatax.classe}`);
-            console.log(studentClass)
-            if (res.ok) {
-                availableTopics = await res.json();
-                console.log(availableTopics)
+            // 1. Buscar Perfil do Aluno (PRIORIDADE)
+            const resUser = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`);
+            if (resUser.ok) {
+                studentData = await resUser.json();
+                
+                // ✅ ATUALIZAÇÃO CRÍTICA DA CLASSE
+                if (studentData.classe) {
+                    studentClass = studentData.classe;
+                    console.log(`🎓 Aluno identificado: Classe ${studentClass}`);
+                }
+            }
+        } catch (e) {
+            console.error('Erro ao carregar perfil:', e);
+        } finally {
+            loading = false;
+        }
+
+        // 2. Buscar Stats (Paralelo)
+        if (studentId) {
+            apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/stats/${studentId}`)
+                .then(res => res.ok ? res.json() : stats)
+                .then(data => stats = data)
+                .catch(e => console.error('Erro stats:', e))
+                .finally(() => loadingStats = false);
+        }
+
+        // 3. Buscar Tópicos (Usa a classe atualizada)
+        try {
+            const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/topics?classe=${studentClass}`);
+            if (resTopics.ok) {
+                availableTopics = await resTopics.json();
             }
         } catch (e) {
             console.error("Erro topics:", e);
@@ -101,6 +94,7 @@
             loadingTopics = false;
         }
     });
+
 
     // Verifica se precisa de diagnóstico antes de começar o jogo
     async function checkAndStartGame(subject: string, subtopic: string) {
@@ -227,9 +221,10 @@
         Activity, Tags, RefreshCcw, PenTool, MessageSquare, TrafficCone, Heart,
         UserCheck, MapPin, GitBranch, Calendar, Zap, BookOpen, Mail, Box
     };
-
     // 2. Estado dos Tópicos (Dinâmico)
-    let availableTopics = { matematica: [], portugues: [] };
+    const matematica: any[] = [];
+    const portugues: any[] = [];
+    let availableTopics = { matematica, portugues};
     let loadingTopics = true;
 
 
@@ -397,12 +392,31 @@ async function handleAnswer(option: string) {
             setTimeout(() => { currentState = 'GAMEOVER'; }, 1500);
         }
     }
+
+        // ✅ CORREÇÃO: Função helper para obter ícone com fallback
+    function getIcon(iconName: string | undefined) {
+        if (!iconName || !ICON_MAP[iconName]) {
+            return Calculator; // Fallback padrão
+        }
+        return ICON_MAP[iconName];
+    }
+
+    // ✅ CORREÇÃO: Função helper para obter cor com fallback
+    function getColor(color: string | undefined, subject: string) {
+        // Se tem cor válida, retorna
+        if (color && color.startsWith('bg-')) {
+            return color;
+        }
+        
+        // Fallback por disciplina
+        return subject === 'matematica' ? 'bg-blue-500' : 'bg-green-500';
+    }
 </script>
 
 <div class="flex flex-col h-screen bg-surface-50 dark:bg-surface-900 overflow-hidden font-sans">
     <!-- Header -->
     <div class="flex justify-between items-center p-6 border-b border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 z-10">
-        <button on:click={() => currentState === 'MENU' ? goto(`/dashboard/student/${studentId}/chat/`) : currentState = 'MENU'} 
+        <button on:click={() => currentState === 'MENU' ? goto(`/dashboard/student/${studentId}/`) : currentState = 'MENU'} 
                 class="p-2 rounded-full hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
             <ArrowLeft size={24} class="text-surface-600 dark:text-surface-300" />
         </button>
@@ -497,33 +511,37 @@ async function handleAnswer(option: string) {
                         <p class="mt-2 text-surface-500">A carregar currículo...</p>
                      </div>
                 {:else}
-                    <section>
-                        <h2 class="text-2xl font-bold mb-4 text-surface-900 dark:text-white flex items-center gap-2">
-                            <Calculator class="text-blue-500" /> Matemática
-                        </h2>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                            {#each availableTopics.matematica as topic}
-                                <button on:click={() => checkAndStartGame('matematica', topic.nome)}
-                                    class="relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-surface-800 shadow-sm border-2 border-surface-200 dark:border-surface-700 hover:border-blue-500 hover:shadow-md transition-all text-left group">
-                                    
-                                    <div class="relative z-10">
-                                        <div class={`w-12 h-12 rounded-xl ${topic.metadata?.color || 'bg-blue-500'} text-white flex items-center justify-center mb-3 shadow-sm`}>
-                                            <svelte:component this={ICON_MAP[topic.metadata?.icon] || Zap} size={24} />
-                                        </div>
-                                        
-                                        <h3 class="font-bold text-lg text-surface-800 dark:text-surface-100 leading-tight">
-                                            {topic.nome}
-                                        </h3>
-                                        
-                                        <p class="text-xs text-surface-500 mt-1 font-medium">
-                                            {topic.metadata?.desc || 'Vamos praticar!'}
-                                        </p>
-                                    </div>
-                                </button>
-                            {/each}
-                        </div>
-                    </section>
-
+<section>
+    <h2 class="text-2xl font-bold mb-4 text-surface-900 dark:text-white flex items-center gap-2">
+        <Calculator class="text-blue-500" /> Matemática
+    </h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {#each availableTopics.matematica as topic: any}
+            <button 
+                on:click={() => checkAndStartGame('matematica', topic.nome)}
+                class="relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-surface-800 shadow-sm border-2 border-surface-200 dark:border-surface-700 hover:border-blue-500 hover:shadow-md transition-all text-left group"
+            >
+                <div class="relative z-10">
+                    <!-- ✅ Ícone com cor dinâmica e fallback -->
+                    <div class="w-12 h-12 rounded-xl {getColor(topic.metadata?.color, 'matematica')} text-white flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                        <svelte:component 
+                            this={getIcon(topic.metadata?.icon)} 
+                            size={24} 
+                        />
+                    </div>
+                    
+                    <h3 class="font-bold text-lg text-surface-800 dark:text-surface-100 leading-tight">
+                        {topic.nome}
+                    </h3>
+                    
+                    <p class="text-xs text-surface-500 dark:text-surface-400 mt-1 font-medium uppercase tracking-wider">
+                        {topic.metadata?.desc || 'Começar'}
+                    </p>
+                </div>
+            </button>
+        {/each}
+    </div>
+</section>
                     <section>
                         <h2 class="text-2xl font-bold mb-4 text-surface-900 dark:text-white flex items-center gap-2">
                             <BookOpen class="text-green-500" /> Português

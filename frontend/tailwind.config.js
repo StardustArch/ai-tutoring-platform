@@ -25,4 +25,10 @@ export default {
 			}
 		})
 	],
+	safelist: [
+    {
+        pattern: /bg-(red|green|blue|yellow|purple|orange|teal|cyan|slate)-(100|200|300|400|500|600|700|800)/,
+    }
+]
+
 }
