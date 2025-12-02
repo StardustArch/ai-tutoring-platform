@@ -99,7 +99,7 @@ docker-compose up -d --build
 - **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:3000
 - **Microserviço IA**: http://localhost:8000
-- **PostgreSQL**: localhost:5432
+- **PostgreSQL**: http://localhost:5432
 
 ### 3. Comandos de Desenvolvimento
 
@@ -161,16 +161,3 @@ docker-compose down -v
 4. Crie credenciais OAuth 2.0
 5. Adicione URIs de redirecionamento:
    - `http://localhost:3000/api/auth/google/callback`
-
-
-## 🤝 Contribuição
-
-Este é um projeto académico. Sugestões e pull requests são bem-vindos para fins de aprendizagem.
-
-## 📄 Licença
-
-Distribuído sob a licença MIT.
-
----
-
-**Nota**: A aplicação está completamente containerizada. Todos os serviços executam em Docker, incluindo o frontend que é servido na porta 4173. Certifique-se de substituir as credenciais de exemplo pelas suas próprias credenciais antes de executar em produção.
