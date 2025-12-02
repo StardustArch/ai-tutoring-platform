@@ -1,4 +1,4 @@
-from app.services.llm_client import get_client
+from app.services.llm_client import get_rush_client
 from app.models.schemas import RushRequest, RushResponse
 from app.utils.text_helpers import safe_load_json_object, _sanitize_rush_payload
 from app.config import LANG_VARIANT
@@ -40,7 +40,7 @@ Keep question and options short (<= 80 chars each).
 
 
 async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
-    client = get_client()
+    client = get_rush_client()
     if not client: raise Exception("LLM Client unavailable")
 
     subject = request.subject.lower()

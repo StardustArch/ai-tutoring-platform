@@ -135,6 +135,10 @@ model Topico {
   nivelClasse         Int
   disciplinaId        Int
   metadata            Json?
+  ordem               Int                       @default(1) // 1=Início, 2=Seguinte...
+  requisitoId         Int?
+  requisito           Topico?                   @relation("Dependencia", fields: [requisitoId], references: [id])
+  desbloqueia         Topico[]                  @relation("Dependencia")
   disciplina          Disciplina                @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
   chatMensagens       ChatMensagem[]
   exercicioResultados ExercicioResultado[]
@@ -150,6 +154,8 @@ enum TipoInteracaoChat {
   EXERCICIO
   SAUDACAO
   DESCONHECIDO
+  PERGUNTA
+  RUSH
 }
 
 model ChatMensagem {

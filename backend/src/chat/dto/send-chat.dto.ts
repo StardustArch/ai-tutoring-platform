@@ -1,4 +1,4 @@
-import { IsInt, IsString, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
+import { IsInt, IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class SendChatDto {
   @IsInt()
@@ -9,10 +9,14 @@ export class SendChatDto {
   @IsNotEmpty()
   userQuery: string;
 
+  // ✅ NOVOS CAMPOS OPCIONAIS (Contexto da Sessão)
   @IsOptional()
   @IsString()
-  @IsIn(['tutor', 'rush_feedback']) // Valida se o modo é permitido
-  mode?: string = 'tutor';
+  subject?: string;
+
+  @IsOptional()
+  @IsString()
+  topic?: string;
 }
 
 export class MicroserviceChatRequestDto {
@@ -21,4 +25,9 @@ export class MicroserviceChatRequestDto {
   user_query: string;
   mode: string;
   history: Array<{ role: string; text: string }>;
+  
+  // ✅ Passar para o Python
+  subject?: string;
+  topic?: string;
+  context_rules?: string;
 }

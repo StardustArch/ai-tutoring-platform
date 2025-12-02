@@ -4,4 +4,5 @@ uvicorn[standard] # O servidor que corre o FastAPI
 python-dotenv     # Para gerir variáveis de ambiente (ex: API Keys)
 python-multipart
 google-genai
+google-generativeai
 openai

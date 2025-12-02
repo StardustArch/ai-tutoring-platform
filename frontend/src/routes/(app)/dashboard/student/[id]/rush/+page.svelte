@@ -84,7 +84,7 @@
 
         // 3. Buscar Tópicos (Usa a classe atualizada)
         try {
-            const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/topics?classe=${studentClass}`);
+            const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${studentClass}`);
             if (resTopics.ok) {
                 availableTopics = await resTopics.json();
             }

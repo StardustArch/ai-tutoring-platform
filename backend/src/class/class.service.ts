@@ -322,4 +322,63 @@ export class ClassService {
     });
     if (count === 0) throw new ForbiddenException('Turma não encontrada ou sem permissão.');
   }
+
+    async getTopicsByClass(classe: number) {
+    const topicos = await this.prisma.topico.findMany({
+      where: { nivelClasse: classe },
+      include: { disciplina: true },
+      orderBy: { id: 'asc' }
+    });
+    // Formata para o frontend separar por abas
+    return {
+      matematica: topicos.filter(t => t.disciplina.nome === 'Matemática'),
+      portugues: topicos.filter(t => t.disciplina.nome === 'Português')
+    };
+  }
+
+
+async findAllForStudent(alunoId: number, classe: number) {
+  // 1. Buscar todos os tópicos da classe
+  const todosTopicos = await this.prisma.topico.findMany({
+    where: { nivelClasse: classe },
+    orderBy: { ordem: 'asc' } // Importante: Ordenar por sequência
+  });
+
+  // 2. Buscar o progresso do aluno (O que ele já fez?)
+  const progresso = await this.prisma.alunoProficienciaTopico.findMany({
+    where: { alunoId: alunoId },
+    select: { topicoId: true, nivel: true }
+  });
+  
+  // Cria um Set de IDs concluídos para pesquisa rápida
+  // Consideramos concluído se nível > INICIANTE
+  const topicosConcluidos = new Set(
+     progresso
+     .filter(p => p.nivel !== 'INICIANTE' && p.nivel !== 'NAO_DIAGNOSTICADO')
+     .map(p => p.topicoId)
+  );
+
+  // 3. Mapear e decidir o estado de bloqueio (Soft Lock)
+  return todosTopicos.map(topico => {
+    let isLocked = false;
+
+    // Regra: Se tem ordem > 1, verifica se o anterior está feito
+    if (topico.ordem > 1) {
+       // Procura o tópico anterior (ordem - 1) na mesma disciplina
+       const anterior = todosTopicos.find(t => 
+           t.disciplinaId === topico.disciplinaId && t.ordem === topico.ordem - 1
+       );
+       
+       if (anterior && !topicosConcluidos.has(anterior.id)) {
+           isLocked = true;
+       }
+    }
+
+    return {
+      ...topico,
+      isLocked: isLocked,
+      isCompleted: topicosConcluidos.has(topico.id)
+    };
+  });
+}
 }

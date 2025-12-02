@@ -1,203 +1,174 @@
 import json
-from app.services.llm_client import get_client
+import re
+from app.services.llm_client import get_tutor_model, get_rush_client
 from app.models.schemas import ChatRequest, ChatResponse
-from app.utils.text_helpers import truncate_history_by_chars, safe_load_json_object
+from app.utils.text_helpers import safe_load_json_object
 from app.config import LANG_VARIANT
 
 # ==============================================================================
-# PROMPT TUTOR "ENRICHED" (Gera JSON de UI)
+# PROMPT TUTOR (GEMINI) - Otimizado para Sessão Guiada
 # ==============================================================================
-PROMPT_TUTOR_ENRICHED = """
-You are KaniMente, an interactive Tutor for 3rd-4th grade students in Mozambique.
-Language: {lang}.
+PROMPT_TUTOR_FINAL = """
+ROLE: KaniMente, interactive Tutor for kids (Mozambique).
+CONTEXT: Subject="{subject}", Topic="{topic}".
 
-SCOPE & RESTRICTIONS (STRICT):
-1. TEACH ONLY: Mathematics and Portuguese.
-2. IF the student asks for Geography, Science, History, or unrelated topics:
-   - Politely refuse.
-   - Say: "Eu só sei ensinar Matemática e Português por enquanto! O que queres estudar?"
-   - Provide CHIPS options: ["Matemática", "Português"].
-3. NEVER hallucinate or try to teach outside your scope.
+📋 SPECIFIC LESSON GUIDELINES:
+{context_rules}
 
-PEDAGOGY:
-- Socratic Method: Guide the student with questions.
-- Tone: Encouraging, patient, short sentences.
-- Context: Use Mozambican references (names, cities, Metical) when appropriate.
+🛑 STATE TRACKING & FLOW RULES:
+Check the [STATE: TYPE] tag in the chat history.
 
-⚠️ SUBJECT CONSISTENCY & SWITCHING:
-1. **Current Subject**: Infer the subject from the conversation history and the user's last message.
-2. **Staying on Track**:
-   - If in **Math Mode**, focus on numbers and logic. Do not analyze grammar unless asked.
-   - If in **Portuguese Mode**, focus on language. Do not solve math problems unless asked.
-3. **Switching**:
-   - If the user explicitly asks to switch (e.g., "Vamos para Português"), switch immediately.
-   - If the user asks a question that clearly belongs to the *other* subject (e.g., asks about "verbs" while in Math), assume they want to switch. Validate briefly ("Ah, queres falar de verbos?") and proceed with the new subject.
+1. **IF LAST STATE was [EXPLANATION]:**
+   - **User says "Entendi/Continuar":** -> SWITCH TO [TESTING]. Ask a simple question.
+   - **User says "Não entendi/Explica melhor":** -> STAY IN [EXPLANATION].
+     - ACTION: Explain again using a DIFFERENT analogy (simpler). DO NOT repeat text.
 
-⚠️ CRITICAL FLOW RULES - "NO DEAD ENDS":
-1. NEVER just say "Correct" or "Good job" and stop.
-2. If the student answered correctly:
-   - Validate briefly ("Boa! É isso mesmo.").
-   - IMMEDIATELY propose the next exercise or question.
-   - Use "CLOZE" (fill-in-the-blank) or "CHIPS" for the next step.
-   - ONLY use "FREE_TEXT" if you genuinely need the student to write a complex opinion (rare).
-3. **NO RECAP LOOPS:** Once a student answers correctly, validate it briefly and **IMMEDIATELY DROP** the old topic/example. Start fresh.
-4. **NEW CONTEXT:** When moving to a new question, use NEW objects/numbers. Do not reuse the exact same example from the previous turn.
+2. **IF LAST STATE was [TESTING]:**
+   - **User Wrong:** -> Give a Hint & Retry ([TESTING]).
+   - **User Correct:** -> DO NOT EXPLAIN NEW TOPIC IMMEDIATELY.
+     - **ACTION:** Praise the student ("Boa!", "Fantástico!").
+     - **DECISION:** Ask if they want a harder challenge or move on.
+     - **OUTPUT:** "interaction_type": "CHIPS", "interaction_data": {{ "options": ["Mais um desafio!", "Avançar matéria"] }}
 
-⚠️ CLOZE INTERACTION RULES (STRICT):
-1. **WHOLE WORDS ONLY:** Never ask to complete letters (e.g., "c__po"). Always ask to complete a full word in a sentence.
-   - ❌ BAD: "A palavra é c__po." (Options: o, a)
-   - ✅ GOOD: "O meu amigo tem um [[BLANK]] forte." (Options: corpo, braço)
-2. **MANDATORY TOKEN:** The 'sentence' field MUST contain the tag `[[BLANK]]`. If you forget this tag, the app crashes.
-3. **LOGIC:** The 'correct' option must make semantic sense in the sentence.
+3. **HANDLING TRANSITION (User Choice):**
+   - **User says "Mais um desafio" / "Desafio final":** - 🛑 CRITICAL: YOU MUST STAY ON THE EXACT SAME SUB-TOPIC.
+     - If user was doing "Comparison", give a COMPLEX word problem involving Comparison.
+     - DO NOT switch to "Decomposition" or "Writing" here.
+     - The challenge must be harder than the previous question.
+   
+   - **User says "Avançar" / "Aprender algo novo":** - Move to next Concept ([EXPLANATION]).
+   
+4. **IF NO HISTORY:**
+   - Start with [EXPLANATION] (Short Intro).
 
-⚠️ INTERACTION RULES (CRITICAL UX):
-1. **CLOZE (Fill-in-the-blank) IS FOR FACTS ONLY:** - NEVER use CLOZE for personal questions (e.g., "What is your name?", "What color is your house?"). 
-   - CLOZE is ONLY for Math results (2+2=_) or Grammar rules (Plural of 'Cão' is _).
-   - If there is no single correct answer, DO NOT use CLOZE.
-2. **FREE_TEXT IS FOR OPINIONS/PERSONAL:**
-   - If asking about the student's life ("What do you like to eat?", "What color is your door?"), use FREE_TEXT.
-3. **CHIPS FOR NAVIGATION/CHOICE:**
-   - Use CHIPS for selecting topics or simple Yes/No/Maybe answers.
+🛑 OUTPUT FORMAT RULES (JSON):
+- Use "interaction_type": "EXPLANATION" for teaching.
+- **CRITICAL:** For Explanations, "interaction_data" MUST have "options": ["Entendi!", "Não percebi..."]
+- For Testing/Transitions, use "options" for the user's answer or choice.
 
-⚠️ OUTPUT FORMAT (CRITICAL):
-You must output a SINGLE JSON object representing the UI state.
-Structure:
+OUTPUT JSON ONLY:
 {{
-  "text": "Validation + New Question text here. Keep it short (max 2 sentences).",
-  "emotion": "HAPPY" | "NEUTRAL" | "THOUGHTFUL",
-  "interaction_type": "TYPE",
-  "interaction_data": {{ ... }}
+  "text": "Kid-friendly text",
+  "emotion": "HAPPY",
+  "interaction_type": "EXPLANATION" | "CHIPS" | "CLOZE",
+  "interaction_data": {{
+      "options": ["Option A", "Option B"]
+  }}
 }}
-
-EMOTION RULES:
-- "HAPPY": If the student answered correctly.
-- "THOUGHTFUL": If the student made a mistake or needs a hint.
-- "NEUTRAL": Standard conversation.
-
-INTERACTION TYPES (Choose the best for the moment):
-
-1. "CHIPS" (Multiple Choice / Decisions):
-   - Use for: Selecting a topic, Yes/No questions, or choosing a path.
-   - data: {{ "options": ["Option A", "Option B", "Help"] }}
-
-2. "CLOZE" (Fill-in-the-blank / Completes):
-   - Use for: Testing specific concepts (math results, grammar words). High engagement!
-   - data: {{ "sentence": "Complete: O sol nasce a [[BLANK]].", "options": ["Este", "Oeste", "Norte"], "correct": "Este" }}
-   - Rule: You MUST include [[BLANK]] in the sentence where the word goes.
-
-3. "FREE_TEXT" (Open Input):
-   - Use for: Asking for the student's name, opinion, or complex doubt.
-   - data: {{ "placeholder": "Escreve a tua resposta..." }}
-
-EXAMPLES:
-- Math Flow: {{ "text": "Certo! 10+5 é 15. E quanto é 20 - 5?", "emotion": "HAPPY", "interaction_type": "CLOZE", "interaction_data": {{ "sentence": "20 - 5 é igual a [[BLANK]].", "options": ["15", "10", "25"], "correct": "15" }} }}
-- Subject Switch: {{ "text": "Ah, queres mudar para Português? Sem problema! O que são verbos?", "emotion": "NEUTRAL", "interaction_type": "CHIPS", "interaction_data": {{ "options": ["Ações", "Nomes", "Qualidades"] }} }}
 """
-
-# Mantemos o Rush Feedback simples apenas por compatibilidade (legacy)
+# ==============================================================================
+# PROMPT RUSH (LLAMA) - Legacy Drill
+# ==============================================================================
 PROMPT_RUSH_LEGACY = """
 You are KaniMente (Legacy Mode).
 Just give a short feedback and chips: <<Continuar|Sair>>.
 """
-
 async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
-    client = get_client()
-    if not client: raise Exception("LLM Client unavailable")
-
-    # 1. Selecionar o Prompt
-    if request.mode == "rush_feedback":
-        # Se por acaso ainda for chamado, usa texto simples
-        system_prompt = PROMPT_RUSH_LEGACY
-        response_format = None
-    else:
-        # Modo Tutor Principal -> JSON UI
-        system_prompt = PROMPT_TUTOR_ENRICHED.format(lang=LANG_VARIANT)
-        response_format = {"type": "json_object"}
-
-    # 2. Preparar Histórico
-    short_history = truncate_history_by_chars(request.history, max_chars=3500)
-    messages = [{"role": "system", "content": system_prompt}]
     
-    for msg in short_history:
-        role = "assistant" if msg.get("role") == "model" else "user"
-        content = str(msg.get("text", ""))
+    # --- MODO RUSH ---
+    if request.mode == "rush_feedback":
+        client = get_rush_client()
+        if not client: return ChatResponse(response_text="Erro: Rush indisponível.")
+        try:
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": f"{PROMPT_RUSH_LEGACY}\n{request.user_query}"}],
+                temperature=0.2, max_tokens=150
+            )
+            return ChatResponse(response_text=completion.choices[0].message.content)
+        except: return ChatResponse(response_text="Muito bem! <<Continuar>>")
+
+   # --- MODO TUTOR (Gemini) ---
+    model = get_tutor_model()
+    
+    # 1. Configurar Variáveis e Regras de Contexto
+    subject = request.subject or "Matemática"
+    topic = request.topic or "Geral"
+    # ✅ AQUI: Pegamos as regras vindas do NestJS (metadata do tópico)
+    context_rules = request.context_rules or "Use standard primary school pedagogy."
+    
+    # Injetamos as regras no Prompt
+    system_text = PROMPT_TUTOR_FINAL.format(
+        subject=subject, 
+        topic=topic,
+        context_rules=context_rules 
+    )
+
+    # 2. Histórico Inteligente (Com Correção de Regex e Estado)
+    chat_history = []
+    
+    raw_history = request.history[-6:] 
+    
+    for msg in raw_history:
+        role = "model" if msg.get("role") in ["assistant", "model"] else "user"
         
-        # 🧹 LIMPEZA DE MEMÓRIA (SANITIZER)
-        # Se o histórico tiver JSON da IA anterior, extraímos SÓ o texto.
-        # Isto impede que a IA leia "interaction_type: CLOZE" e fique viciada nisso.
-        if role == "assistant":
-            try:
-                # Tenta limpar blocos de código se existirem
-                clean_content = content.replace("```json", "").replace("```", "").strip()
-                prev_json = json.loads(clean_content)
-                
-                # Se for um JSON válido de UI, ficamos só com o texto falado
-                if "text" in prev_json:
-                    content = prev_json["text"]
-            except:
-                # Se falhar, é porque era texto normal (rush feedback ou erro), mantemos igual
-                pass
-
-        messages.append({"role": role, "content": content})
-
-    messages.append({"role": "user", "content": f"[CLASSE {request.student_class}] {request.user_query}"})
-
-    try:
-        # 3. Chamada à API
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            temperature=0.4, 
-            max_tokens=350,
-            response_format=response_format # JSON Mode para Tutor
-        )
-        
-        raw_response = completion.choices[0].message.content.strip()
-
-        # 4. Tratamento da Resposta
-        if request.mode == "rush_feedback":
-            # Legacy: Retorna texto direto
-            return ChatResponse(response_text=raw_response)
-        
+        # Garante que content é string limpa
+        parts = msg.get("parts", [])
+        if isinstance(parts, list) and parts:
+            content = str(parts[0])
         else:
-            # Tutor: Garante que é JSON válido para o Frontend
-            obj = safe_load_json_object(raw_response)
-            
-            if not obj or "text" not in obj:
-                # Fallback se a IA falhar o JSON
-                print("⚠️ Falha no JSON do Tutor. Usando Fallback.")
-                fallback_obj = {
-                    "text": raw_response if raw_response else "Tive um pequeno erro. Podes repetir?",
-                    "interaction_type": "FREE_TEXT",
-                    "interaction_data": {"placeholder": "Responde aqui..."}
-                }
-                return ChatResponse(response_text=json.dumps(fallback_obj))
+            content = str(msg.get("text", ""))
 
-            if obj.get("interaction_type") == "CLOZE":
-                data = obj.get("interaction_data", {})
-                sentence = data.get("sentence", "")
-                
-                # Se a IA se esqueceu do [[BLANK]], vamos tentar salvar o dia
-                if "[[BLANK]]" not in sentence:
-                    # Se houver underscores "___", substitui
-                    if "_" in sentence:
-                        data["sentence"] = re.sub(r"_+", "[[BLANK]]", sentence)
-                    else:
-                        # Se não houver nada, adiciona no fim
-                        data["sentence"] = sentence + " [[BLANK]]"
-                    
-                    # Atualiza o objeto
-                    obj["interaction_data"] = data
+        prefix = ""
+        
+        # Lógica de Estado (Recuperada da nossa conversa anterior)
+        if role == "model":
+            found_type = "UNKNOWN"
             
-            # Sucesso: Retorna o JSON como string
-            return ChatResponse(response_text=json.dumps(obj))
+            # Tenta ler do campo explícito (se o NestJS mandar)
+            if msg.get("type"):
+                 found_type = msg.get("type")
+            # Senão, usa REGEX para ler dentro do JSON stringify
+            else:
+                match = re.search(r'"interaction_type":\s*"([A-Z_]+)"', content)
+                if match:
+                    found_type = match.group(1)
+            
+            # Traduz para Tags
+            if found_type in ["EXPLICACAO", "EXPLANATION"]:
+                prefix = "[STATE: EXPLANATION] "
+            elif found_type in ["PERGUNTA", "TESTING", "CHIPS", "CLOZE"]:
+                prefix = "[STATE: TESTING] "
+            else:
+                # Fallback visual
+                if "options" in content: prefix = "[STATE: TESTING] "
+                else: prefix = "[STATE: EXPLANATION] "
+
+        chat_history.append({"role": role, "parts": [prefix + content]})
+
+    # === DIAGNÓSTICO (Opcional, podes remover depois) ===
+    print(f"✅ CONTEXT RULES ATIVAS: {context_rules}")
+    # ====================================================
+
+    # 3. Executar
+    try:
+        chat = model.start_chat(history=chat_history)
+        
+        final_msg = f"{system_text}\n\nUSER: {request.user_query}"
+        
+        response = chat.send_message(final_msg)
+        
+        # 4. Limpeza de JSON Robusta
+        raw_text = response.text
+        json_str = re.search(r'\{.*\}', raw_text, re.DOTALL)
+        
+        if json_str:
+            json_obj = json.loads(json_str.group())
+        else:
+            json_obj = {
+                "text": raw_text, 
+                "emotion": "NEUTRAL", 
+                "interaction_type": "EXPLANATION",
+                "interaction_data": {"button_text": "Continuar"}
+            }
+
+        return ChatResponse(response_text=json.dumps(json_obj))
 
     except Exception as e:
-        print(f"ERRO CHAT SERVICE: {e}")
-        # Retorna um JSON de erro válido para o Svelte não quebrar
-        error_obj = {
-            "text": "Ocorreu um erro técnico. Vamos tentar de novo?",
+        print(f"ERRO GEMINI: {e}")
+        return ChatResponse(response_text=json.dumps({
+            "text": "Tive um problema técnico. Tenta de novo!",
+            "emotion": "THOUGHTFUL",
             "interaction_type": "CHIPS",
-            "interaction_data": {"options": ["Tentar Novamente"]}
-        }
-        return ChatResponse(response_text=json.dumps(error_obj))
+            "interaction_data": {"options": ["Recarregar"]}
+        }))

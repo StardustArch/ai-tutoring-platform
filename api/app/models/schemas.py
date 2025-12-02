@@ -21,6 +21,9 @@ class ChatRequest(BaseModel):
     user_query: str
     mode: str = "tutor"
     history: List[dict] = []
+    subject: str = "" 
+    topic: str = ""
+    context_rules: str = ""   
 
 class ChatResponse(BaseModel):
     response_text: str

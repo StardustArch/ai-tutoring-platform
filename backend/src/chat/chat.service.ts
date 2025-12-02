@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SendChatDto, MicroserviceChatRequestDto } from './dto/send-chat.dto';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
+import { TipoInteracaoChat } from '@prisma/client'; // Importa o Enum do Prisma
 
 @Injectable()
 export class ChatService {
@@ -13,112 +14,138 @@ export class ChatService {
     private prisma: PrismaService,
     private httpService: HttpService
   ) {
-    // Garante que a URL não termina em barra para evitar //
-    const baseUrl = process.env.IA_API_URL;
+    const baseUrl = process.env.IA_API_URL || 'http://localhost:8000'; // Default seguro
     this.aiServiceUrl = `${baseUrl}/generate-chat-response`;
   }
 
   async sendChat(usuarioId: number, dto: SendChatDto) {
-    // 1. Validar Aluno e Permissões (Segurança)
+    // 1. Validar Aluno
     const aluno = await this.prisma.aluno.findFirst({
-        where: { 
-            id: dto.alunoId, 
-            encarregado: { usuarioId } 
-        },
+        where: { id: dto.alunoId, encarregado: { usuarioId } },
         select: { id: true, classe: true }
     });
 
-    if (!aluno) {
-      this.logger.warn(`Tentativa de acesso não autorizado ao aluno ${dto.alunoId} pelo user ${usuarioId}`);
-      throw new NotFoundException('Aluno não encontrado.');
+    if (!aluno) throw new NotFoundException('Aluno não encontrado.');
+
+    // 2. Resolver Tópico (Para Contexto e Filtro de Histórico)
+    let aiContextRules = "";
+    let currentTopicoId: number | null = null;
+    
+    if (dto.topic && dto.subject) {
+        const topicoDb = await this.prisma.topico.findFirst({
+            where: { 
+                nome: dto.topic, 
+                nivelClasse: aluno.classe, 
+                disciplina: { nome: dto.subject } 
+            },
+            select: { id: true, metadata: true }
+        });
+
+        if (topicoDb) {
+            currentTopicoId = topicoDb.id;
+            const meta = topicoDb.metadata as any;
+            if (meta?.ai_rules) aiContextRules = meta.ai_rules;
+        }
     }
 
-    // 2. Buscar Histórico (Limitado às últimas 10 trocas para contexto)
+    // 3. Buscar Histórico (CORRIGIDO)
+    // Lógica: "Dá-me as últimas 10 mensagens DESTE aluno NESTE tópico"
     const rawHistory = await this.prisma.chatMensagem.findMany({
-        where: { alunoId: aluno.id },
-        orderBy: { timestamp: 'asc' },
-        take: 10,
-        select: { mensagemAluno: true, respostaIa: true }
+        where: { 
+            alunoId: aluno.id,
+            // SE tivermos tópico identificado, filtramos por ele. 
+            // Isto resolve o bug "Litros vs Números".
+            ...(currentTopicoId ? { topicoId: currentTopicoId } : {}) 
+        },
+        // IMPORTANTE: Queremos as mais recentes (desc), depois invertemos no JS
+        orderBy: { timestamp: 'desc' }, 
+        take: 6, // 6 é suficiente para contexto e poupa tokens
+        select: { 
+            mensagemAluno: true, 
+            respostaIa: true, 
+            tipoInteracao: true // Precisamos disto para o Python
+        }
     });
     
-    const formattedHistory = this.formatarHistoricoParaIA(rawHistory);
+    // Inverte para ficar cronológico: [Msg Antiga -> Msg Recente]
+    const chronologicalHistory = rawHistory.reverse();
+    const formattedHistory = this.formatarHistoricoParaIA(chronologicalHistory);
     
-    // 3. Payload para o Microserviço Python
+    // 4. Payload para o Python
     const aiRequest: MicroserviceChatRequestDto = {
         student_id: aluno.id,
         student_class: aluno.classe,
         user_query: dto.userQuery,
-        mode: dto.mode || 'tutor', 
-        history: formattedHistory
+        mode: 'tutor',
+        history: formattedHistory,
+        subject: dto.subject || "Geral",
+        topic: dto.topic || "Geral",
+        context_rules: aiContextRules
     };
     
-    let iaResponseText: string;
+    let finalResponse: string;
 
-    // 4. Chamada ao Python
+    // 5. Chamada ao Python
     try {
         const response = await firstValueFrom(
             this.httpService.post(this.aiServiceUrl, aiRequest)
         );
-        console.log('🚩 [DEBUG] Python respondeu com sucesso!', response);
-        iaResponseText = response.data.response_text;
-    } catch (error) {
-        this.logger.error(`ERRO MICROSERVIÇO IA: ${error.message}`, error.response?.data);
-        throw new InternalServerErrorException('O KaniMente está indisponível momentaneamente.');
-    }
-
-    // 5. TRATAMENTO DA RESPOSTA (A mudança crítica)
-    // Se for modo Tutor, a resposta é um JSON Stringificado vindo do Python.
-    // NÃO podemos usar regex de limpeza de Markdown aqui, pois pode quebrar o JSON.
-    // O Python já faz a sanitização necessária.
-    
-    const finalResponse = iaResponseText.trim(); 
-
-    // 6. Persistência na Base de Dados
-    try {
-        const novaMensagem = await this.prisma.chatMensagem.create({
-            data: {
-                alunoId: aluno.id,
-                mensagemAluno: dto.userQuery,
-                respostaIa: finalResponse, // Guarda o JSON string ou texto puro
-                tipoInteracao: 'EXPLICACAO' // Podes ajustar isto futuramente
-            },
-            select: { 
-                id: true, 
-                respostaIa: true, 
-                mensagemAluno: true, 
-                timestamp: true 
-            }
+        finalResponse = response.data.response_text;
+    } catch (error) { 
+        this.logger.error(`ERRO IA: ${error.message}`);
+        finalResponse = JSON.stringify({
+            text: "O KaniMente está a pensar... Podes tentar de novo?",
+            emotion: "THOUGHTFUL",
+            interaction_type: "CHIPS", // Tipo neutro
+            interaction_data: { options: ["Tentar"] }
         });
-
-        return {
-            message: 'Processado com sucesso',
-            // O Frontend fará o JSON.parse disto
-            response: novaMensagem.respostaIa 
-        };
-        
-    } catch (e) {
-        this.logger.error('ERRO AO GUARDAR CHAT NA BD:', e);
-        // Mesmo que falhe a guardar, devolvemos a resposta para não frustrar o aluno
-        return {
-            message: 'Resposta recebida (erro de histórico)',
-            response: finalResponse
-        };
     }
+
+    // 6. Persistência Inteligente (Salvar o Tipo Correto)
+    let tipoSalvo: TipoInteracaoChat = 'EXPLICACAO'; // Default
+    let topicoIdSalvo = currentTopicoId;
+
+    try {
+        const jsonResp = JSON.parse(finalResponse);
+        // Mapeia o tipo do JSON da IA para o Enum do Prisma
+        if (['CHIPS', 'CLOZE', 'TESTING'].includes(jsonResp.interaction_type)) {
+            tipoSalvo = 'PERGUNTA'; // Ou o valor equivalente no teu Enum
+        } else if (['RUSH_DRILL'].includes(jsonResp.interaction_type)) {
+             tipoSalvo = 'RUSH';
+        }
+        // Se for explicação, mantém o default
+    } catch (e) {
+        // Se falhar o parse, assume explicação genérica
+    }
+
+    await this.prisma.chatMensagem.create({
+        data: {
+            alunoId: aluno.id,
+            mensagemAluno: dto.userQuery,
+            respostaIa: finalResponse, 
+            tipoInteracao: tipoSalvo, // ✅ Agora salvamos se foi Pergunta ou Explicação
+            topicoId: topicoIdSalvo   // ✅ Vinculamos ao tópico para filtrar no futuro
+        }
+    });
+
+    return { message: 'Sucesso', response: finalResponse };
   }
   
-  /**
-   * Formata o histórico.
-   * Nota: Se respostaIa for JSON, o Python agora sabe lidar com isso (extrai apenas o texto no lado dele),
-   * então podemos enviar a string crua aqui sem problemas.
-   */
+  // ✅ CORREÇÃO NO FORMATTER
   private formatarHistoricoParaIA(rawHistory: any[]): any[] {
-            const history: Array<{ role: string, text: string }> = []; 
+      const history: Array<{ role: string, text: string, type?: string }> = []; 
+      
       for (const entry of rawHistory) {
           if (entry.mensagemAluno) {
               history.push({ role: "user", text: entry.mensagemAluno });
           }
           if (entry.respostaIa) {
-              history.push({ role: "model", text: entry.respostaIa });
+              // Envia o TIPO para o Python usar no [STATE: TYPE]
+              history.push({ 
+                  role: "model", 
+                  text: entry.respostaIa,
+                  type: entry.tipoInteracao // O Python vai ler isto!
+              });
           }
       }
       return history;

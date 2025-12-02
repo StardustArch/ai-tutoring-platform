@@ -28,13 +28,6 @@ export class RushController {
     );
   }
   
-  // Adicionar este endpoint
-  @Get('topics')
-  async getTopics(@Query('classe') classe: number) {
-    if (!classe) throw new BadRequestException('Classe é obrigatória');
-    return this.rushService.getTopicsByClass(Number(classe));
-  }
-
   @Post('answer')
   async answer(@Body() dto: AnswerExerciseDto) {
     if (!dto.alunoId) {

@@ -9,6 +9,8 @@ import {
   ParseIntPipe,
   UseGuards,
   Request,
+  Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ClassService } from './class.service';
@@ -19,7 +21,7 @@ import { UpdateClassDto } from './dto/update-class.dto';
 @Controller('api/classes') // Mudei para 'classes' (plural é convenção REST)
 @UseGuards(AuthGuard('jwt')) // Aplica proteção a tudo por padrão
 export class ClassController {
-  constructor(private readonly classService: ClassService) {}
+  constructor(private readonly classService: ClassService) { }
 
   // ==========================================
   // 👨‍🏫 ÁREA DO PROFESSOR
@@ -34,13 +36,18 @@ export class ClassController {
   async listarTurmasProfessor(@Request() req) {
     return this.classService.listarTurmasProfessor(req.user.id);
   }
+  @Get('topics')
+  async getTopics(@Query('classe') classe: number) {
+    if (!classe) throw new BadRequestException('Classe é obrigatória');
+    return this.classService.getTopicsByClass(Number(classe));
+  }
 
   @Get(':id')
   async getTurmaDetalhes(@Param('id', ParseIntPipe) turmaId: number, @Request() req) {
     return this.classService.getTurmaDetalhes(turmaId, req.user.id);
   }
 
-   @Put(':id')
+  @Put(':id')
   async atualizarTurma(
     @Param('id', ParseIntPipe) turmaId: number,
     @Body() dto: UpdateClassDto,
@@ -93,4 +100,6 @@ export class ClassController {
   async adicionarAlunoComCodigo(@Body() dto: AddStudentDto, @Request() req) {
     return this.classService.adicionarAlunoTurmaComCodigo(dto.codigo, dto.alunoId, req.user.id);
   }
+
+
 }

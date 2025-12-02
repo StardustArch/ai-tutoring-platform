@@ -308,16 +308,4 @@ export class RushService {
     return topico.id;
   }
 
-  async getTopicsByClass(classe: number) {
-    const topicos = await this.prisma.topico.findMany({
-      where: { nivelClasse: classe },
-      include: { disciplina: true },
-      orderBy: { id: 'asc' }
-    });
-    // Formata para o frontend separar por abas
-    return {
-      matematica: topicos.filter(t => t.disciplina.nome === 'Matemática'),
-      portugues: topicos.filter(t => t.disciplina.nome === 'Português')
-    };
-  }
 }

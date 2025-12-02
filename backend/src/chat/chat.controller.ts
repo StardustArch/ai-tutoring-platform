@@ -9,7 +9,7 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post('send')
-  @UsePipes(new ValidationPipe({ transform: true, whitelist: true })) // Garante que o DTO está limpo
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true })) 
   async sendChat(@Request() req, @Body() dto: SendChatDto) {
     // req.user.id vem do JWT (Encarregado)
     return this.chatService.sendChat(req.user.id, dto);
