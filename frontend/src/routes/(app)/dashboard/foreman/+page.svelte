@@ -57,8 +57,8 @@
   }
 
   // Navegar para o Chat
-  function entrarNaSala(studentId: number) {
-    goto(`/dashboard/student/${studentId}/`);
+function verPerfil(studentId: number) {
+    goto(`/dashboard/foreman/student/${studentId}`);
   }
 </script>
 
@@ -134,11 +134,11 @@
                         </div>
                         
                         <!-- Botão Principal: ENTRAR NA SALA -->
-                        <button 
+<button 
                             class="btn variant-filled-secondary w-full font-bold text-lg py-3 shadow-md hover:scale-105 transition-transform mt-2"
-                            on:click={() => entrarNaSala(student.id)}
+                            on:click={() => verPerfil(student.id)}
                         >
-                            <MessageCircle size={20} class="mr-2" /> Conversar com Kani
+                            <Play size={20} class="mr-2" /> Estudar Agora
                         </button>
                     </div>
 

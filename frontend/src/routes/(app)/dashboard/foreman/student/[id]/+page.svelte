@@ -9,7 +9,9 @@
   
   import { 
     ArrowLeft, User, Calendar, GraduationCap, Settings, 
-    School, BookOpen, Hash 
+    School, BookOpen, Hash, 
+	Play
+
   } from 'lucide-svelte';
 
   // --- ESTADO ---
@@ -128,42 +130,80 @@
     </div>
 
     <!-- SECÇÃO DE TURMAS -->
-    <div class="space-y-4">
+<div class="space-y-6">
         <h3 class="text-xl font-bold text-surface-900 dark:text-surface-50 flex items-center gap-2">
-            <School class="text-primary-500" />
-            Turmas Inscritas
+            <Play class="text-green-500" />
+            Iniciar Sessão de Estudo
         </h3>
 
-        {#if student.alunoTurmas && student.alunoTurmas.length > 0}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {#each student.alunoTurmas as inscricao}
-                    <div class="p-4 bg-white dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700 flex items-start justify-between">
-                        <div class="flex items-start gap-3">
-                            <div class="p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-primary-600 dark:text-primary-400">
-                                <BookOpen size={20} />
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-surface-900 dark:text-surface-100">{inscricao.turma.nome}</h4>
-                                <p class="text-sm text-surface-500">{inscricao.turma.disciplina.nome}</p>
-                                <p class="text-xs text-surface-400 mt-1">Escola: {inscricao.turma.escolaNome || 'N/A'}</p>
-                            </div>
-                        </div>
-                        <div class="text-xs font-mono bg-surface-100 dark:bg-surface-900 px-2 py-1 rounded text-surface-500">
-                            {inscricao.turma.codigo}
-                        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <button 
+                on:click={() => goto(`/dashboard/student/${studentId}/chat`)}
+                class="group relative overflow-hidden bg-white dark:bg-surface-800 rounded-xl shadow-sm border-2 border-surface-200 dark:border-surface-700 
+                       hover:border-green-500 hover:shadow-lg transition-all text-left p-6"
+            >
+                <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <GraduationCap size={100} />
+                </div>
+                
+                <div class="relative z-10">
+                    <div class="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center mb-4">
+                        <User size={24} />
                     </div>
+                    <h4 class="text-xl font-bold text-surface-900 dark:text-surface-100">Estudar em Casa</h4>
+                    <p class="text-surface-500 mt-1 text-sm">
+                        Praticar sem vínculo à escola. O progresso fica guardado apenas para ti.
+                    </p>
+                    <span class="inline-block mt-4 text-green-600 font-bold text-sm group-hover:underline">
+                        Começar Agora &rarr;
+                    </span>
+                </div>
+            </button>
+
+            {#if student.alunoTurmas && student.alunoTurmas.length > 0}
+                {#each student.alunoTurmas as inscricao}
+                    <button 
+                        on:click={() => goto(`/dashboard/student/${studentId}?turmaId=${inscricao.turma.id}`)}
+                        class="group relative overflow-hidden bg-white dark:bg-surface-800 rounded-xl shadow-sm border-2 border-surface-200 dark:border-surface-700 
+                               hover:border-blue-500 hover:shadow-lg transition-all text-left p-6"
+                    >
+                        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <School size={100} />
+                        </div>
+                        
+                        <div class="relative z-10">
+                            <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4">
+                                <BookOpen size={24} />
+                            </div>
+                            
+                            <h4 class="text-xl font-bold text-surface-900 dark:text-surface-100">
+                                {inscricao.turma.nome}
+                            </h4>
+                            <p class="text-surface-500 mt-1 text-sm">
+                                {inscricao.turma.disciplina.nome} • Prof. {inscricao.turma.professor?.usuario?.nome || 'Escola'}
+                            </p>
+                            
+                            <div class="mt-4 flex items-center justify-between">
+                                <span class="text-xs font-mono bg-surface-100 dark:bg-surface-700 px-2 py-1 rounded text-surface-500">
+                                    Cód: {inscricao.turma.codigo}
+                                </span>
+                                <span class="text-blue-600 font-bold text-sm group-hover:underline">
+                                    Entrar na Sala &rarr;
+                                </span>
+                            </div>
+                        </div>
+                    </button>
                 {/each}
-            </div>
-        {:else}
-            <div class="p-8 rounded-xl bg-surface-100 dark:bg-surface-800/50 border-2 border-dashed border-surface-300 dark:border-surface-700 text-center">
-                <p class="text-surface-600 dark:text-surface-400">
-                    Este aluno ainda não está inscrito em nenhuma turma.
-                </p>
-                <button class="btn btn-sm variant-ghost-primary mt-3">
-                    <Hash size={14} class="mr-1"/> Entrar numa Turma (Em breve)
-                </button>
-            </div>
-        {/if}
+            {:else}
+                <div class="p-6 rounded-xl border-2 border-dashed border-surface-300 dark:border-surface-700 flex flex-col items-center justify-center text-center opacity-70">
+                    <School size={48} class="text-surface-300 mb-2" />
+                    <p class="text-surface-500 font-medium">Sem turmas escolares</p>
+                    <p class="text-xs text-surface-400 mt-1">Pede o código ao professor para adicionar.</p>
+                </div>
+            {/if}
+
+        </div>
     </div>
 
   {/if}

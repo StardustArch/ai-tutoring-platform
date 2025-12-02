@@ -241,8 +241,22 @@ async function main() {
   // --- 3. INSERÇÃO NA BASE DE DADOS ---
   console.log(`📝 A processar ${topicos.length} tópicos do currículo...`);
 
+const contadoresOrdem: Record<string, number> = {};
+
   for (const t of topicos) {
-    // Verifica se já existe pelo nome e classe para não duplicar
+    // Chave única para o grupo (ex: matematica-3)
+    const chaveGrupo = `${t.d}-${t.c}`;
+    
+    // Se não existe contador, inicia em 1. Se existe, incrementa.
+    if (!contadoresOrdem[chaveGrupo]) {
+        contadoresOrdem[chaveGrupo] = 1;
+    } else {
+        contadoresOrdem[chaveGrupo]++;
+    }
+    
+    const ordemAtual = contadoresOrdem[chaveGrupo];
+
+    // Verifica se já existe
     const existe = await prisma.topico.findFirst({
       where: {
         nome: t.nome,
@@ -257,15 +271,21 @@ async function main() {
           nome: t.nome,
           nivelClasse: t.c,
           disciplinaId: t.d,
-          metadata: t.meta // ✅ Aqui guardamos o ícone, cor e REGRAS DA IA
+          ordem: ordemAtual, // ✅ Define 1, 2, 3... automaticamente
+          metadata: t.meta
         }
       });
+      console.log(`➕ Criado: [${t.c}ª Classe] ${t.nome} (Ordem: ${ordemAtual})`);
     } else {
-        // Atualiza metadata para garantir que as regras novas entram
+        // Atualiza metadata e ordem (caso tenhas mudado a posição no array)
         await prisma.topico.update({
             where: { id: existe.id },
-            data: { metadata: t.meta }
+            data: { 
+                metadata: t.meta,
+                ordem: ordemAtual // ✅ Atualiza a ordem se mudares o array
+            }
         });
+        console.log(`🔄 Atualizado: ${t.nome} (Ordem: ${ordemAtual})`);
     }
   }
 

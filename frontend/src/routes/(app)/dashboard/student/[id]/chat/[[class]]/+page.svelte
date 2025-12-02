@@ -5,13 +5,21 @@
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import { 
     Send, Bot, ArrowLeft, Sparkles, Brain, X,
-    Smile, Frown, BookOpen, Calculator, ChevronRight, GraduationCap
+    Smile, Frown, BookOpen, Calculator, ChevronRight, GraduationCap, Volume2
   } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import confetti from 'canvas-confetti';
 
   // --- ESTADO ---
   let studentId = $page.params.id || '';
+
+  $: turmaId =  $page.params.class
+      ? parseInt($page.params.class!) 
+      : null;
+
+
+  // Variável visual para mostrar ao aluno
+  $: modoTurma = !!turmaId;
   
   // View State: 'TOPICS' (Menu) ou 'CHAT' (Sala de Aula)
   let viewState: 'TOPICS' | 'CHAT' = 'TOPICS';
@@ -39,7 +47,7 @@
   };
 
   let historyLog: Array<{ sender: 'user'|'ai', text: string }> = [];
-
+console.log(turmaId)
   // Cores dinâmicas do mascote
   $: mascotState = getMascotState(currentAiMessage.emotion);
 
@@ -58,6 +66,15 @@
     }
   });
 
+  function speakText() {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Para qualquer fala anterior
+        const utterance = new SpeechSynthesisUtterance(currentAiMessage.text);
+        utterance.lang = 'pt-PT'; // Português
+        utterance.rate = 0.9; // Um pouco mais lento para crianças
+        window.speechSynthesis.speak(utterance);
+    }
+  }
   // --- CARREGAMENTO DE DADOS ---
   async function loadStudentAndTopics() {
       try {
@@ -68,7 +85,7 @@
           const classe = student.classe || 3;
 
           // 2. Buscar Tópicos dessa Classe
-          const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${classe}`);
+          const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${classe}&studentId=${studentId}`);
           if (resTopics.ok) {
               availableTopics = await resTopics.json();
             }
@@ -122,7 +139,8 @@
                 // ✅ ENVIAR O CONTEXTO SELECIONADO
                 subject: sessionContext.subject,
                 topic: sessionContext.topic,
-                mode: 'tutor' 
+                mode: 'tutor',
+                turmaId: turmaId
             })
         });
 
@@ -220,6 +238,15 @@
                     <p class="text-xs text-surface-500 font-bold uppercase tracking-wider">
                         {viewState === 'CHAT' ? sessionContext.topic : 'Escolhe o Tópico'}
                     </p>
+                    {#if turmaId}
+                             <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200">
+                                 TURMA #{turmaId}
+                             </span>
+                        {:else}
+                             <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold border border-green-200">
+                                 AUTÓNOMO
+                             </span>
+                        {/if}
                 </div>
             </div>
         </div>
@@ -292,11 +319,20 @@
                 {/if}
             </div>
 
-            <div class="relative max-w-2xl w-full animate-fade-in-up">
+<div class="relative max-w-2xl w-full animate-fade-in-up">
                 <div class={`p-8 rounded-3xl shadow-xl border-2 text-center relative z-10 transition-all duration-500 ${mascotState.bubble}`}>
                     <div class={`absolute -top-3 left-1/2 transform -translate-x-1/2 w-6 h-6 border-t-2 border-l-2 rotate-45 transition-colors duration-500 ${mascotState.bubble} border-transparent`}></div>
                     
-                    <p class="text-xl md:text-2xl font-medium text-surface-800 dark:text-surface-100 leading-relaxed">
+                    <button 
+                        on:click={speakText}
+                        class="absolute top-4 right-4 p-2 rounded-full bg-surface-100 dark:bg-surface-700/50 
+                               text-surface-500 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                        title="Ouvir mensagem"
+                    >
+                        <Volume2 size={20} />
+                    </button>
+
+                    <p class="text-xl md:text-2xl font-medium text-surface-800 dark:text-surface-100 leading-relaxed mt-2">
                         {#if isTyping}
                             <span class="opacity-50">Deixa-me pensar... 🤔</span>
                         {:else}
@@ -339,21 +375,24 @@
                     </div>
 
 {:else if currentAiMessage.type === 'CLOZE'}
-                    {:else if currentAiMessage.type === 'EXPLANATION'}
-                    <div class="flex flex-wrap justify-center gap-4 animate-slide-up w-full">
+{:else if currentAiMessage.type === 'EXPLANATION'}
+                    <div class="flex flex-wrap justify-center gap-4 animate-slide-up w-full px-4">
+                        
                         {#if currentAiMessage.data.options && currentAiMessage.data.options.length > 0}
                             {#each currentAiMessage.data.options as option}
                                 <button 
-                                    class="min-w-[140px] px-6 py-4 
-                                           font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 
+                                    class="min-w-[140px] px-6 py-4 font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 
                                            transition-all active:scale-95 flex items-center justify-center gap-2
-                                           {option.includes('Não') ? 'bg-surface-200 text-surface-800 hover:bg-surface-300' : 'bg-blue-600 text-white hover:bg-blue-700'}"
+                                           {option.toLowerCase().includes('não') || option.toLowerCase().includes('percebi')
+                                               ? 'bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-200' // Estilo Secundário (Cinzento)
+                                               : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'} // Estilo Primário (Azul)
+                                           "
                                     on:click={() => sendMessage(option)}
                                 >
                                     {option}
                                 </button>
                             {/each}
-                        
+
                         {:else}
                             <button 
                                 class="w-full max-w-sm px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white 

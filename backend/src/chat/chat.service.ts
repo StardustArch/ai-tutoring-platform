@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SendChatDto, MicroserviceChatRequestDto } from './dto/send-chat.dto';
 import { firstValueFrom } from 'rxjs';
@@ -26,6 +26,14 @@ export class ChatService {
     });
 
     if (!aluno) throw new NotFoundException('Aluno não encontrado.');
+
+    if (dto.turmaId) {
+        // Verifica se o aluno realmente pertence a essa turma
+        const pertence = await this.prisma.alunoTurma.findFirst({
+            where: { alunoId: dto.alunoId, turmaId: dto.turmaId }
+        });
+        if (!pertence) throw new ForbiddenException("Aluno não pertence a esta turma.");
+    }
 
     // 2. Resolver Tópico (Para Contexto e Filtro de Histórico)
     let aiContextRules = "";
@@ -124,7 +132,8 @@ export class ChatService {
             mensagemAluno: dto.userQuery,
             respostaIa: finalResponse, 
             tipoInteracao: tipoSalvo, // ✅ Agora salvamos se foi Pergunta ou Explicação
-            topicoId: topicoIdSalvo   // ✅ Vinculamos ao tópico para filtrar no futuro
+            topicoId: topicoIdSalvo,   // ✅ Vinculamos ao tópico para filtrar no futuro
+            turmaId: dto.turmaId || null
         }
     });
 

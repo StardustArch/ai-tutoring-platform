@@ -168,6 +168,8 @@ model ChatMensagem {
   aluno         Aluno             @relation(fields: [alunoId], references: [id], onDelete: Cascade)
   topicoId      Int?
   topico        Topico?           @relation(fields: [topicoId], references: [id])
+  turmaId       Int? // Opcional: Se NULL, é Standalone
+  turma         Turma?            @relation(fields: [turmaId], references: [id])
 
   @@map("chat_mensagens")
 }
@@ -182,6 +184,8 @@ model ExercicioResultado {
   alunoId     Int
   topicoId    Int
   exercicioId Int?
+  turmaId     Int? // Se NULL = Standalone; Se ID = Contexto Escolar
+  turma       Turma? @relation(fields: [turmaId], references: [id])
 
   aluno     Aluno      @relation(fields: [alunoId], references: [id])
   topico    Topico     @relation(fields: [topicoId], references: [id])
@@ -243,10 +247,12 @@ model Turma {
   ativa Boolean @default(true)
 
   // Relações
-  disciplina Disciplina   @relation(fields: [disciplinaId], references: [id])
-  professor  Professor    @relation(fields: [professorId], references: [id])
+  disciplina         Disciplina           @relation(fields: [disciplinaId], references: [id])
+  professor          Professor            @relation(fields: [professorId], references: [id])
   // REMOVIDA: escola Escola @relation(fields: [escolaId], references: [id])
-  alunos     AlunoTurma[]
+  alunos             AlunoTurma[]
+  chatMensagens      ChatMensagem[]
+  exercicioResultado ExercicioResultado[]
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt

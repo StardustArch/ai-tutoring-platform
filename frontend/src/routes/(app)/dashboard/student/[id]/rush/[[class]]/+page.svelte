@@ -12,11 +12,14 @@
     import { goto } from '$app/navigation';
     import confetti from 'canvas-confetti';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
-    import '../../../../../../app.css';
+    import '../../../../../../../app.css';
     let studentId = $page.params.id || '';
     let studentClass: any =  3; // TODO: Buscar do perfil do aluno
     let studentData =  null;
-    
+  $: turmaId =  $page.params.class
+      ? parseInt($page.params.class!) 
+      : null;
+      console.log($page.params)
     type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER' | 'BLOCKED' | 'DIAGNOSTIC';
     let currentState: GameState = 'MENU';
 
@@ -75,7 +78,10 @@
 
         // 2. Buscar Stats (Paralelo)
         if (studentId) {
-            apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/stats/${studentId}`)
+            const url = turmaId 
+                ? `${PUBLIC_API_URL_HOST}/api/rush/stats/${studentId}?turmaId=${turmaId}`
+                : `${PUBLIC_API_URL_HOST}/api/rush/stats/${studentId}`; // Standalone (backend assume null)
+            apiFetch(url)
                 .then(res => res.ok ? res.json() : stats)
                 .then(data => stats = data)
                 .catch(e => console.error('Erro stats:', e))
@@ -84,7 +90,7 @@
 
         // 3. Buscar Tópicos (Usa a classe atualizada)
         try {
-            const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${studentClass}`);
+            const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${studentClass}&studentId=${studentId}`);
             if (resTopics.ok) {
                 availableTopics = await resTopics.json();
             }
@@ -361,7 +367,8 @@ async function handleAnswer(option: string) {
                     alunoId: parseInt(studentId),
                     exercicioId: questionData.exercicioId,
                     respostaAluno: option,
-                    classe: studentClass
+                    classe: studentClass,
+                    turmaId: turmaId
                 })
             });
             
@@ -433,6 +440,15 @@ async function handleAnswer(option: string) {
             </div>
         {:else}
             <h1 class="font-bold text-xl text-surface-800 dark:text-surface-100">Modo Rush ⚡</h1>
+                                {#if turmaId}
+                             <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200">
+                                 TURMA #{turmaId}
+                             </span>
+                        {:else}
+                             <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold border border-green-200">
+                                 AUTÓNOMO
+                             </span>
+                        {/if}
         {/if}
     </div>
 

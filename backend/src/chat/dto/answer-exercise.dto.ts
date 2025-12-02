@@ -4,5 +4,6 @@ export class AnswerExerciseDto {
   respostaAluno: string;
   sessionId?: string;
     classe?: number;
+    turmaId?: number;
 
 }

@@ -6,13 +6,27 @@
 
     let studentId = $page.params.id;
 
+    // ✅ CAPTURAR O TURMA ID (Se existir)
+    // Se o encarregado clicou no cartão "Turma de Matemática", o link trouxe ?turmaId=10
+    $: turmaId = $page.url.searchParams.get('turmaId');
+
     function selectMode(mode: 'tutor' | 'rush') {
-        // Navega para a sala de chat passando o modo na URL
+        // Constrói a Query String (só adiciona se existir turmaId)
+        const queryParams = turmaId ? `?turmaId=${turmaId}` : '';
+        console.log(turmaId)
+        // Navega mantendo o contexto!
         if(mode === 'tutor'){
-        goto(`/dashboard/student/${studentId}/chat`);
-        }else if(mode === 'rush'){
-            goto(`/dashboard/student/${studentId}/rush`);
+            goto(`/dashboard/student/${studentId}/chat/${turmaId}`);
+        } else if(mode === 'rush'){
+            goto(`/dashboard/student/${studentId}/rush/${turmaId}`);
         }
+    }
+    
+    // Função de Voltar Inteligente
+    function goBack() {
+        // Se é um encarregado (normalmente sim), volta ao perfil do aluno
+        // Ajusta o caminho conforme a tua estrutura de pastas do foreman
+        goto(`/dashboard/foreman/student/${studentId}`);
     }
 </script>
 

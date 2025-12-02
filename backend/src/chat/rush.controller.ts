@@ -49,7 +49,8 @@ export class RushController {
       dto.exercicioId,
       dto.respostaAluno,
       acertou,
-      exercicio.topicoId
+      exercicio.topicoId,
+      dto.turmaId || null
     );
 
     // Gera feedback
@@ -69,9 +70,13 @@ export class RushController {
     };
   }
 
-  @Get('stats/:alunoId')
-  async getStats(@Param('alunoId', ParseIntPipe) alunoId: number) {
-    return this.rushService.getStudentStats(alunoId);
+@Get('stats/:alunoId')
+  async getStats(
+    @Param('alunoId', ParseIntPipe) alunoId: number,
+    @Query('turmaId') turmaId?: string // <--- NOVO
+  ) {
+    const tId = turmaId ? parseInt(turmaId) : null;
+    return this.rushService.getStudentStats(alunoId, tId);
   }
 
   @Get('lives/:alunoId')

@@ -49,7 +49,7 @@ export class ClassService {
     };
   }
 
-    async atualizarTurma(turmaId: number, usuarioId: number, dto: UpdateClassDto) {
+  async atualizarTurma(turmaId: number, usuarioId: number, dto: UpdateClassDto) {
     await this.validarPropriedadeTurma(turmaId, usuarioId);
 
     const turma = await this.prisma.turma.update({
@@ -322,63 +322,62 @@ export class ClassService {
     });
     if (count === 0) throw new ForbiddenException('Turma não encontrada ou sem permissão.');
   }
-
-    async getTopicsByClass(classe: number) {
-    const topicos = await this.prisma.topico.findMany({
+  async getTopicsForStudent(classe: number, alunoId: number) {
+    // 1. Buscar todos os tópicos da classe (Ordenados por Disciplina e depois Ordem)
+    const todosTopicos = await this.prisma.topico.findMany({
       where: { nivelClasse: classe },
-      include: { disciplina: true },
-      orderBy: { id: 'asc' }
+      include: { disciplina: true }, // Necessário para o filtro final
+      orderBy: [
+        { disciplinaId: 'asc' },
+        { ordem: 'asc' } // CRÍTICO: Garante a sequência 1, 2, 3...
+      ]
     });
-    // Formata para o frontend separar por abas
+
+    // 2. Buscar o progresso do aluno
+    const progresso = await this.prisma.alunoProficienciaTopico.findMany({
+      where: { alunoId: alunoId },
+      select: { topicoId: true, nivel: true }
+    });
+
+    // Set de IDs concluídos (Nível > INICIANTE ou outro critério que definas)
+    const topicosConcluidos = new Set(
+      progresso
+        .filter(p => p.nivel !== 'NAO_DIAGNOSTICADO') // Ajusta conforme a tua lógica de "Passou"
+        .map(p => p.topicoId)
+    );
+
+    // 3. Processar Bloqueios (A tua lógica nova)
+    const topicosProcessados = todosTopicos.map(topico => {
+      let isLocked = false;
+      let isCompleted = topicosConcluidos.has(topico.id);
+
+      // Regra de Gamificação: Se ordem > 1, verifica o anterior
+      if (topico.ordem > 1) {
+        // Procura o tópico anterior da MESMA disciplina
+        const anterior = todosTopicos.find(t =>
+          t.disciplinaId === topico.disciplinaId &&
+          t.ordem === topico.ordem - 1
+        );
+
+        // Se o anterior existe E não foi concluído -> BLOQUEIA ESTE
+        if (anterior && !topicosConcluidos.has(anterior.id)) {
+          isLocked = true;
+        }
+      }
+
+      // Retorna o objeto combinado
+      return {
+        ...topico,
+        isLocked,
+        isCompleted
+      };
+    });
+
+    // 4. Formatar para o Frontend (A tua estrutura antiga)
+    // Mantemos isto para não teres de mudar nada no Svelte (apenas adicionar o cadeado visual)
     return {
-      matematica: topicos.filter(t => t.disciplina.nome === 'Matemática'),
-      portugues: topicos.filter(t => t.disciplina.nome === 'Português')
+      matematica: topicosProcessados.filter(t => t.disciplina.nome === 'Matemática'),
+      portugues: topicosProcessados.filter(t => t.disciplina.nome === 'Português')
     };
   }
-
-
-async findAllForStudent(alunoId: number, classe: number) {
-  // 1. Buscar todos os tópicos da classe
-  const todosTopicos = await this.prisma.topico.findMany({
-    where: { nivelClasse: classe },
-    orderBy: { ordem: 'asc' } // Importante: Ordenar por sequência
-  });
-
-  // 2. Buscar o progresso do aluno (O que ele já fez?)
-  const progresso = await this.prisma.alunoProficienciaTopico.findMany({
-    where: { alunoId: alunoId },
-    select: { topicoId: true, nivel: true }
-  });
-  
-  // Cria um Set de IDs concluídos para pesquisa rápida
-  // Consideramos concluído se nível > INICIANTE
-  const topicosConcluidos = new Set(
-     progresso
-     .filter(p => p.nivel !== 'INICIANTE' && p.nivel !== 'NAO_DIAGNOSTICADO')
-     .map(p => p.topicoId)
-  );
-
-  // 3. Mapear e decidir o estado de bloqueio (Soft Lock)
-  return todosTopicos.map(topico => {
-    let isLocked = false;
-
-    // Regra: Se tem ordem > 1, verifica se o anterior está feito
-    if (topico.ordem > 1) {
-       // Procura o tópico anterior (ordem - 1) na mesma disciplina
-       const anterior = todosTopicos.find(t => 
-           t.disciplinaId === topico.disciplinaId && t.ordem === topico.ordem - 1
-       );
-       
-       if (anterior && !topicosConcluidos.has(anterior.id)) {
-           isLocked = true;
-       }
-    }
-
-    return {
-      ...topico,
-      isLocked: isLocked,
-      isCompleted: topicosConcluidos.has(topico.id)
-    };
-  });
-}
 }

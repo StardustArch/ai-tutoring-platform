@@ -17,6 +17,10 @@ export class SendChatDto {
   @IsOptional()
   @IsString()
   topic?: string;
+
+  @IsOptional()
+  @IsInt()
+  turmaId?: number; // Novo campo opciona
 }
 
 export class MicroserviceChatRequestDto {

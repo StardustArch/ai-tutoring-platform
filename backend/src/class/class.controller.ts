@@ -36,10 +36,18 @@ export class ClassController {
   async listarTurmasProfessor(@Request() req) {
     return this.classService.listarTurmasProfessor(req.user.id);
   }
-  @Get('topics')
-  async getTopics(@Query('classe') classe: number) {
+@Get('topics')
+  async getTopics(
+    @Query('classe') classe: number,
+    @Query('studentId') studentId: number // <--- NOVO: Obrigatório para ver o progresso
+  ) {
     if (!classe) throw new BadRequestException('Classe é obrigatória');
-    return this.classService.getTopicsByClass(Number(classe));
+    
+    // Se não houver studentId (ex: admin a ver), podes manter a lógica antiga ou exigir erro.
+    // Aqui assumimos que para jogar, tem de ter ID.
+    if (!studentId) throw new BadRequestException('ID do aluno é obrigatório para verificar progresso');
+
+    return this.classService.getTopicsForStudent(Number(classe), Number(studentId));
   }
 
   @Get(':id')
