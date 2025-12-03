@@ -20,7 +20,7 @@
 
   // Navegação Rápida
   function goTeacher() { goto('/dashboard/teacher/home'); }
-  function goParent() { goto('/dashboard/home'); } // Ou /dashboard/educandos
+  function goParent() { goto('/dashboard/foreman/overview'); } // Ou /dashboard/educandos
   
   function becomeTeacher() { goto('/dashboard/teacher/become-teacher'); }
   function becomeParent() { goto('/dashboard/foreman/become-foreman'); } // Ou fluxo de criação de encarregado

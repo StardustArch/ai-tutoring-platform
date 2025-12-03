@@ -31,12 +31,25 @@
 
 		try {
 			// Usar a store de auth para processar o login OAuth
-			await auth.login({ accessToken, refreshToken });
+			const result 	= await auth.login({ accessToken, refreshToken });
 			console.log('✅ Login OAuth realizado com sucesso!');
 
 			// Redirecionar para dashboard
-			await goto('/dashboard');
-
+    let user = result.user;
+    let isEncarregado = !!user?.perfilEncarregado;
+    let isProfessor = !!user?.perfilProfessor;
+    let isProfessorAtivo = isProfessor && !!user?.perfilProfessor?.escolaNome;
+     
+    if(result.success){
+        if(isEncarregado){
+          goto('/dashboard/foreman/overview')
+        }else if(isProfessorAtivo){
+          goto('/dashboard/teacher')
+        }else{
+          
+          goto('/dashboard');
+        }
+      }
 		} catch (err) {
 			console.error('❌ Erro ao processar callback:', err);
 			await goto('/login?error=processing_failed');

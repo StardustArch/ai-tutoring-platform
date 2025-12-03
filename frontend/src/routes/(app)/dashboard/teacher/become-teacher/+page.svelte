@@ -5,6 +5,7 @@
   import { notifications } from '$lib/store/notifications'; // Importamos a nossa store personalizada
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import { School, Check, ArrowLeft } from 'lucide-svelte';
+	import { page } from '$app/stores';
 
   let escolaNome = '';
   let isLoading = false;
@@ -53,6 +54,17 @@
       isLoading = false;
     }
   }
+
+        const ref = $page.url.searchParams.get('ref');
+
+    function goBack() {
+        if (ref === 'homet') {
+            goto('/dashboard/foreman/overview'); // Volta para a Visão Geral
+        } else {
+            // Default (ou se vier da lista)
+            goto('/dashboard/foreman/student'); 
+        }
+    }
 </script>
 
 
@@ -101,7 +113,7 @@
           {/if}
         </button>
         
-        <button type="button" class="btn variant-ghost w-full hover:bg-surface-200-700-token" on:click={() => goto('/dashboard')} disabled={isLoading}>
+        <button type="button" class="btn variant-ghost w-full hover:bg-surface-200-700-token" on:click={() => goBack()} disabled={isLoading}>
           <ArrowLeft size={16} class="mr-2" /> Voltar
         </button>
       </div>

@@ -32,7 +32,7 @@
 
 <div class="flex flex-col items-center justify-center min-h-screen p-6 animate-fade-in">
     
-    <button on:click={() => goto('/dashboard/foreman')} class="absolute top-6 left-6 p-3 rounded-full bg-white shadow-sm hover:bg-surface-100 text-surface-500 transition-colors">
+    <button on:click={() => goto(`/dashboard/foreman/student/${studentId}/class`)} class="absolute top-6 left-6 p-3 rounded-full bg-white shadow-sm hover:bg-surface-100 text-surface-500 transition-colors">
         <ArrowLeft size={24} />
     </button>
 

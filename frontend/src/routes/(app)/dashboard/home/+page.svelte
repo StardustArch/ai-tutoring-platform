@@ -8,7 +8,6 @@ import '../../../../app.css'
   $: user = $auth.user;
   $: hasEncarregado = !!user?.perfilEncarregado;
   $: hasProfessor = !!user?.perfilProfessor;
-  $: hasAdmin = !!user?.administradorEscola;
 </script>
 
 <div class="space-y-8">
@@ -64,27 +63,6 @@ import '../../../../app.css'
           </a>
           <button class="btn variant-ghost-secondary">
             <BookOpen size={16} />
-          </button>
-        </div>
-      </div>
-    {/if}
-
-    <!-- Admin -->
-    {#if hasAdmin}
-      <div class="card p-6 variant-soft-surface space-y-4">
-        <div class="flex items-center gap-3">
-          <Building size={24} class="text-surface-600" />
-          <h3 class="h3 font-bold">Administrador</h3>
-        </div>
-        <p class="text-surface-600 text-sm">
-          Gerencie a escola e gere códigos.
-        </p>
-        <div class="flex gap-2">
-          <a href="/dashboard/escola" class="btn variant-outline-surface flex-1">
-            Minha Escola
-          </a>
-          <button class="btn variant-ghost-surface">
-            <UserPlus size={16} />
           </button>
         </div>
       </div>

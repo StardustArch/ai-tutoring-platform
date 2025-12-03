@@ -80,18 +80,12 @@
     function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
         const items: any[] = [];
 
-        items.push({ 
-            label: 'Visão Geral', 
-            href: '/dashboard', 
-            icon: LayoutDashboard 
-        });
-
         if (isEnc) {
             items.push(
                 { type: 'header', label: 'Família' },
-                { label: 'Portal Encarregado', href: '/dashboard/foreman', icon: Users },
+                { label: 'Visão Geral', href: '/dashboard/foreman/overview', icon: LayoutDashboard },
                 { label: 'Meus Educandos', href: '/dashboard/foreman/student', icon: GraduationCap },
-                { label: 'Relatórios', href: '/dashboard/relatorios', icon: FileText }
+                { label: 'Relatórios', href: '/dashboard/foreman/reports', icon: FileText }
             );
         }
 

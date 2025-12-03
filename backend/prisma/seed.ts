@@ -235,6 +235,128 @@ async function main() {
         icon: 'Heart', color: 'bg-pink-500', desc: 'Textos sobre saúde e convívio',
         ai_rules: 'Perguntas sobre prevenção da Malária, Diarreia e Higiene Pessoal. Regras de convivência na escola e família.'
       }
+    },
+
+    // ============================================================
+    // 📕 PORTUGUÊS - 4ª CLASSE
+    // (Organizado por Unidades Temáticas: I a IX)
+    // ============================================================
+
+    // ------------------------------------------------------------
+    // U.T. I: FAMÍLIA
+    // Fonte: [cite: 1, 4, 6]
+    // ------------------------------------------------------------
+    {
+      d: port.id, c: 4,
+      nome: 'Família e Casa',
+      meta: { 
+        icon: 'Home', color: 'bg-blue-500', desc: 'Convivência, Casa e Carta Familiar',
+        ai_rules: 'Temas: Normas de convivência, tipos de casa (alvenaria, caniço) e direitos da criança na família. Textos: Descrição da casa, Diário e Carta Familiar (estrutura: cabeçalho, corpo, desfecho). Gramática: Nomes, Adjetivos, Verbos (Modo Indicativo) e Determinantes (Artigos).'
+      }
+    },
+
+    // ------------------------------------------------------------
+    // U.T. II: ESCOLA
+    // Fonte: [cite: 12, 56, 57]
+    // ------------------------------------------------------------
+    {
+      d: port.id, c: 4,
+      nome: 'A Escola',
+      meta: { 
+        icon: 'BookOpen', color: 'bg-yellow-500', desc: 'História da escola e Narrativa',
+        ai_rules: 'Temas: História da escola e resolução de conflitos. Textos: A Entrevista (perguntas e respostas), o Aviso (estrutura) e Textos Narrativos (Fábulas). Gramática: Frases Interrogativas, Discurso Direto/Indireto e Sintaxe (Grupo Nominal e Verbal).'
+      }
+    },
+
+    // ------------------------------------------------------------
+    // U.T. III: COMUNIDADE
+    // Fonte: [cite: 92, 93, 117]
+    // ------------------------------------------------------------
+    {
+      d: port.id, c: 4,
+      nome: 'A Comunidade',
+      meta: { 
+        icon: 'Users', color: 'bg-orange-500', desc: 'Profissões e Símbolos Nacionais',
+        ai_rules: 'Temas: Instituições públicas, Profissões e Símbolos Nacionais (Bandeira, Hino). Textos: Instruções e percursos. Gramática: Modo Imperativo, Preposições e suas contrações (no, na, pelo), Verbos Irregulares (ser, estar, ter, dar, ler).'
+      }
+    },
+
+    // ------------------------------------------------------------
+    // U.T. IV: AMBIENTE
+    // Fonte: [cite: 126, 173, 185]
+    // ------------------------------------------------------------
+    {
+      d: port.id, c: 4,
+      nome: 'O Ambiente',
+      meta: { 
+        icon: 'TreePine', color: 'bg-green-600', desc: 'Natureza, Água e Poesia',
+        ai_rules: 'Temas: Animais, Plantas e conservação da Água. Textos: Poemas e Textos Didáticos. Gramática: Onomatopeias (sons de animais), Nomes Coletivos, Advérbios de Lugar (perto, longe, onde) e Família de Palavras.'
+      }
+    },
+
+    // ------------------------------------------------------------
+    // U.T. V: CORPO HUMANO
+    // Fonte: [cite: 211, 212]
+    // ------------------------------------------------------------
+    {
+      d: port.id, c: 4,
+      nome: 'Corpo Humano',
+      meta: { 
+        icon: 'User', color: 'bg-rose-400', desc: 'Vestuário e Tempos Verbais',
+        ai_rules: 'Temas: Vocabulário sobre vestuário e higiene. Gramática: Tempos Verbais (Presente, Pretérito Perfeito e Futuro do Indicativo). Revisão da frase simples (Sujeito e Predicado).'
+      }
+    },
+
+    // ------------------------------------------------------------
+    // U.T. VI: SAÚDE E HIGIENE
+    // Fonte: [cite: 215, 216]
+    // ------------------------------------------------------------
+    {
+      d: port.id, c: 4,
+      nome: 'Saúde e Higiene',
+      meta: { 
+        icon: 'Heart', color: 'bg-red-500', desc: 'Cuidados e Cartazes',
+        ai_rules: 'Temas: Cuidados com alimentos e higiene. Textos: Interpretação de Cartazes. Gramática: Pronomes Possessivos (meu, teu, seu, nosso) e sua flexão em género e número.'
+      }
+    },
+
+    // ------------------------------------------------------------
+    // U.T. VII: MEIOS DE TRANSPORTE
+    // Fonte: [cite: 217, 250]
+    // ------------------------------------------------------------
+    {
+      d: port.id, c: 4,
+      nome: 'Meios de Transporte',
+      meta: { 
+        icon: 'Truck', color: 'bg-slate-600', desc: 'Transportes e Trânsito',
+        ai_rules: 'Temas: Tipos de transporte (terrestre, aéreo, marítimo) e Regras/Sinais de Trânsito. Textos: Descritivos e Narrativos sobre viagens. Gramática: Advérbios de Tempo (cedo, tarde, logo, sempre) e expansão de frases.'
+      }
+    },
+
+    // ------------------------------------------------------------
+    // U.T. VIII: MEIOS DE COMUNICAÇÃO
+    // Fonte: [cite: 251, 253]
+    // ------------------------------------------------------------
+    {
+      d: port.id, c: 4,
+      nome: 'Meios de Comunicação',
+      meta: { 
+        icon: 'Radio', color: 'bg-purple-500', desc: 'Media, Cartas e Postais',
+        ai_rules: 'Temas: Importância da Rádio, TV, Jornal e Telefone. Textos: Cartas familiares e Postais (remetente/destinatário). Gramática: Advérbios de Modo e construção de frases.'
+      }
+    },
+
+    // ------------------------------------------------------------
+    // U.T. IX: A NOSSA PROVÍNCIA
+    // Fonte: [cite: 284, 285]
+    // ------------------------------------------------------------
+    {
+      d: port.id, c: 4,
+      nome: 'A Nossa Província',
+      meta: { 
+        icon: 'MapPin', color: 'bg-teal-600', desc: 'Riquezas locais e Poesia',
+        ai_rules: 'Temas: Riquezas da província e vida no tempo colonial. Textos: Poemas sobre a província (Verso, Estrofe, Rima). Gramática: Advérbios de Negação e ortografia.'
+      }
     }
   ];
 

@@ -7,6 +7,7 @@
   import { 
     UserPlus, Save, Calendar, GraduationCap, ArrowLeft, User, Loader 
   } from 'lucide-svelte';
+	import { page } from '$app/stores';
 
   // --- ESTADO ---
   let isLoading = false;
@@ -17,6 +18,8 @@
     dataNascimento: '',
     classe: '' // Será convertido para número no envio
   };
+
+  const ref = $page.url.searchParams.get('ref');
 
   // --- SUBMISSÃO REAL ---
   async function createStudent() {
@@ -63,6 +66,15 @@
         isLoading = false;
     }
   }
+
+  function goBack() {
+        if (ref === 'home') {
+            goto('/dashboard/foreman/overview'); // Volta para a Visão Geral
+        } else {
+            // Default (ou se vier da lista)
+            goto('/dashboard/foreman/student'); 
+        }
+    }
 </script>
 
 <Notification />
@@ -72,7 +84,7 @@
   <!-- CABEÇALHO -->
   <div class="flex items-center gap-4">
     <button 
-      on:click={() => goto('/dashboard')} 
+      on:click={() => goBack()} 
       class="p-2 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 transition-colors"
     >
       <ArrowLeft size={24} />

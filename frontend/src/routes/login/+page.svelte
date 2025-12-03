@@ -32,7 +32,21 @@
     error = '';
     try {
       const result = await auth.login({ email, password });
-      goto('/dashboard');
+    let user = result.user;
+    let isEncarregado = !!user?.perfilEncarregado;
+    let isProfessor = !!user?.perfilProfessor;
+    let isProfessorAtivo = isProfessor && !!user?.perfilProfessor?.escolaNome;
+     
+    if(result.success){
+        if(isEncarregado){
+          goto('/dashboard/foreman/overview')
+        }else if(isProfessorAtivo){
+          goto('/dashboard/teacher')
+        }else{
+          
+          goto('/dashboard');
+        }
+      }
     } catch (err: any) {
       error = err.message || 'Email ou password inválidos';
     } finally {

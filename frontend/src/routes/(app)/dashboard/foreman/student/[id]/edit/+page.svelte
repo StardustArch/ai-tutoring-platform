@@ -108,6 +108,16 @@
         isDeleting = false;
     }
   }
+    const ref = $page.url.searchParams.get('ref');
+
+    function goBack() {
+        if (ref === 'home') {
+            goto('/dashboard/foreman/overview'); // Volta para a Visão Geral
+        } else {
+            // Default (ou se vier da lista)
+            goto('/dashboard/foreman/student'); 
+        }
+    }
 </script>
 
 <Notification />
@@ -117,7 +127,7 @@
   <!-- CABEÇALHO -->
   <div class="flex items-center gap-4">
     <button 
-      on:click={() => goto(`/dashboard/foreman/student/${studentId}`)} 
+      on:click={() => goBack()} 
       class="p-2 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 transition-colors"
     >
       <ArrowLeft size={24} />
