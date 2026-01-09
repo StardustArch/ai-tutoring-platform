@@ -1,6 +1,8 @@
 .env
 api/__pycache__
 api/app/models/__pycache__
-api/app/services/__pycache__
+api/app/services/__pycache__/
 api/app/utils/__pycache__
 api/app/__pycache__/
+api/app/services/__pycache__/chat_service.cpython-312.pyc
+api/app/services/__pycache__/llm_client.cpython-312.pyc
