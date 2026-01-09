@@ -7,7 +7,7 @@
   
   import { 
     School, Plus, BookOpen, Settings, Copy, AlertCircle, Search,
-    ChevronDown, Hash
+    ChevronDown, Users, Activity
   } from 'lucide-svelte';
 
   // --- ESTADO ---
@@ -15,8 +15,6 @@
   let isLoading = true;
   let error: string | null = null;
   let searchTerm = '';
-
-  // Estado do Dropdown (Armazena o ID da turma que está com o código aberto)
   let openCodeId: number | null = null;
 
   onMount(async () => {
@@ -43,10 +41,8 @@
   }
 
   // --- INTERAÇÕES ---
-  
   function toggleCodeDropdown(id: number, e: Event) {
     e.stopPropagation();
-    // Se clicar no mesmo que está aberto, fecha. Se não, abre o novo.
     openCodeId = openCodeId === id ? null : id;
   }
 
@@ -58,18 +54,18 @@
     goto(`/dashboard/teacher/class/${turmaId}`);
   }
 
-  function editarTurma(turmaId: number) {
-    goto(`/dashboard/teacher/class/${turmaId}/edit`);
+  function editarTurma(turmaId: number, e: Event) {
+    e.stopPropagation(); // Impede de abrir a turma ao clicar na engrenagem
+    goto(`/dashboard/teacher/class/${turmaId}/edit?ref=home`);
   }
 
   function copiarCodigo(codigo: string, e: Event) {
     e.stopPropagation();
     navigator.clipboard.writeText(codigo);
     notifications.send('Código copiado!', 'info');
-    openCodeId = null; // Fecha após copiar
+    openCodeId = null; 
   }
 
-  // --- FILTROS ---
   $: turmasFiltradas = turmas.filter((turma) => {
     const termo = searchTerm.toLowerCase();
     return !searchTerm ||
@@ -79,61 +75,55 @@
   });
 </script>
 
-<!-- Fecha dropdowns ao clicar fora -->
 <svelte:window on:click={fecharDropdowns} />
 
-
-<div class="max-w-6xl mx-auto space-y-8 animate-fade-in pb-20 p-4">
+<div class="max-w-8xl mx-auto space-y-8 animate-fade-in p-6 pb-20">
   
-  <!-- CABEÇALHO -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
     <div class="space-y-1">
       <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-50 flex items-center gap-3">
-        <BookOpen class="text-primary-500" size={32} />
         Minhas Turmas
       </h1>
-      <p class="text-surface-600 dark:text-surface-400 text-lg">
+      <p class="text-surface-600 dark:text-surface-400">
         Gerencie as suas salas de aula virtuais.
       </p>
     </div>
 
     <button 
-      class="btn variant-filled-primary font-bold shadow-lg hover:scale-105 transition-transform"
-      on:click={() => goto('/dashboard/teacher/class/create')}
+                    class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+      on:click={() => goto('/dashboard/teacher/class/create-class')}
     >
       <Plus size={20} class="mr-2" />
       Nova Turma
     </button>
   </div>
 
-  <!-- BARRA DE BUSCA -->
-  <div class="bg-white dark:bg-surface-800 p-4 rounded-xl shadow-sm border border-surface-200 dark:border-surface-700 flex flex-col md:flex-row gap-4 items-center justify-between">
-    <div class="relative w-full md:max-w-md">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-surface-400">
-            <Search size={18} />
+  <div class="bg-white dark:bg-surface-800 p-2 rounded-2xl shadow-sm border border-surface-200 dark:border-surface-700 flex flex-col md:flex-row gap-4 items-center justify-between">
+    <div class="relative w-full md:max-w-lg">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-surface-400">
+            <Search size={20} />
         </div>
         <input
             type="text"
             bind:value={searchTerm}
-            placeholder="Pesquisar por nome, disciplina ou código..."
-            class="w-full pl-10 pr-4 py-2 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+            placeholder="Pesquisar turma..."
+            class="w-full pl-12 pr-4 py-3 bg-transparent border-none focus:ring-0 outline-none text-lg placeholder-surface-400"
         />
     </div>
-    <div class="text-sm font-medium text-surface-500 dark:text-surface-400">
-        A mostrar {turmasFiltradas.length} turmas
+    <div class="pr-4 text-sm font-bold text-surface-400 hidden md:block">
+        {turmasFiltradas.length} {turmasFiltradas.length === 1 ? 'Turma' : 'Turmas'}
     </div>
   </div>
 
-  <!-- CONTEÚDO PRINCIPAL -->
   {#if isLoading}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {#each Array(3) as _}
-            <div class="h-48 rounded-xl bg-surface-200 dark:bg-surface-800 animate-pulse"></div>
+            <div class="h-64 rounded-3xl bg-surface-200 dark:bg-surface-800 animate-pulse"></div>
         {/each}
     </div>
 
   {:else if error}
-    <div class="p-8 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 text-center space-y-4">
+    <div class="p-8 rounded-3xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 text-center space-y-4">
       <AlertCircle size={48} class="mx-auto text-red-500" />
       <h3 class="text-xl font-bold text-red-700 dark:text-red-400">Erro ao carregar</h3>
       <button class="btn variant-outline-error" on:click={carregarTurmas}>
@@ -142,130 +132,123 @@
     </div>
 
   {:else if turmasFiltradas.length === 0}
-    <div class="p-12 rounded-xl bg-surface-100 dark:bg-surface-800/50 border-2 border-dashed border-surface-300 dark:border-surface-700 text-center space-y-4">
-      <div class="mx-auto w-16 h-16 bg-surface-200 dark:bg-surface-700 rounded-full flex items-center justify-center text-surface-500">
-        <School size={32} />
+    <div class="flex flex-col items-center justify-center p-12 rounded-3xl border-2 border-dashed border-surface-300 dark:border-surface-700 text-center min-h-[300px]">
+      <div class="w-20 h-20 bg-surface-100 dark:bg-surface-800 rounded-full flex items-center justify-center text-surface-400 mb-4">
+        <School size={40} />
       </div>
-      <div>
-        <h3 class="text-xl font-bold text-surface-900 dark:text-surface-100">Nenhuma turma encontrada</h3>
-        <p class="text-surface-600 dark:text-surface-400">
-            {searchTerm ? 'Tente ajustar os termos da sua pesquisa.' : 'Comece por criar a sua primeira turma.'}
-        </p>
-      </div>
+      <h3 class="text-xl font-bold text-surface-900 dark:text-surface-100">Nenhuma turma encontrada</h3>
+      <p class="text-surface-500 max-w-sm mx-auto mt-2">
+          {searchTerm ? 'Tente ajustar os termos da sua pesquisa.' : 'Comece por criar a sua primeira sala de aula virtual.'}
+      </p>
       {#if !searchTerm}
-          <button class="btn variant-ghost-primary mt-4" on:click={() => goto('/dashboard/teacher/class/create')}>
-            Criar Agora
+          <button class="btn variant-filled-primary mt-6 rounded-xl font-bold" on:click={() => goto('/dashboard/teacher/class/create-class')}>
+            <Plus size={18} class="mr-2"/> Criar Turma
           </button>
       {/if}
     </div>
 
   {:else}
-    <!-- GRID DE TURMAS -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {#each turmasFiltradas as turma}
-        <!-- CARD DA TURMA -->
-        <!-- 
-            NOTA: Removi overflow-hidden e adicionei rounded-* nas pontas 
-            para permitir que o dropdown flutue para fora do card.
-        -->
         <div 
-            class="group bg-white dark:bg-surface-800 rounded-xl shadow-sm hover:shadow-md border border-surface-200 dark:border-surface-700 transition-all duration-200 hover:-translate-y-1 cursor-pointer flex flex-col relative"
+            class="group bg-white dark:bg-surface-800 rounded-3xl p-6 shadow-sm hover:shadow-xl border-2 border-surface-100 dark:border-surface-700 hover:border-primary-500 dark:hover:border-primary-500 transition-all duration-300 relative flex flex-col h-full cursor-pointer"
             on:click={() => verDetalhesTurma(turma.id)}
             on:keydown={(e) => e.key === 'Enter' && verDetalhesTurma(turma.id)}
             role="button"
             tabindex="0"
         >
-            <!-- Topo do Card -->
-            <div class="h-2 w-full bg-gradient-to-r from-primary-500 to-secondary-500 rounded-t-xl"></div>
             
-            <div class="p-6 flex-1 flex flex-col gap-4">
+            <div class="flex justify-between items-start mb-6">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white shadow-md">
+                    <School size={28} />
+                </div>
                 
-                <!-- Cabeçalho -->
-                <div class="flex justify-between items-start">
-                    <div class="p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-primary-600 dark:text-primary-400">
-                        <School size={24} />
-                    </div>
-                    <button class="text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 p-1" on:click|stopPropagation={() => editarTurma(turma.id)}>
-                        <Settings size={18} />
-                    </button>
-                </div>
-
-                <!-- Info Principal -->
-                <div>
-                    <h3 class="text-xl font-bold text-surface-900 dark:text-surface-50 line-clamp-1" title={turma.nome}>
-                        {turma.nome}
-                    </h3>
-                    <p class="text-sm font-medium text-primary-600 dark:text-primary-400 mt-1 flex items-center gap-1">
-                        <BookOpen size={14}/> {turma.disciplina}
-                    </p>
-                </div>
-
-                <!-- Estatísticas -->
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    <div class="p-2 rounded bg-surface-50 dark:bg-surface-700/50 flex flex-col items-center justify-center">
-                        <span class="text-lg font-bold text-surface-900 dark:text-surface-100">{turma.totalAlunos || 0}</span>
-                        <span class="text-[10px] uppercase font-bold text-surface-500">Alunos</span>
-                    </div>
-                    <div class="p-2 rounded bg-surface-50 dark:bg-surface-700/50 flex flex-col items-center justify-center">
-                        <span class="text-lg font-bold text-surface-900 dark:text-surface-100">--</span>
-                        <span class="text-[10px] uppercase font-bold text-surface-500">Atividade</span>
-                    </div>
-                </div>
-
+                <button 
+                    class="p-2 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-400 hover:text-primary-500 transition-colors"
+                    on:click={e => editarTurma(turma.id, e)}
+                    title="Editar Turma"
+                >
+                    <Settings size={20} />
+                </button>
             </div>
 
-            <!-- Rodapé do Card (Dropdown do Código) -->
-            <div class="px-6 py-4 bg-surface-50 dark:bg-surface-900/50 border-t border-surface-200 dark:border-surface-700 flex items-center justify-between rounded-b-xl">
-                <span class="text-xs font-bold uppercase text-surface-500">Acesso</span>
+            <div class="flex-1">
+                <h3 class="text-xl font-bold text-surface-900 dark:text-white line-clamp-1 mb-1">
+                    {turma.nome}
+                </h3>
+                <div class="flex items-center gap-2 text-surface-500 text-sm font-medium">
+                    <BookOpen size={16} class="text-primary-500"/>
+                    <span>{turma.disciplina}</span>
+                </div>
+
+                <div class="flex items-center gap-4 mt-6">
+                    <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-900/50 text-surface-600 dark:text-surface-300 text-xs font-bold uppercase tracking-wide">
+                        <Users size={14} />
+                        {turma.totalAlunos || 0} Alunos
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-surface-100 dark:border-surface-700 flex items-center justify-between">
+                <span class="text-xs font-bold text-surface-400 uppercase tracking-wider">Código</span>
                 
-                <!-- Container do Dropdown -->
                 <div class="relative">
                     <button 
-                        class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all
+                        class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all
                                {openCodeId === turma.id 
-                                ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300' 
-                                : 'bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-600 hover:bg-surface-100 dark:hover:bg-surface-700'}"
+                                ? 'bg-primary-500 text-white shadow-md' 
+                                : 'bg-surface-100 dark:bg-surface-900 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
                         on:click={(e) => toggleCodeDropdown(turma.id, e)}
                     >
                         {#if openCodeId === turma.id}
-                            <span>Ocultar</span>
+                            <span class="text-xs">Fechar</span>
                         {:else}
                             <span>Ver Código</span>
                         {/if}
                         <ChevronDown size={14} class="transition-transform {openCodeId === turma.id ? 'rotate-180' : ''}"/>
                     </button>
 
-                    <!-- O Menu Dropdown Flutuante -->
                     {#if openCodeId === turma.id}
                         <div 
-                            class="absolute bottom-full right-0 mb-2 p-4 w-56 bg-white dark:bg-surface-800 shadow-xl border border-surface-200 dark:border-surface-600 rounded-xl z-50 animate-fade-in"
+                            class="absolute bottom-full right-0 mb-3 p-4 w-60 bg-white dark:bg-surface-800 shadow-2xl border border-surface-200 dark:border-surface-600 rounded-2xl z-50 animate-fade-in origin-bottom-right"
                             on:click|stopPropagation
                         >
                             <div class="text-center space-y-3">
-                                <span class="text-xs font-bold uppercase text-surface-400 tracking-wider">Código da Turma</span>
+                                <span class="text-xs font-bold uppercase text-surface-400 tracking-wider">Partilhar com alunos</span>
                                 
-                                <div class="p-2 bg-surface-50 dark:bg-surface-900 rounded-lg border border-surface-200 dark:border-surface-700 flex items-center justify-between gap-2">
-                                    <span class="font-mono font-black text-lg text-primary-600 dark:text-primary-400 tracking-wider select-all">
+                                <div class="p-3 bg-surface-50 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-700 flex items-center justify-center">
+                                    <span class="font-mono font-black text-2xl text-primary-600 dark:text-primary-400 tracking-widest select-all">
                                         {turma.codigo}
                                     </span>
                                 </div>
 
                                 <button 
-                                    class="btn btn-sm variant-filled-primary w-full font-bold"
+                                    class="btn btn-sm variant-filled-secondary w-full font-bold rounded-lg"
                                     on:click={(e) => copiarCodigo(turma.codigo, e)}
                                 >
                                     <Copy size={14} class="mr-2"/> Copiar
                                 </button>
                             </div>
-                            
-                            <!-- Seta decorativa do popover -->
-                            <div class="absolute -bottom-1.5 right-6 w-3 h-3 bg-white dark:bg-surface-800 border-b border-r border-surface-200 dark:border-surface-600 transform rotate-45"></div>
+                            <div class="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-surface-800 border-b border-r border-surface-200 dark:border-surface-600 transform rotate-45"></div>
                         </div>
                     {/if}
                 </div>
             </div>
+
         </div>
       {/each}
+      
+      <!-- <button 
+        on:click={() => goto('/dashboard/teacher/class/create')}
+        class="flex flex-col items-center justify-center p-6 rounded-3xl border-2 border-dashed border-surface-300 dark:border-surface-700 
+               text-surface-400 hover:text-primary-500 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-surface-800 transition-all min-h-[250px]"
+      >
+        <div class="p-3 bg-surface-100 dark:bg-surface-900 rounded-full mb-3">
+          <Plus size={24} />
+        </div>
+        <span class="font-bold">Nova Turma</span>
+      </button> -->
+
     </div>
   {/if}
 </div>

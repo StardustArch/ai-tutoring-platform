@@ -115,6 +115,7 @@ model Aluno {
   proficienciaTopicos AlunoProficienciaTopico[]
   alunoTurmas         AlunoTurma[]
   diagnosticos        DiagnosticoInicial[] // ✅ NOVO
+  sessoesEstudo       SessaoEstudo[]
 
   @@map("alunos")
 }
@@ -170,6 +171,8 @@ model ChatMensagem {
   topico        Topico?           @relation(fields: [topicoId], references: [id])
   turmaId       Int? // Opcional: Se NULL, é Standalone
   turma         Turma?            @relation(fields: [turmaId], references: [id])
+  sessaoId      Int? // Opcional para suportar mensagens antigas, mas idealmente obrigatório daqui p/ frente
+  sessao        SessaoEstudo?     @relation(fields: [sessaoId], references: [id])
 
   @@map("chat_mensagens")
 }
@@ -185,7 +188,9 @@ model ExercicioResultado {
   topicoId    Int
   exercicioId Int?
   turmaId     Int? // Se NULL = Standalone; Se ID = Contexto Escolar
-  turma       Turma? @relation(fields: [turmaId], references: [id])
+  turma       Turma?        @relation(fields: [turmaId], references: [id])
+  sessaoId    Int?
+  sessao      SessaoEstudo? @relation(fields: [sessaoId], references: [id])
 
   aluno     Aluno      @relation(fields: [alunoId], references: [id])
   topico    Topico     @relation(fields: [topicoId], references: [id])
@@ -254,8 +259,9 @@ model Turma {
   chatMensagens      ChatMensagem[]
   exercicioResultado ExercicioResultado[]
 
-  criadoEm     DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
+  criadoEm      DateTime       @default(now())
+  atualizadoEm  DateTime       @updatedAt
+  sessaoEstudos SessaoEstudo[]
 
   @@map("turmas")
 }
@@ -271,4 +277,42 @@ model AlunoTurma {
 
   @@unique([alunoId, turmaId])
   @@map("aluno_turma")
+}
+
+enum ModoEstudo {
+  TUTOR
+  RUSH
+}
+
+enum StatusSessao {
+  EM_ANDAMENTO
+  CONCLUIDA
+  ABANDONADA // Se fechar o browser sem terminar
+}
+
+model SessaoEstudo {
+  id Int @id @default(autoincrement())
+
+  // Quem e Onde
+  alunoId Int
+  aluno   Aluno  @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  turmaId Int? // Opcional: Se null, é estudo autónomo
+  turma   Turma? @relation(fields: [turmaId], references: [id])
+
+  // Configuração da Sessão
+  modo        ModoEstudo
+  topicosAlvo Json // IDs dos tópicos selecionados para esta sessão: [10, 12, 15]
+
+  // Métricas
+  inicio          DateTime     @default(now())
+  fim             DateTime? // Preenchido quando o aluno sai
+  duracaoSegundos Int? // Calculado no fim (útil para relatórios rápidos)
+  xpGanho         Int          @default(0)
+  status          StatusSessao @default(EM_ANDAMENTO)
+
+  // Conteúdo Gerado na Sessão (Relações)
+  mensagens  ChatMensagem[]
+  exercicios ExercicioResultado[]
+
+  @@map("sessoes_estudo")
 }

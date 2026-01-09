@@ -70,7 +70,10 @@
   function goBack() {
         if (ref === 'home') {
             goto('/dashboard/foreman/overview'); // Volta para a Visão Geral
-        } else {
+        }else if(ref === 'homef'){
+            goto('/dashboard/unified/overview'); // Volta para a Visão Geral
+
+        }else {
             // Default (ou se vier da lista)
             goto('/dashboard/foreman/student'); 
         }
@@ -79,7 +82,7 @@
 
 <Notification />
 
-<div class="max-w-2xl mx-auto p-4 space-y-8 animate-fade-in pb-20">
+<div class="max-w-3xl mx-auto p-4 space-y-8 animate-fade-in pb-20">
 
   <!-- CABEÇALHO -->
   <div class="flex items-center gap-4">
@@ -120,7 +123,7 @@
             <label class="label">
                 <span class="font-medium text-surface-700 dark:text-surface-300 text-sm ml-1">Nome Próprio *</span>
                 <input 
-                    class="input p-3 border-surface-300 dark:border-surface-600 focus:ring-primary-500" 
+                        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
                     type="text" 
                     bind:value={formData.nome} 
                     placeholder="Ex: João" 
@@ -130,7 +133,7 @@
             <label class="label">
                 <span class="font-medium text-surface-700 dark:text-surface-300 text-sm ml-1">Sobrenome *</span>
                 <input 
-                    class="input p-3 border-surface-300 dark:border-surface-600 focus:ring-primary-500" 
+                        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
                     type="text" 
                     bind:value={formData.sobrenome} 
                     placeholder="Ex: Silva" 
@@ -145,7 +148,7 @@
                 <Calendar size={14}/> Data de Nascimento *
             </span>
             <input 
-                class="input p-3 border-surface-300 dark:border-surface-600 focus:ring-primary-500" 
+                        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
                 type="date" 
                 bind:value={formData.dataNascimento} 
                 disabled={isLoading}
@@ -158,14 +161,14 @@
                 <GraduationCap size={16}/> Classe Atual *
             </span>
             <select 
-                class="select p-3 border-surface-300 dark:border-surface-600 focus:ring-primary-500" 
+                        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
                 bind:value={formData.classe} 
                 disabled={isLoading}
             >
                 <option value="" disabled selected>Selecione a classe...</option>
-                {#each Array(12) as _, i}
-                    <option value={i + 1}>{i + 1}ª Classe</option>
-                {/each}
+                                    <option value={3}>3ª Classe</option>
+                                    <option value={4}>4ª Classe</option>
+
             </select>
         </label>
 
@@ -173,7 +176,8 @@
         <div class="pt-6 border-t border-surface-200 dark:border-surface-700">
             <button 
                 type="submit" 
-                class="btn variant-filled-primary w-full font-bold text-lg shadow-md hover:scale-[1.01] transition-transform"
+                                    class="btn variant-filled-primary w-full font-bold text-lg shadow-md hover:scale-[1.01] transition-transform inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+
                 disabled={isLoading}
             >
                 {#if isLoading}

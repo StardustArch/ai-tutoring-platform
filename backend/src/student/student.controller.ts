@@ -9,7 +9,8 @@ import {
   UseGuards, 
   Request,
   ParseIntPipe,
-  Req
+  Req,
+  Query
 } from '@nestjs/common';
 import { StudentService } from './student.service';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -65,5 +66,14 @@ export class StudentController {
   @Get('guardian/overview')
   async getOverview(@Req() req: any) {
     return this.studentService.getGuardianOverview(req.user.id);
+  }
+
+@Get('teacher/report/:studentId')
+  async getTeacherReport(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Query('range') range: string, // <--- Ler da URL ?range=7d
+    @Req() req: any
+  ) {
+    return this.studentService.getStudentReportForTeacher(studentId, req.user.id, range);
   }
 }

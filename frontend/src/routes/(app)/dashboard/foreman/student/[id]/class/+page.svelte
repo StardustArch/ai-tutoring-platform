@@ -118,12 +118,12 @@
 
 <Notification />
 
-<div class="max-w-5xl mx-auto p-6 animate-fade-in space-y-8 relative">
+<div class="max-w-7xl mx-auto p-6 animate-fade-in space-y-8 relative">
 
   <div class="flex items-center gap-4">
     <button 
       on:click={() => goBack()} 
-      class="p-2 rounded-full hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 transition-colors"
+      class="p-2 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 transition-colors"
     >
       <ArrowLeft size={24} />
     </button>
@@ -150,7 +150,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
         <button 
-            on:click={() => goto(`/dashboard/student/${studentId}`)}
+            on:click={() => goto(`/dashboard/foreman/student/${studentId}/session-config/`)}
             class="group relative overflow-hidden bg-white dark:bg-surface-800 p-6 rounded-3xl border-2 border-surface-200 dark:border-surface-700 
                    hover:border-green-500 hover:shadow-xl transition-all text-left flex flex-col justify-between h-full"
         >
@@ -172,7 +172,7 @@
         {#if student.alunoTurmas && student.alunoTurmas.length > 0}
             {#each student.alunoTurmas as inscricao}
                 <button 
-                    on:click={() => goto(`/dashboard/student/${studentId}?turmaId=${inscricao.turma.id}`)}
+                    on:click={() => goto(`/dashboard/foreman/student/${studentId}/session-config/?turmaId=${inscricao.turma.id}`)}
                     class="group relative overflow-hidden bg-white dark:bg-surface-800 p-6 rounded-3xl border-2 border-surface-200 dark:border-surface-700 
                            hover:border-blue-500 hover:shadow-xl transition-all text-left flex flex-col justify-between h-full"
                 >

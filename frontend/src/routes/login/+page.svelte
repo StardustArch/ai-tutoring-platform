@@ -1,3 +1,6 @@
+<svelte:head>
+    <title>Login - KaniMente</title>
+</svelte:head>
 <script lang="ts">
   import axios from 'axios';
   import { goto } from '$app/navigation';
@@ -9,6 +12,8 @@
   import { notifications } from '$lib/store/notifications';
   import Notification from '$lib/components/Notification.svelte'; 
   import { LogIn, Mail, Lock, Eye, EyeOff } from 'lucide-svelte';
+	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
   
   let email = '';
   let password = '';
@@ -16,6 +21,29 @@
   let error = '';
   let showPassword = false;
 
+  function getDashboardRoute(user: any) {
+    if (!user) return '/login';
+    
+    const isEncarregado = !!user.perfilEncarregado;
+    const isProfessor = !!user.perfilProfessor;
+    const isProfessorAtivo = isProfessor && !!user.perfilProfessor?.escolaNome;
+    const userHasBothProfiles = isEncarregado && isProfessorAtivo;
+
+    if (userHasBothProfiles) return '/dashboard/unified/overview';
+    if (isProfessorAtivo) return '/dashboard/teacher/overview';
+    if (isEncarregado) return '/dashboard/foreman/overview';
+    
+    return '/dashboard';
+  }
+
+onMount(() => {
+    if (browser && $auth.isAuthenticated && $auth.user) {
+      // Usa a função para mandar o usuário para o lugar certo
+      const target = getDashboardRoute($auth.user);
+      goto(target, { replaceState: true });
+    }
+  });
+    
   $: {
     const errorParam = $page.url.searchParams.get('error');
     if (errorParam) {
@@ -36,12 +64,16 @@
     let isEncarregado = !!user?.perfilEncarregado;
     let isProfessor = !!user?.perfilProfessor;
     let isProfessorAtivo = isProfessor && !!user?.perfilProfessor?.escolaNome;
-     
+    const userHasBothProfiles = isEncarregado && isProfessorAtivo;
+
     if(result.success){
-        if(isEncarregado){
-          goto('/dashboard/foreman/overview')
+        if(userHasBothProfiles){
+                    goto('/dashboard/unified/overview')
+
         }else if(isProfessorAtivo){
-          goto('/dashboard/teacher')
+          goto('/dashboard/teacher/overview')
+        }else if(isEncarregado){
+          goto('/dashboard/foreman/overview')
         }else{
           
           goto('/dashboard');

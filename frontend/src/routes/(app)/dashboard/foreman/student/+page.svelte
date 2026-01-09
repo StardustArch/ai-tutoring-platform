@@ -45,18 +45,20 @@
     }
 
     // Gerar cor de fundo baseada na inicial do nome (Estética consistente)
-    function getAvatarColor(name: string) {
-        const colors = [
-            'bg-red-100 text-red-600', 'bg-blue-100 text-blue-600', 
-            'bg-green-100 text-green-600', 'bg-yellow-100 text-yellow-600',
-            'bg-purple-100 text-purple-600', 'bg-pink-100 text-pink-600'
+
+        function getAvatarColor(name: string) {
+        const gradients = [
+            'bg-gradient-to-br from-blue-500 to-cyan-500',
+            'bg-gradient-to-br from-emerald-500 to-teal-500',
+            'bg-gradient-to-br from-purple-500 to-pink-500',
+            'bg-gradient-to-br from-amber-500 to-orange-500',
+            'bg-gradient-to-br from-rose-500 to-red-500'
         ];
-        const index = name.charCodeAt(0) % colors.length;
-        return colors[index];
+        return gradients[name.charCodeAt(0) % gradients.length];
     }
 </script>
 
-<div class="max-w-5xl mx-auto p-6 space-y-8 animate-fade-in">
+<div class="max-w-8xl mx-auto p-6 space-y-8 animate-fade-in">
 
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-surface-200 dark:border-surface-700 pb-6">
         <div>
@@ -70,7 +72,8 @@
         </div>
 
         <button 
-            class="btn variant-filled-primary font-bold shadow-lg flex items-center gap-2"
+                                class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+
             on:click={() => goto('/dashboard/foreman/student/create')}
         >
             <UserPlus size={20} />
@@ -86,7 +89,8 @@
         </div>
 
     {:else if students.length === 0}
-        <div class="flex flex-col items-center justify-center py-20 bg-surface-100 dark:bg-surface-800/50 rounded-3xl border-2 border-dashed border-surface-300 dark:border-surface-700 text-center">
+                           <div class=" flex flex-col items-center justify-center bg-gradient-to-br from-surface-50 to-white dark:from-surface-900 dark:to-surface-800 rounded-2xl p-8 text-center border-2 border-dashed border-surface-300 dark:border-surface-700">
+
             <div class="p-4 bg-surface-200 dark:bg-surface-700 rounded-full mb-4 text-surface-500">
                 <GraduationCap size={48} />
             </div>
@@ -95,7 +99,7 @@
                 Para começar a usar o KaniMente, precisa de registar o perfil do seu primeiro educando.
             </p>
             <button 
-                class="btn variant-filled-primary"
+                    class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 on:click={() => goto('/dashboard/foreman/student/create')}
             >
                 Registar Educando

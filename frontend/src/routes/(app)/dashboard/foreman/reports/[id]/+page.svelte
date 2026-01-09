@@ -4,11 +4,20 @@
     import { goto } from '$app/navigation';
     import { apiFetch } from '$lib/utils/api';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
-    import '../../../../../../app.css'
+    import '../../../../../../app.css';
+    
+    // 👇 IMPORTA O TEU COMPONENTE AQUI (Ajusta o caminho se necessário)
+    import ApexChartWrapper from '$lib/components/ClientChart.svelte'; 
     
     import { 
-        ArrowLeft, Home, School, MessageSquare, Zap, 
-        TrendingUp, BookOpen, AlertCircle
+        ArrowLeft, TrendingUp, BookOpen, AlertCircle, 
+        Lightbulb, CheckCircle2, AlertTriangle, Info, Zap, Home, School, BrainCircuit, MessageSquare,
+
+		Rocket,
+
+		Shield
+
+
     } from 'lucide-svelte';
 
     let studentId = $page.params.id;
@@ -16,11 +25,22 @@
     let loading = true;
     let error = false;
 
+    // --- VARIÁVEIS PARA GRÁFICOS ---
+    let donutOptions: any;
+    let donutSeries: number[] = [];
+    
+    let barOptions: any;
+    let barSeries: any[] = [];
+
+    // --- VARIÁVEL PARA INSIGHTS ---
+    let insights: any[] = [];
+
     onMount(async () => {
         try {
             const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/guardian/report/${studentId}`);
             if (res.ok) {
                 data = await res.json();
+                prepareDashboard(data);
             } else {
                 error = true;
             }
@@ -32,166 +52,284 @@
         }
     });
 
-    // Helper para percentagem
-    function calcPercent(val1: number, val2: number) {
-        const total = val1 + val2;
-        if (total === 0) return 50;
-        return (val1 / total) * 100;
+    function prepareDashboard(data: any) {
+        // 1. DADOS DO DONUT
+        const volCasa = data.geral.casa.rushVolume + data.geral.casa.chatVolume;
+        const volEscola = data.geral.escola.rushVolume + data.geral.escola.chatVolume;
+        
+        donutSeries = [volCasa, volEscola];
+        donutOptions = {
+            chart: { type: 'donut', fontFamily: 'Inherit' },
+            labels: ['Em Casa', 'Na Escola'],
+            colors: ['#22c55e', '#3b82f6'],
+            plotOptions: { pie: { donut: { size: '65%' } } },
+            dataLabels: { enabled: false },
+            legend: { position: 'bottom' },
+            stroke: { show: false }
+        };
+
+        // 2. DADOS DE BARRAS
+        const effRush = Math.round((data.geral.casa.rushEfficiency + data.geral.escola.rushEfficiency) / 2);
+        const effTutor = Math.round((data.geral.casa.tutorEfficiency + data.geral.escola.tutorEfficiency) / 2);
+
+        barSeries = [{
+            name: 'Absorção',
+            data: [effRush, effTutor]
+        }];
+        
+        barOptions = {
+            chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'Inherit' },
+            plotOptions: {
+                bar: { 
+                    borderRadius: 6, 
+                    horizontal: true, 
+                    barHeight: '50%',
+                    distributed: true 
+                }
+            },
+            colors: ['#eab308', '#a855f7'],
+            xaxis: { 
+                categories: ['Prática (Rush)', 'Teoria (Tutor)'],
+                max: 100,
+                labels: { show: false }
+            },
+            dataLabels: {
+                enabled: true,
+                formatter: (val: number) => `${val}%`,
+                style: { fontSize: '14px', fontWeight: 'bold' }
+            },
+            grid: { show: false },
+            legend: { show: false }
+        };
+
+        // 3. GERAR INSIGHTS
+        insights = analyzeStudentPerformance(data);
     }
 
-    // ✅ CORREÇÃO: Cálculos Reativos (Substitui o @const)
-    // O Svelte recalcula isto automaticamente assim que 'data' deixar de ser null
-    $: totalAtividade = data 
-        ? (data.geral.casa.rush.total + data.geral.escola.rush.total + data.geral.casa.chat + data.geral.escola.chat)
-        : 0;
+    // --- MOTOR DE INSIGHTS (Reutilizável) ---
+    function analyzeStudentPerformance(data: any) {
+        const list = [];
+        const totalVol = 
+            data.geral.casa.rushVolume + data.geral.escola.rushVolume + 
+            data.geral.casa.chatVolume + data.geral.escola.chatVolume;
 
-    $: percCasa = data 
-        ? calcPercent(
-            data.geral.casa.rush.total + data.geral.casa.chat, 
-            data.geral.escola.rush.total + data.geral.escola.chat
-          ) 
-        : 50;
+        // Regra 1: Volume Baixo
+        if (totalVol < 5) {
+            list.push({
+                type: 'neutral',
+                title: 'Início da Jornada',
+                message: 'Ainda temos poucos dados. Incentive o aluno a usar o KaniMente esta semana!',
+                icon: Info
+            });
+            return list;
+        }
 
-      const ref = $page.url.searchParams.get('ref');
+        // Regra 2: Equilíbrio Prática vs Teoria
+        const rushScore = (data.geral.casa.rushEfficiency + data.geral.escola.rushEfficiency) / 2;
+        const tutorScore = (data.geral.casa.tutorEfficiency + data.geral.escola.tutorEfficiency) / 2;
+
+        if (rushScore > 80 && tutorScore > 80) {
+            list.push({
+                type: 'success',
+                title: 'Desempenho Excelente!',
+                message: 'O aluno está a dominar tanto a teoria como a prática. Parabéns!',
+                icon: CheckCircle2
+            });
+        } else if (rushScore < 50 && tutorScore < 50) {
+            list.push({
+                type: 'danger',
+                title: 'Atenção Necessária',
+                message: 'Nota-se dificuldade geral. Sugerimos rever matérias anteriores.',
+                icon: AlertTriangle
+            });
+        } else if (rushScore > tutorScore + 20) {
+            list.push({
+                type: 'warning',
+                title: 'Forte na Prática, Teoria Pendente',
+                message: 'O aluno resolve bem exercícios, mas parece saltar as explicações teóricas.',
+                icon: Lightbulb
+            });
+        } else if (tutorScore > rushScore + 20) {
+            list.push({
+                type: 'warning',
+                title: 'Entende a Teoria, Falha na Prática',
+                message: 'O aluno percebe as explicações, mas precisa de fazer mais exercícios Rush para fixar.',
+                icon: Zap
+            });
+        }
+
+        // Regra 3: Autonomia
+        const volCasa = data.geral.casa.rushVolume + data.geral.casa.chatVolume;
+        const percentCasa = totalVol > 0 ? (volCasa / totalVol) * 100 : 0;
+
+        if (percentCasa > 60) {
+            list.push({
+                type: 'success',
+                title: 'Grande Autonomia',
+                message: 'A maior parte do estudo é feita em casa, por iniciativa própria.',
+                icon: Home
+            });
+        }
+
+        return list;
+    }
 
     function goBack() {
-        if (ref === 'home') {
-            goto('/dashboard/foreman/overview'); // Volta para a Visão Geral
-        } else {
-            // Default (ou se vier da lista)
-            goto('/dashboard/foreman/student'); 
-        }
+        const ref = $page.url.searchParams.get('ref');
+        goto(ref === 'home' ? '/dashboard/foreman/overview' : '/dashboard/foreman/reports');
     }
 </script>
 
-<div class="max-w-6xl mx-auto p-6 space-y-8 animate-fade-in pb-20">
+<div class="max-w mx-auto p-6 space-y-8 animate-fade-in pb-20">
     
     <div class="flex items-center gap-4">
-        <button on:click={() => goBack()} class="p-2 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 transition-colors">
+        <button on:click={goBack} class="p-2 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-500 transition-colors">
             <ArrowLeft size={24} />
         </button>
         <div>
-            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Análise de Desempenho</h1>
+            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Relatório do Encarregado</h1>
             {#if data}
-                <p class="text-surface-500 text-sm">Dados de <strong class="text-primary-500">{data.aluno.nome}</strong></p>
+                <p class="text-surface-500 text-sm">Análise de <strong class="text-primary-500">{data.aluno.nome}</strong></p>
             {/if}
         </div>
     </div>
 
     {#if loading}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="h-64 bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse"></div>
-            <div class="h-64 bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse"></div>
-        </div>
+        <div class="h-64 bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse"></div>
     {:else if error}
         <div class="p-8 text-center bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-200 dark:border-red-800">
             <AlertCircle class="mx-auto text-red-500 mb-2" size={32} />
-            <p class="text-red-700 dark:text-red-300">Erro ao carregar relatório.</p>
+            <p class="text-red-700 dark:text-red-300">Não foi possível gerar o diagnóstico.</p>
         </div>
     {:else if data}
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            <div class="relative overflow-hidden bg-white dark:bg-surface-800 p-6 rounded-3xl border-2 border-green-100 dark:border-green-900/30 shadow-sm">
-                <div class="absolute top-0 right-0 p-4 opacity-5">
-                    <Home size={100} class="text-green-500"/>
+            <div class="bg-white dark:bg-surface-800 p-6 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-sm flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-surface-900 dark:text-white mb-1">Onde estuda mais?</h2>
+                    <p class="text-sm text-surface-500 mb-4">Volume de atividade Casa vs Escola</p>
                 </div>
-                
-                <div class="flex items-center gap-3 mb-6 relative z-10">
-                    <div class="p-3 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-xl">
-                        <Home size={24} />
+                {#if donutOptions}
+                    <div class="-ml-4">
+                        <ApexChartWrapper 
+                            options={donutOptions} 
+                            series={donutSeries} 
+                            type="donut" 
+                            height={250} 
+                        />
                     </div>
-                    <div>
-                        <h2 class="text-xl font-bold text-surface-900 dark:text-white">Estudo em Casa</h2>
-                        <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Autónomo</p>
-                    </div>
-                </div>
-
-                <div class="space-y-4 relative z-10">
-                    <div class="flex justify-between items-center p-3 bg-surface-50 dark:bg-surface-900 rounded-xl">
-                        <div class="flex items-center gap-2 text-surface-600 dark:text-surface-400 text-sm">
-                            <MessageSquare size={16} /> Dúvidas Tiradas
-                        </div>
-                        <span class="font-bold text-lg">{data.geral.casa.chat}</span>
-                    </div>
-
-                    <div class="flex justify-between items-center p-3 bg-surface-50 dark:bg-surface-900 rounded-xl">
-                        <div class="flex items-center gap-2 text-surface-600 dark:text-surface-400 text-sm">
-                            <Zap size={16} /> Exercícios Rush
-                        </div>
-                        <div class="text-right">
-                            <span class="font-bold text-lg block">{data.geral.casa.rush.total}</span>
-                            <span class="text-xs font-bold {data.geral.casa.rush.taxaAcerto >= 70 ? 'text-green-500' : 'text-orange-500'}">
-                                {data.geral.casa.rush.taxaAcerto}% Acerto
-                            </span>
-                        </div>
-                    </div>
-                </div>
+                {/if}
             </div>
 
-            <div class="relative overflow-hidden bg-white dark:bg-surface-800 p-6 rounded-3xl border-2 border-blue-100 dark:border-blue-900/30 shadow-sm">
-                <div class="absolute top-0 right-0 p-4 opacity-5">
-                    <School size={100} class="text-blue-500"/>
+            <div class="bg-white dark:bg-surface-800 p-6 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-sm flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-surface-900 dark:text-white mb-1">Qualidade da Aprendizagem</h2>
+                    <p class="text-sm text-surface-500 mb-4">Comparação entre Prática e Teoria</p>
                 </div>
-
-                <div class="flex items-center gap-3 mb-6 relative z-10">
-                    <div class="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-xl">
-                        <School size={24} />
-                    </div>
+                {#if barOptions}
                     <div>
-                        <h2 class="text-xl font-bold text-surface-900 dark:text-white">Estudo na Escola</h2>
-                        <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Vinculado a Turmas</p>
+                        <ApexChartWrapper 
+                            options={barOptions} 
+                            series={barSeries} 
+                            type="bar" 
+                            height={200} 
+                        />
                     </div>
-                </div>
-
-                <div class="space-y-4 relative z-10">
-                    <div class="flex justify-between items-center p-3 bg-surface-50 dark:bg-surface-900 rounded-xl">
-                        <div class="flex items-center gap-2 text-surface-600 dark:text-surface-400 text-sm">
-                            <MessageSquare size={16} /> Dúvidas na Aula
-                        </div>
-                        <span class="font-bold text-lg">{data.geral.escola.chat}</span>
-                    </div>
-
-                    <div class="flex justify-between items-center p-3 bg-surface-50 dark:bg-surface-900 rounded-xl">
-                        <div class="flex items-center gap-2 text-surface-600 dark:text-surface-400 text-sm">
-                            <Zap size={16} /> TPC / Exercícios
-                        </div>
-                        <div class="text-right">
-                            <span class="font-bold text-lg block">{data.geral.escola.rush.total}</span>
-                            <span class="text-xs font-bold {data.geral.escola.rush.taxaAcerto >= 70 ? 'text-blue-500' : 'text-orange-500'}">
-                                {data.geral.escola.rush.taxaAcerto}% Acerto
-                            </span>
-                        </div>
-                    </div>
-                </div>
+                {/if}
             </div>
         </div>
+{#if (data.pontosFortes && data.pontosFortes.length > 0) || (data.pontosFracos && data.pontosFracos.length > 0)}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div class="bg-white dark:bg-surface-800 p-6 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-sm">
+                    <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4 flex items-center gap-2">
+                        <TrendingUp class="text-green-500" /> Super Poderes <Rocket class="text-green-500" size={20} />
+                    </h3>
+                    
+                    {#if data.pontosFortes.length > 0}
+                        <div class="space-y-3">
+                            {#each data.pontosFortes as topic}
+                                <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800">
+                                    <div>
+                                        <p class="font-bold text-surface-900 dark:text-surface-100">{topic.nome}</p>
+                                        <p class="text-xs text-green-700 dark:text-green-400 font-medium uppercase">{topic.disciplina}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-lg font-black text-green-600">{topic.taxa}%</span>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    {:else}
+                         <p class="text-sm text-surface-500">Ainda a identificar pontos fortes...</p>
+                    {/if}
+                </div>
 
-        <div class="bg-white dark:bg-surface-800 p-6 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-sm">
-            <h3 class="text-sm font-bold text-surface-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <TrendingUp size={16} /> Distribuição do Esforço
+                <div class="bg-white dark:bg-surface-800 p-6 rounded-3xl border border-surface-200 dark:border-surface-700 shadow-sm">
+                    <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4 flex items-center gap-2">
+                        <AlertCircle class="text-orange-500" /> Precisa de Atenção <Shield class="text-orange-500" size={20} />
+                    </h3>
+                    
+                    {#if data.pontosFracos.length > 0}
+                        <div class="space-y-3">
+                            {#each data.pontosFracos as topic}
+                                <div class="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-100 dark:border-orange-800">
+                                    <div>
+                                        <p class="font-bold text-surface-900 dark:text-surface-100">{topic.nome}</p>
+                                        <p class="text-xs text-orange-700 dark:text-orange-400 font-medium uppercase">{topic.disciplina}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-lg font-black text-orange-600">{topic.taxa}%</span>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    {:else}
+                         <p class="text-sm text-surface-500">Sem pontos críticos detectados. Bom trabalho!</p>
+                    {/if}
+                </div>
+            </div>
+        {/if}
+        <div class="space-y-4">
+            <h3 class="text-lg font-bold text-surface-900 dark:text-white flex items-center gap-2">
+                <Lightbulb class="text-yellow-500" fill="currentColor" size={20} />
+                Diagnóstico Kani
             </h3>
             
-            <div class="h-4 bg-surface-100 dark:bg-surface-700 rounded-full overflow-hidden flex">
-                <div class="h-full bg-green-500 transition-all duration-1000" style="width: {percCasa}%"></div>
-                <div class="h-full bg-blue-500 flex-1 transition-all duration-1000"></div>
-            </div>
-            
-            <div class="flex justify-between mt-3 text-sm font-medium">
-                <span class="text-green-600">{Math.round(percCasa)}% Casa</span>
-                {#if totalAtividade === 0}
-                    <span class="text-surface-400 text-xs">Sem atividade registada</span>
-                {/if}
-                <span class="text-blue-600">{Math.round(100 - percCasa)}% Escola</span>
+            <div class="grid grid-cols-1 gap-4">
+                {#each insights as insight}
+                    <div class="p-5 rounded-2xl border-l-4 flex items-start gap-4 shadow-sm
+                        {insight.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-500' : ''}
+                        {insight.type === 'warning' ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-500' : ''}
+                        {insight.type === 'danger' ? 'bg-red-50 dark:bg-red-900/20 border-red-500' : ''}
+                        {insight.type === 'neutral' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500' : ''}">
+                        
+                        <div class="p-2 rounded-full bg-white dark:bg-surface-800 shadow-sm shrink-0">
+                            <svelte:component this={insight.icon} size={24} 
+                                class="{insight.type === 'success' ? 'text-green-600' : ''}
+                                       {insight.type === 'warning' ? 'text-orange-600' : ''}
+                                       {insight.type === 'danger' ? 'text-red-600' : ''}
+                                       {insight.type === 'neutral' ? 'text-blue-600' : ''}" 
+                            />
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-surface-900 dark:text-white mb-1">{insight.title}</h4>
+                            <p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed">{insight.message}</p>
+                        </div>
+                    </div>
+                {/each}
             </div>
         </div>
 
         {#if data.turmas.length > 0}
-            <div class="space-y-4">
-                <h3 class="text-lg font-bold text-surface-900 dark:text-white">Desempenho por Disciplina</h3>
+            <div class="pt-8 border-t border-surface-200 dark:border-surface-800">
+                <h3 class="text-lg font-bold text-surface-900 dark:text-white mb-4 flex items-center gap-2">
+                    <BookOpen size={20} /> Detalhe por Disciplina
+                </h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {#each data.turmas as turma}
-                        <div class="p-5 bg-white dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700 hover:border-blue-300 transition-colors">
+                        <div class="p-5 bg-white dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
                                     <h4 class="font-bold text-surface-900 dark:text-white">{turma.nome}</h4>
@@ -199,22 +337,26 @@
                                         {turma.disciplina}
                                     </span>
                                 </div>
-                                <BookOpen size={20} class="text-surface-400" />
                             </div>
                             
-                            <div class="space-y-2">
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-surface-500">Exercícios</span>
-                                    <span class="font-bold">{turma.exerciciosFeitos}</span>
+                            <div class="space-y-3">
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1">
+                                        <span class="text-surface-500">Prática (Rush)</span>
+                                        <span class="font-bold text-surface-900 dark:text-white">{turma.desempenho.rush}%</span>
+                                    </div>
+                                    <div class="w-full bg-surface-100 dark:bg-surface-700 h-1.5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-yellow-500" style="width: {turma.desempenho.rush}%"></div>
+                                    </div>
                                 </div>
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-surface-500">Precisão</span>
-                                    <span class="font-bold {turma.taxaAcerto >= 70 ? 'text-green-500' : 'text-orange-500'}">
-                                        {turma.taxaAcerto}%
-                                    </span>
-                                </div>
-                                <div class="w-full bg-surface-100 dark:bg-surface-700 h-1.5 rounded-full mt-2 overflow-hidden">
-                                    <div class="h-full {turma.taxaAcerto >= 70 ? 'bg-green-500' : 'bg-orange-500'}" style="width: {turma.taxaAcerto}%"></div>
+                                <div>
+                                    <div class="flex justify-between text-xs mb-1">
+                                        <span class="text-surface-500">Teoria (Tutor)</span>
+                                        <span class="font-bold text-surface-900 dark:text-white">{turma.desempenho.tutor}%</span>
+                                    </div>
+                                    <div class="w-full bg-surface-100 dark:bg-surface-700 h-1.5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-purple-500" style="width: {turma.desempenho.tutor}%"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

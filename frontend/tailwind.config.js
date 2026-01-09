@@ -12,23 +12,29 @@ export default {
 	theme: {
 		extend: {},
 	},
+	experimental: {
+		optimizeUniversalDefaults: false
+	},
+	future: {
+		hoverOnlyWhenSupported: true
+	},
 	plugins: [
 		skeleton({
-			themes: { 
-				preset: [ 
+			themes: {
+				preset: [
 					"wintry",
-					"modern", 
+					"modern",
 					"hamlindigo",
 					"cerberus",
 					"mint"
-				] 
+				]
 			}
 		})
 	],
 	safelist: [
-    {
-        pattern: /bg-(red|green|blue|yellow|purple|orange|teal|cyan|slate)-(100|200|300|400|500|600|700|800)/,
-    }
-]
+		{
+			pattern: /bg-(red|green|blue|yellow|purple|orange|teal|cyan|slate)-(100|200|300|400|500|600|700|800)/,
+		}
+	]
 
 }

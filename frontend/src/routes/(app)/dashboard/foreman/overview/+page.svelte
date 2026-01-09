@@ -18,9 +18,10 @@
     async function loadData() {
         try {
             // 1. Dados do User
-            const resUser = await apiFetch(`${PUBLIC_API_URL_HOST}/api/users/me`);
+            const resUser = await apiFetch(`${PUBLIC_API_URL_HOST}/api/profile/me`);
             if (resUser.ok) {
                 const data = await resUser.json();
+                console.log(data)
                 user = { nome: data.nome, isProfessor: !!data.perfilProfessor };
             }
 
@@ -41,9 +42,19 @@
         // Leva para aquela tela bonita de "Como queres aprender hoje?" (Tutor vs Rush)
         goto(`/dashboard/foreman/student/${studentId}/class?ref=home`); 
     }
+        function getAvatarColor(name: string) {
+        const gradients = [
+            'bg-gradient-to-br from-blue-500 to-cyan-500',
+            'bg-gradient-to-br from-emerald-500 to-teal-500',
+            'bg-gradient-to-br from-purple-500 to-pink-500',
+            'bg-gradient-to-br from-amber-500 to-orange-500',
+            'bg-gradient-to-br from-rose-500 to-red-500'
+        ];
+        return gradients[name.charCodeAt(0) % gradients.length];
+    }
 </script>
 
-<div class="max-w-7xl mx-auto p-6 space-y-8 animate-fade-in">
+<div class="max-w-8xl mx-auto p-6 space-y-8 animate-fade-in">
 
     <div class="flex justify-between items-center">
         <div>
@@ -72,9 +83,9 @@
                 <div class="group relative bg-white dark:bg-surface-800 rounded-3xl p-6 border-2 border-surface-100 dark:border-surface-700 shadow-sm hover:shadow-xl hover:border-primary-500 transition-all duration-300">
                     
                     <div class="flex items-center gap-4 mb-6">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-2xl font-bold text-white shadow-lg">
-                            {student.nome.charAt(0)}
-                        </div>
+                            <div class={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold ${getAvatarColor(student.nome)}`}>
+                                {student.nome.charAt(0)}
+                            </div>
                         <div>
                             <h3 class="text-xl font-bold text-surface-900 dark:text-white leading-tight">
                                 {student.nome}
@@ -118,7 +129,8 @@
     {:else}
         <div class="text-center py-12">
             <p class="text-surface-500 mb-4">Ainda não tens educandos registados.</p>
-            <button class="btn variant-filled-primary" on:click={() => goto('/dashboard/foreman/students/create?ref=home')}>
+            <button                     class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+ on:click={() => goto('/dashboard/foreman/student/create?ref=home')}>
                 Começar
             </button>
         </div>

@@ -10,13 +10,18 @@
   import { goto } from '$app/navigation';
   import confetti from 'canvas-confetti';
 
-  // --- ESTADO ---
+  // --- PARÂMETROS ---
   let studentId = $page.params.id || '';
+  
+  // 🚨 NOVO: Captura o SessionID da URL
+  let sessionId = $page.url.searchParams.get('sessionId') ? parseInt($page.url.searchParams.get('sessionId')!) : null;
 
   $: turmaId =  $page.params.class
       ? parseInt($page.params.class!) 
       : null;
 
+  // Lista de IDs permitidos (Se houver sessão)
+  let allowedTopicIds: number[] = []; 
 
   // Variável visual para mostrar ao aluno
   $: modoTurma = !!turmaId;
@@ -24,13 +29,13 @@
   // View State: 'TOPICS' (Menu) ou 'CHAT' (Sala de Aula)
   let viewState: 'TOPICS' | 'CHAT' = 'TOPICS';
   
-  // Contexto da Sessão (O que vai ser enviado para a IA)
+  // Contexto da Sessão
   let sessionContext = {
-      subject: '', // ex: 'Português'
-      topic: ''    // ex: 'Verbos'
+      subject: '', 
+      topic: '' 
   };
 
-  // Dados do Currículo
+  // Dados do Currículo (Filtrados)
   let availableTopics = { matematica: [], portugues: [] };
   let loadingTopics = true;
 
@@ -47,8 +52,6 @@
   };
 
   let historyLog: Array<{ sender: 'user'|'ai', text: string }> = [];
-console.log(turmaId)
-  // Cores dinâmicas do mascote
   $: mascotState = getMascotState(currentAiMessage.emotion);
 
   // --- LIFECYCLE ---
@@ -66,30 +69,56 @@ console.log(turmaId)
     }
   });
 
-  function speakText() {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // Para qualquer fala anterior
-        const utterance = new SpeechSynthesisUtterance(currentAiMessage.text);
-        utterance.lang = 'pt-PT'; // Português
-        utterance.rate = 0.9; // Um pouco mais lento para crianças
-        window.speechSynthesis.speak(utterance);
-    }
-  }
-  // --- CARREGAMENTO DE DADOS ---
+  // --- CARREGAMENTO DE DADOS (COM FILTRO DE SESSÃO) ---
   async function loadStudentAndTopics() {
+      loadingTopics = true;
       try {
-          // 1. Buscar Classe do Aluno
+          // 1. SE TEM SESSÃO, BUSCA PRIMEIRO OS IDs PERMITIDOS
+          if (sessionId) {
+              const resSession = await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}`);
+              if (resSession.ok) {
+                  const sessionData = await resSession.json();
+                  
+                  // Tratamento robusto de dados (igual ao Rush)
+                  let rawIds = sessionData.topicosAlvo;
+                  if (typeof rawIds === 'string') {
+                      try { rawIds = JSON.parse(rawIds); } catch(e) {}
+                  }
+                  if (Array.isArray(rawIds)) {
+                      allowedTopicIds = rawIds.map((id: any) => Number(id));
+                  }
+                  console.log('🎯 Tópicos Permitidos (Chat):', allowedTopicIds);
+              }
+          }
+
+          // 2. Buscar Classe do Aluno
           const resUser = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`);
           if (!resUser.ok) throw new Error('Erro aluno');
           const student = await resUser.json();
           const classe = student.classe || 3;
 
-          // 2. Buscar Tópicos dessa Classe
+          // 3. Buscar TODOS os Tópicos dessa Classe
           const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${classe}&studentId=${studentId}`);
+          
           if (resTopics.ok) {
-              availableTopics = await resTopics.json();
+              const allTopics = await resTopics.json();
+
+              // 4. FILTRAR (Se houver sessão)
+              if (sessionId) {
+                  availableTopics.matematica = (allTopics.matematica || [])
+                      .filter((t: any) => allowedTopicIds.includes(Number(t.id)));
+
+                  availableTopics.portugues = (allTopics.portugues || [])
+                      .filter((t: any) => allowedTopicIds.includes(Number(t.id)));
+                  
+                  // Reatividade Svelte
+                  availableTopics = { ...availableTopics };
+                  
+              } else {
+                  // Modo Livre: Mostra tudo
+                  availableTopics = allTopics;
+              }
             }
-            console.log(resTopics)
       } catch (e) {
           console.error("Erro ao carregar currículo:", e);
       } finally {
@@ -97,17 +126,22 @@ console.log(turmaId)
       }
   }
 
-  // --- SELEÇÃO DE TÓPICO ---
+  // --- RESTO DAS FUNÇÕES MANTÉM-SE IGUAIS ---
+  function speakText() {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); 
+        const utterance = new SpeechSynthesisUtterance(currentAiMessage.text);
+        utterance.lang = 'pt-PT'; 
+        utterance.rate = 0.9; 
+        window.speechSynthesis.speak(utterance);
+    }
+  }
+
   function startSession(subject: string, topicName: string) {
-      // 1. Define o Contexto
       sessionContext = { subject, topic: topicName };
-      
-      // 2. Muda a UI
       viewState = 'CHAT';
-      historyLog = []; // Limpa histórico visual anterior
+      historyLog = []; 
       
-      // 3. Define a mensagem inicial LOCALMENTE (Sem gastar tokens ainda)
-      // Isto dá a sensação imediata de "A IA sabe sobre o que estamos a falar"
       currentAiMessage = {
           text: `Olá! Vamos aprender sobre **${topicName}** (${subject}). O que queres saber?`,
           emotion: "HAPPY",
@@ -116,17 +150,13 @@ console.log(turmaId)
       };
   }
 
-  // --- LÓGICA DO CHAT (SEND) ---
   async function sendMessage(textOverride?: string) {
     const textToSend = textOverride || messageInput;
     if (!textToSend.trim() || isTyping) return;
 
-    // Atualiza UI
     historyLog = [...historyLog, { sender: 'user', text: textToSend }];
     messageInput = '';
     isTyping = true;
-    
-    // Reset emocional
     currentAiMessage.emotion = "NEUTRAL"; 
 
     try {
@@ -136,11 +166,11 @@ console.log(turmaId)
             body: JSON.stringify({ 
                 alunoId: parseInt(studentId), 
                 userQuery: textToSend,
-                // ✅ ENVIAR O CONTEXTO SELECIONADO
                 subject: sessionContext.subject,
                 topic: sessionContext.topic,
                 mode: 'tutor',
-                turmaId: turmaId
+                turmaId: turmaId,
+                sessaoId: sessionId || null // 👈 IMPORTANTE: Enviar SessionID
             })
         });
 
@@ -166,33 +196,21 @@ console.log(turmaId)
   function handleAiResponse(rawText: string) {
       try {
           const content = JSON.parse(rawText);
-          
           currentAiMessage = {
               text: content.text || "...",
               emotion: content.emotion || "NEUTRAL",
               type: content.interaction_type || "FREE_TEXT",
               data: content.interaction_data || {}
           };
-
-          if (content.emotion === 'HAPPY') {
-              confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-          }
-
+          if (content.emotion === 'HAPPY') confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
           historyLog = [...historyLog, { sender: 'ai', text: content.text }];
-
       } catch (e) {
           console.warn("IA enviou texto plano:", e);
-          currentAiMessage = {
-              text: rawText,
-              emotion: "NEUTRAL",
-              type: "FREE_TEXT",
-              data: {}
-          };
+          currentAiMessage = { text: rawText, emotion: "NEUTRAL", type: "FREE_TEXT", data: {} };
           historyLog = [...historyLog, { sender: 'ai', text: rawText }];
       }
   }
 
-  // --- HELPERS VISUAIS ---
   function getMascotState(emotion: string) {
       switch (emotion) {
           case 'HAPPY': return { color: 'from-green-400 to-emerald-500', icon: Smile, bubble: 'bg-green-50 dark:bg-green-900/20 border-green-200' };
@@ -201,20 +219,21 @@ console.log(turmaId)
       }
   }
 
-  function handleClozeOption(option: string) {
-      const sentence = currentAiMessage.data.sentence || "";
-      const completedSentence = sentence.replace("[[BLANK]]", option);
-      sendMessage(`Escolhi: ${option}. (${completedSentence})`);
-  }
-
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
     }
   }
+  
+  // Função para sair da sessão
+  async function exitSession() {
+      if (sessionId) {
+          await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}/end`, { method: 'PATCH' });
+      }
+      goto(`/dashboard/foreman/student/${studentId}/class`);
+  }
 </script>
-
 <div class="flex flex-col h-screen bg-surface-50 dark:bg-surface-900 relative font-sans overflow-hidden transition-colors duration-500">
     
     <div class="bg-white dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 p-4 flex items-center justify-between shadow-sm z-30">
@@ -224,9 +243,12 @@ console.log(turmaId)
                     <ArrowLeft size={24} />
                 </button>
             {:else}
-                <button on:click={() => goto(`/dashboard/student/${studentId}`)} class="p-2 rounded-full hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 transition-colors">
-                    <ArrowLeft size={24} />
-                </button>
+            <button 
+    on:click={() => sessionId ? exitSession() : goto(`/dashboard/student/${studentId}/class`)} 
+    class="p-2 rounded-full hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 transition-colors"
+>
+    <ArrowLeft size={24} />
+</button>
             {/if}
             
             <div class="flex items-center gap-3">
@@ -262,14 +284,22 @@ console.log(turmaId)
                 </div>
 
                 {#if loadingTopics}
+                {#if availableTopics.matematica.length === 0 && availableTopics.portugues.length === 0 && !loadingTopics}
+    <div class="text-center p-10 bg-red-50 rounded-2xl border border-red-100">
+        <p class="text-red-500 font-bold">Atenção: Esta missão não tem tópicos definidos.</p>
+        <button on:click={exitSession} class="mt-4 text-sm underline text-red-600">Voltar</button>
+    </div>
+{/if}
                     <div class="flex justify-center py-10">
                         <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                     </div>
                 {:else}
                     <section>
+                        {#if availableTopics.matematica.length != 0}
                         <h3 class="text-xl font-bold text-surface-800 dark:text-surface-100 mb-4 flex items-center gap-2">
                             <Calculator class="text-blue-500" /> Matemática
                         </h3>
+                        {/if}
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {#each availableTopics.matematica as topic}
                                 <button 
@@ -285,9 +315,12 @@ console.log(turmaId)
                     </section>
 
                     <section>
+                        {#if availableTopics.portugues.length != 0}
+
                         <h3 class="text-xl font-bold text-surface-800 dark:text-surface-100 mb-4 flex items-center gap-2">
                             <BookOpen class="text-green-500" /> Português
                         </h3>
+                        {/if}
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {#each availableTopics.portugues as topic}
                                 <button 

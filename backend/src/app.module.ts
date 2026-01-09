@@ -14,6 +14,8 @@ import { DisciplineModule } from './discipline/discipline.module';
 import { StudentModule } from './student/student.module';
 import { ChatModule } from './chat/chat.module';
 import { DiagnosticModule } from './diagnostic/diagnostic.module';
+import { SessionModule } from './session/session.module';
+import { PdfModule } from './pdf/pdf.module';
 
 @Module({
   imports: [AuthModule,
@@ -27,7 +29,9 @@ import { DiagnosticModule } from './diagnostic/diagnostic.module';
     DisciplineModule,
     StudentModule,
     ChatModule,
-    DiagnosticModule
+    DiagnosticModule,
+    SessionModule,
+    PdfModule
     ],
   controllers: [AppController],
   providers: [AppService],

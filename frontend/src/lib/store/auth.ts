@@ -123,7 +123,11 @@ const logout = () => {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   }
-  set({ ...initialState, isLoading: false });
+  set({
+    user: null, isAuthenticated: false, isLoading: false,
+    accessToken: null,
+    refreshToken: null
+  });
 };
 
 /**

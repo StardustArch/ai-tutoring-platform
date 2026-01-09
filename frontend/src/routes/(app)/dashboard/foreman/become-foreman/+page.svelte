@@ -4,31 +4,27 @@
   import { apiFetch } from '$lib/utils/api'; 
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import { notifications } from '$lib/store/notifications'; 
+  import { page } from '$app/stores'; // Importar a store da página
   
   import { Users, Check, ArrowLeft, Baby } from 'lucide-svelte';
 
   let isLoading = false;
 
+  // 1. FORMA REATIVA (O Svelte atualiza isto automaticamente se a URL mudar)
+  $: ref = $page.url.searchParams.get('ref');
+
   async function handleSubmit() {
     isLoading = true;
-
     try {
-      // 1. Chamada ao Backend (NestJS)
       const response = await apiFetch(`${PUBLIC_API_URL_HOST}/api/profile/encarregado`, {
         method: 'POST'
       });
 
       if (response.ok) {
-        const updatedProfile = await response.json();
-        
-        // 2. Atualizar a Store Local
-        // Forçamos um refresh do utilizador para garantir que os roles são atualizados
         await auth.refreshUser();
-
         notifications.send('Perfil de Encarregado ativado!', 'success');
-
-        // 3. Redirecionar para criar o PRIMEIRO ALUNO
-        // Pequeno delay para UX suave
+        
+        // Mantém a ref se quiseres usar depois, ou limpa
         setTimeout(() => {
             goto('/dashboard/foreman/student/create?first_time=true');
         }, 800);
@@ -44,10 +40,23 @@
       isLoading = false;
     }
   }
+
+  function goBack() {
+    // 2. SEGURANÇA EXTRA: Ler diretamente da store no momento do clique
+    const currentRef = $page.url.searchParams.get('ref');
+    console.log('Ref capturado:', currentRef); 
+
+    // Nota: No arquivo anterior tinhas 'homet' (Dashboard Teacher), aqui valida isso
+    if (currentRef === 'homet' || currentRef === 'homer') {
+        goto('/dashboard/teacher/overview'); 
+    } else {
+        goto('/dashboard/foreman/home'); // Voltar para a Home do Encarregado (ou raiz)
+    }
+  }
 </script>
 
-<div class="container mx-auto h-full flex items-center justify-center p-4 animate-fade-in">
-  <div class="card p-8 max-w-lg w-full space-y-6 shadow-xl border-t-4 border-primary-500 bg-surface-100 dark:bg-surface-800">
+<div class="container  mx-auto h-full flex items-center justify-center p-4 animate-fade-in ">
+  <div class="card p-8 max-w-2xl w-full space-y-6 shadow-xl border-t-4 border-primary-500 bg-surface-100 dark:bg-surface-800 rounded-xl">
     
     <header class="text-center space-y-2">
       <div class="flex justify-center mb-4">
@@ -77,7 +86,7 @@
 
       <div class="flex flex-col gap-3 pt-4">
         <button 
-            class="btn variant-filled-primary w-full py-3 font-bold text-lg shadow-lg hover:scale-[1.02] transition-transform" 
+                    class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
             on:click={handleSubmit}
             disabled={isLoading}
         >
@@ -90,8 +99,8 @@
         </button>
         
         <button 
-            class="btn variant-ghost w-full hover:bg-surface-200 dark:hover:bg-surface-700" 
-            on:click={() => goto('/dashboard')} 
+                    class="inline-flex items-center justify-center px-4 py-2 border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-700 focus:ring-2 focus:ring-surface-500 focus:ring-offset-2 text-surface-700 dark:text-surface-300 font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            on:click={() => goBack()} 
             disabled={isLoading}
         >
           <ArrowLeft size={16} class="mr-2" /> Cancelar

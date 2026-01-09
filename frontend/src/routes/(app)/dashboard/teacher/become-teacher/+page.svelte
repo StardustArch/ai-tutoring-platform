@@ -62,14 +62,14 @@
             goto('/dashboard/foreman/overview'); // Volta para a Visão Geral
         } else {
             // Default (ou se vier da lista)
-            goto('/dashboard/foreman/student'); 
+            goto('/dashboard'); 
         }
     }
 </script>
 
 
-<div class="container mx-auto h-full flex items-center justify-center p-4 animate-fade-in">
-  <div class="card p-8 max-w-lg w-full space-y-6 shadow-xl border-t-4 border-secondary-500 bg-surface-100-800-token">
+<div class="container  mx-auto h-full flex items-center justify-center p-4 animate-fade-in ">
+  <div class="card p-8 max-w-2xl w-full space-y-6 shadow-xl border-t-4 border-secondary-500 bg-surface-100 dark:bg-surface-800 rounded-xl">
     
     <header class="text-center space-y-2">
       <div class="flex justify-center mb-4">
@@ -88,7 +88,7 @@
       <label class="label">
         <span class="font-bold">Nome da Escola (Opcional)</span>
         <input 
-          class="input p-4 border-surface-300-600-token focus:border-secondary-500" 
+                        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
           type="text" 
           bind:value={escolaNome} 
           placeholder="Ex: Escola Primária Heróis Moçambicanos" 
@@ -96,7 +96,7 @@
         <span class="text-xs text-surface-400">Isto será visível nos detalhes da turma.</span>
       </label>
 
-      <div class="p-4 variant-soft-secondary rounded-container text-sm flex gap-3 items-start">
+      <div class="p-4 variant-soft-secondary rounded-container text-sm flex gap-3 items-start bg-surface-50 dark:bg-surface-700/50 rounded-lg border border-surface-200 dark:border-surface-700">
         <div class="mt-1"><School size={16}/></div>
         <div>
             <p><strong>Acesso Imediato:</strong></p>
@@ -105,7 +105,9 @@
       </div>
 
       <div class="flex flex-col gap-3 pt-4">
-        <button type="submit" class="btn variant-filled-secondary w-full py-3 font-bold text-lg shadow-lg hover:scale-[1.02] transition-transform" disabled={isLoading}>
+        <button type="submit" 
+                    class="inline-flex items-center justify-center px-4 py-2 bg-secondary-600 hover:bg-secondary-700 focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={isLoading}>
           {#if isLoading}
             <span>A configurar...</span>
           {:else}
@@ -113,8 +115,9 @@
           {/if}
         </button>
         
-        <button type="button" class="btn variant-ghost w-full hover:bg-surface-200-700-token" on:click={() => goBack()} disabled={isLoading}>
-          <ArrowLeft size={16} class="mr-2" /> Voltar
+        <button type="button"                     class="inline-flex items-center justify-center px-4 py-2 border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-700 focus:ring-2 focus:ring-surface-500 focus:ring-offset-2 text-surface-700 dark:text-surface-300 font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+ on:click={() => goBack()} disabled={isLoading}>
+          <ArrowLeft size={16} class="mr-2" /> Cancelar
         </button>
       </div>
 

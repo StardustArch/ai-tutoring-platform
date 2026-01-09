@@ -6,6 +6,7 @@
 	function handleLogout() {
 		auth.logout?.();
 		goto('/login');
+        window.location.href = '/login';
 	}
 </script>
 

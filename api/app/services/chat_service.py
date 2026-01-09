@@ -24,9 +24,9 @@ Check the [STATE: TYPE] tag in the chat history.
      - ACTION: Explain again using a DIFFERENT analogy (simpler). DO NOT repeat text.
 
 2. **IF LAST STATE was [TESTING]:**
-   - **User Wrong:** -> Give a Hint & Retry ([TESTING]).
+   - **User Wrong:** -> Give a Hint, SET "assessment": "INCORRECT" & Retry ([TESTING]).
    - **User Correct:** -> DO NOT EXPLAIN NEW TOPIC IMMEDIATELY.
-     - **ACTION:** Praise the student ("Boa!", "Fantástico!").
+     - **ACTION:** Praise the student ("Boa!", "Fantástico!") & SET "assessment": "CORRECT".
      - **DECISION:** Ask if they want a harder challenge or move on.
      - **OUTPUT:** "interaction_type": "CHIPS", "interaction_data": {{ "options": ["Mais um desafio!", "Avançar matéria"] }}
 
@@ -51,6 +51,7 @@ OUTPUT JSON ONLY:
   "text": "Kid-friendly text",
   "emotion": "HAPPY",
   "interaction_type": "EXPLANATION" | "CHIPS" | "CLOZE",
+  "assessment": "CORRECT" | "INCORRECT" | null,
   "interaction_data": {{
       "options": ["Option A", "Option B"]
   }}

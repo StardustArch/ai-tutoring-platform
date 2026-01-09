@@ -37,7 +37,7 @@ def get_tutor_model():
     
     # ✅ Inicializa o Objeto do Modelo (não chama generate_content aqui)
     return genai.GenerativeModel(
-        model_name="gemini-2.5-pro",
+        model_name="gemini-2.5-flash",
         generation_config={
             "temperature": 0.4,
             "response_mime_type": "application/json" # Força JSON sempre

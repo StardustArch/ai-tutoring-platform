@@ -133,7 +133,8 @@ export class ChatService {
             respostaIa: finalResponse, 
             tipoInteracao: tipoSalvo, // ✅ Agora salvamos se foi Pergunta ou Explicação
             topicoId: topicoIdSalvo,   // ✅ Vinculamos ao tópico para filtrar no futuro
-            turmaId: dto.turmaId || null
+            turmaId: dto.turmaId || null,
+            sessaoId: dto.sessaoId || null // <--- LINHA NOVA: Liga à sessão se existir
         }
     });
 

@@ -151,7 +151,7 @@ export class RushService {
   }
 
   // --- 3. SALVAR RESPOSTA ---
-  async saveExerciseResult(alunoId: number, exercicioId: number | null, respostaAluno: string, acertou: boolean, topicoId: number, turmaId: number | null) {
+  async saveExerciseResult(alunoId: number, exercicioId: number | null, respostaAluno: string, acertou: boolean, topicoId: number, turmaId?: number, sessaoId?: number) {
     return await this.prisma.$transaction(async (tx) => {
       const resultado = await tx.exercicioResultado.create({
         data: {
@@ -161,7 +161,8 @@ export class RushService {
           respostaAluno,
           acertou,
           detalhesJson: { note: 'rush' },
-          turmaId: turmaId || null // <--- GRAVAR O CONTEXTO        
+          turmaId: turmaId || null, 
+          sessaoId: sessaoId || null      
           }
       });
 

@@ -134,7 +134,7 @@
 </script>
 
 
-<div class="max-w-2xl mx-auto space-y-8 animate-fade-in">
+<div class="max-w-3xl mx-auto space-y-8 animate-fade-in">
     <!-- Cabeçalho -->
     <div class="space-y-2">
         <h1 class="text-3xl font-bold text-surface-900-50-token">Definições da Conta</h1>

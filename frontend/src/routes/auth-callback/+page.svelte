@@ -17,17 +17,21 @@
 			error 
 		});
 
-		if (error) {
-			console.error('❌ Erro no OAuth:', error);
-			await goto(`/login?error=${error}`);
-			return;
-		}
+// Altere estas linhas no seu onMount:
 
-		if (!accessToken) {
-			console.error('❌ Token de acesso não encontrado');
-			await goto('/login?error=token_missing');
-			return;
-		}
+if (error) {
+    console.error('❌ Erro no OAuth:', error);
+    // Adicione o replaceState aqui
+    await goto(`/login?error=${error}`, { replaceState: true });
+    return;
+}
+
+if (!accessToken) {
+    console.error('❌ Token de acesso não encontrado');
+    // E aqui também
+    await goto('/login?error=token_missing', { replaceState: true });
+    return;
+}
 
 		try {
 			// Usar a store de auth para processar o login OAuth
@@ -39,17 +43,20 @@
     let isEncarregado = !!user?.perfilEncarregado;
     let isProfessor = !!user?.perfilProfessor;
     let isProfessorAtivo = isProfessor && !!user?.perfilProfessor?.escolaNome;
-     
-    if(result.success){
-        if(isEncarregado){
-          goto('/dashboard/foreman/overview')
-        }else if(isProfessorAtivo){
-          goto('/dashboard/teacher')
-        }else{
-          
-          goto('/dashboard');
-        }
-      }
+    const userHasBothProfiles = isEncarregado && isProfessorAtivo;
+
+if (result.success) {
+    // Opcional: Pequeno delay para garantir que a store foi atualizada
+    if (userHasBothProfiles) {
+        await goto('/dashboard/unified/overview', { replaceState: true });
+    } else if (isProfessorAtivo) {
+        await goto('/dashboard/teacher/overview', { replaceState: true });
+    } else if (isEncarregado) {
+        await goto('/dashboard/foreman/overview', { replaceState: true });
+    } else {
+        await goto('/dashboard', { replaceState: true });
+    }
+}
 		} catch (err) {
 			console.error('❌ Erro ao processar callback:', err);
 			await goto('/login?error=processing_failed');

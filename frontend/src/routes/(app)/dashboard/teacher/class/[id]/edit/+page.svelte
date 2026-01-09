@@ -99,14 +99,25 @@
       isSaving = false;
     }
   }
+
+          const ref = $page.url.searchParams.get('ref');
+
+    function goBack() {
+        if (ref === 'home') {
+            goto('/dashboard/teacher/class/'); // Volta para a Visão Geral
+        } else {
+            // Default (ou se vier da lista)
+            goto(`/dashboard/teacher/class/${classId}`); 
+        }
+    }
 </script>
 
-<div class="max-w-2xl mx-auto p-4 pb-20 space-y-8 animate-fade-in">
+<div class="max-w-4xl mx-auto p-4 pb-20 space-y-8 animate-fade-in">
 
   <!-- CABEÇALHO -->
   <div class="flex items-center gap-4">
     <button 
-      on:click={() => goto(`/dashboard/teacher/class/${classId}`)} 
+      on:click={() => goBack()} 
       class="p-2 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 transition-colors"
     >
       <ArrowLeft size={24} />

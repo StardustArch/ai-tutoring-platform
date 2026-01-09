@@ -111,13 +111,13 @@
   </div>
 
   <!-- Botão Tema -->
-  <div class="fixed top-4 right-4 z-50">
+  <!-- <div class="fixed top-4 right-4 z-50">
     <ThemeSwitch />
-  </div>
+  </div> -->
   
   <!-- Cartão de Registo -->
-  <div class="relative w-full max-w-lg z-10 max-h-[90vh] md:max-h-[95vh] overflow-y-auto custom-scrollbar">
-    <div class="bg-white/80 dark:bg-surface-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-surface-200/50 dark:border-surface-700/50 p-6 md:p-8 space-y-5 mt-2 md:mt-0">
+  <!-- <div class="relative w-full max-w-lg z-10 max-h-[90vh] md:max-h-[95vh] overflow-y-auto custom-scrollbar"> -->
+    <div class="bg-white/80 dark:bg-surface-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-surface-200/50 dark:border-surface-700/50 p-6 md:p-8 space-y-5 mt-2 md:mt-0 ">
       
       <!-- Cabeçalho -->
       <div class="text-center space-y-2">
@@ -388,7 +388,7 @@
 
     </div>
   </div>
-</div>
+<!-- </div> -->
 
 <style>
   @keyframes blob {

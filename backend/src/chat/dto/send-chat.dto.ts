@@ -21,6 +21,10 @@ export class SendChatDto {
   @IsOptional()
   @IsInt()
   turmaId?: number; // Novo campo opciona
+
+  @IsOptional()
+  @IsInt()
+  sessaoId?: number; // <--- ADICIONAR ISTO
 }
 
 export class MicroserviceChatRequestDto {
@@ -29,7 +33,7 @@ export class MicroserviceChatRequestDto {
   user_query: string;
   mode: string;
   history: Array<{ role: string; text: string }>;
-  
+
   // ✅ Passar para o Python
   subject?: string;
   topic?: string;

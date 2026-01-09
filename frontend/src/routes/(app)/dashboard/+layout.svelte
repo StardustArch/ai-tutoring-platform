@@ -15,6 +15,7 @@
         LayoutDashboard, GraduationCap, FileText, Settings, Menu, X,
         Users, School, Key, AlertCircle, BookOpen, ChevronLeft, ChevronRight
     } from 'lucide-svelte';
+	import { browser } from '$app/environment';
 
     // --- ESTADO REATIVO ---
     $: user = $auth.user;
@@ -32,6 +33,11 @@
     let isMobile = false;
     
     onMount(() => {
+
+        // svelte-ignore reactive_declaration_invalid_placement
+                $: if (browser && !$auth.isAuthenticated) {
+    goto('/login');
+  }
         // Detectar tamanho de tela
         const checkMobile = () => {
             isMobile = window.innerWidth < 768;
@@ -74,15 +80,86 @@
         }
     }
 
-    // --- GERAÇÃO DINÂMICA DO MENU ---
-    $: menuItems = getMenuItems(isEncarregado, isProfessor, isProfessorAtivo);
+   // --- GERAÇÃO DINÂMICA DO MENU ---
+$: menuItems = getMenuItems(isEncarregado, isProfessor, isProfessorAtivo);
 
-    function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
-        const items: any[] = [];
+function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
+    const items: any[] = [];
+    const userHasBothProfiles = isEnc && isProf;
 
-        if (isEnc) {
+    if (userHasBothProfiles) {
+        // Usuário tem ambos os perfis - mostrar apenas opção unificada + seções separadas
+        
+        // Visão Geral Unificada (apenas quando ambos perfis estão ativos)
+        if (isProfAtivo) {
             items.push(
-                { type: 'header', label: 'Família' },
+                { 
+                    label: 'Visão Geral', 
+                    href: '/dashboard/unified/overview', 
+                    icon: LayoutDashboard,
+                    badge: 'ambos'
+                }
+            );
+        }
+        
+        // Divisão entre perfis
+        // items.push({ type: 'divider' });
+        
+        // Cabeçalho para Professor
+        items.push({ type: 'header', label: 'Docência' });
+        
+        if (!isProfAtivo) {
+            items.push(
+                { 
+                    label: 'Concluir Perfil Professor', 
+                    href: '/dashboard/teacher/become-teacher', 
+                    icon: AlertCircle, 
+                    highlight: true,
+                    badge: 'professor'
+                }
+            );
+        } else {
+            items.push(
+                { 
+                    label: 'Minhas Turmas', 
+                    href: '/dashboard/teacher/class', 
+                    icon: BookOpen,
+                    badge: 'professor'
+                },
+                { 
+                    label: 'Relatórios Turma', 
+                    href: '/dashboard/teacher/reports', 
+                    icon: FileText,
+                    badge: 'professor'
+                }
+            );
+        }
+        
+        // Divisão entre perfis
+        // items.push({ type: 'divider' });
+        
+        // Cabeçalho para Família
+        items.push({ type: 'header', label: 'Família' });
+        
+        items.push(
+            { 
+                label: 'Meus Educandos', 
+                href: '/dashboard/foreman/student', 
+                icon: GraduationCap,
+                badge: 'família'
+            },
+            { 
+                label: 'Relatórios Família', 
+                href: '/dashboard/foreman/reports', 
+                icon: FileText,
+                badge: 'família'
+            }
+        );
+    } else {
+        // Usuário tem apenas um perfil - manter lógica anterior
+        if (isEnc) {
+            items.push({ type: 'header', label: 'Família' });
+            items.push(
                 { label: 'Visão Geral', href: '/dashboard/foreman/overview', icon: LayoutDashboard },
                 { label: 'Meus Educandos', href: '/dashboard/foreman/student', icon: GraduationCap },
                 { label: 'Relatórios', href: '/dashboard/foreman/reports', icon: FileText }
@@ -98,19 +175,22 @@
                 );
             } else {
                 items.push(
+                    { label: 'Visão Geral', href: '/dashboard/teacher/overview', icon: LayoutDashboard },
                     { label: 'Minhas Turmas', href: '/dashboard/teacher/class', icon: BookOpen },
-                    { label: 'Relatórios Turma', href: '/dashboard/professor/relatorios', icon: FileText }
+                    { label: 'Relatórios Turma', href: '/dashboard/teacher/reports', icon: FileText }
                 );
             }
         }
-
-        items.push(
-            { type: 'divider' },
-            { label: 'Definições', href: '/dashboard/settings', icon: Settings }
-        );
-
-        return items;
     }
+
+    // Configurações sempre disponível
+    items.push(
+        { type: 'divider' },
+        { label: 'Definições', href: '/dashboard/settings', icon: Settings }
+    );
+
+    return items;
+}
 
     function isActive(itemHref: string, currentPath: string) {
         if (itemHref === '/dashboard') {
@@ -118,6 +198,27 @@
         }
         return currentPath.startsWith(itemHref);
     }
+
+    function formatarNome(user: any): string {
+  // Junta nome e sobrenome
+  const fullName = `${user.nome} ${user.sobrenome}`.trim();
+
+  // Divide em palavras
+  const parts = fullName.split(/\s+/);
+
+  if (parts.length === 0) return '';
+
+  // Primeiro nome
+  const firstName = parts[0];
+
+  // Último nome
+  const lastName = parts.length > 1 ? parts[parts.length - 1] : '';
+
+  // Nomes do meio → iniciais
+  const middleInitials = parts.slice(1, -1).map(n => n[0].toUpperCase() + '.');
+
+  return [firstName, ...middleInitials, lastName].filter(Boolean).join(' ');
+}
 </script>
 
 <Notification/>
@@ -220,12 +321,12 @@
                     {#if sidebarExpanded || isMobile}
                         <div class="flex-1 min-w-0 transition-opacity duration-300">
                             <p class="text-sm font-bold truncate text-surface-900 dark:text-surface-50">
-                                {user?.nome}
+                                {formatarNome(user)}
                             </p>
                             <p class="text-xs text-surface-500 dark:text-surface-400 truncate flex items-center gap-1">
                                {#if isProfessor && isEncarregado}
-                                    <span class="badge variant-soft-primary text-[10px] px-1">Pro</span>
-                                    <span class="badge variant-soft-secondary text-[10px] px-1">Pai</span>
+                                    <span class="badge variant-soft-primary text-[10px] px-1 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Professor</span>
+                                    <span class="badge variant-soft-secondary text-[10px] px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Encarregado</span>
                                {:else if isProfessor}
                                     <span>Professor</span>
                                {:else if isEncarregado}
@@ -264,13 +365,25 @@
                 </button>
                 
                    {/if}
-                <h2 class="hidden md:flex items-center gap-2 text-sm font-medium text-surface-500 dark:text-surface-400">
-                    <span class="opacity-50">Dashboard</span>
-                    <span>/</span>
-                    <span class="text-surface-900 dark:text-surface-100 font-bold">
-                        {menuItems.find(i => i.href && isActive(i.href, $page.url.pathname))?.label || 'Visão Geral'}
-                    </span>
-                </h2>
+ <h2 class="hidden md:flex items-center gap-2 text-sm font-medium text-surface-500 dark:text-surface-400">
+    <span class="opacity-50">Dashboard</span>
+    <span>/</span>
+    
+        {#if  menuItems.find(i => i.href && isActive(i.href, $page.url.pathname))?.badge}
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full 
+                {menuItems.find(i => i.href && isActive(i.href, $page.url.pathname)).badge === 'professor' 
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                } mr-1">
+                {menuItems.find(i => i.href && isActive(i.href, $page.url.pathname)).badge === 'professor' ? 'Professor' : 
+                 menuItems.find(i => i.href && isActive(i.href, $page.url.pathname)).badge === 'família' ? 'Família' : 'Ambos'}
+            </span>
+        {/if}
+        <span class="text-surface-900 dark:text-surface-100 font-bold">
+            {menuItems.find(i => i.href && isActive(i.href, $page.url.pathname))?.label || 'Visão Geral'}
+        </span>
+ 
+</h2>
                 
                 <div class="flex items-center gap-2">
                     <ThemeSwitch />

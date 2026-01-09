@@ -9,6 +9,7 @@
   } from 'lucide-svelte';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import '../../../../../../app.css'
+	import { page } from '$app/stores';
 
   // --- ESTADO ---
   let isLoading = false;
@@ -105,14 +106,28 @@
     formData.nome = '';
     // Mantemos a disciplina selecionada pois o professor pode criar várias da mesma
   }
+
+          const ref = $page.url.searchParams.get('ref');
+
+    function goBack() {
+        if (ref === 'home') {
+            goto('/dashboard/teacher/overview'); // Volta para a Visão Geral
+        }else if(ref === 'homef'){
+            goto('/dashboard/unified/overview'); // Volta para a Visão Geral
+
+        } else {
+            // Default (ou se vier da lista)
+            goto('/dashboard/teacher/class'); 
+        }
+    }
 </script>
 
-<div class="max-w-2xl mx-auto space-y-8 animate-fade-in pb-20 p-4">
+<div class="max-w-3xl mx-auto space-y-8 animate-fade-in pb-20 p-4">
   
   <!-- CABEÇALHO (Estilo Settings) -->
   <div class="space-y-2">
       <div class="flex items-center gap-3">
-        <button on:click={() => goto('/dashboard/teacher/class')} class="p-2 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors">
+        <button on:click={() => goBack()} class="p-2 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors">
             <ArrowLeft size={24} class="text-surface-600 dark:text-surface-300"/>
         </button>
         <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-50">Criar Nova Turma</h1>
@@ -266,14 +281,6 @@
                         <Save size={18} class="mr-2" />
                         <span>Criar Turma</span>
                     {/if}
-                </button>
-
-                <button
-                    class="inline-flex items-center justify-center px-4 py-2 border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 font-medium rounded-lg transition-colors duration-200"
-                    on:click={() => goto('/dashboard/teacher/home')}
-                    disabled={isLoading}
-                >
-                    Cancelar
                 </button>
             </div>
 
