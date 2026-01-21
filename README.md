@@ -1,163 +1,95 @@
-# 🧠 KaniMente - Chatbot Educacional Infantil com IA
 
-**Trabalho de Fim de Curso (TCC)**  
-**Curso**: Licenciatura em Tecnologias de Informação  
-**Autor**: Paulo João Candrinho  
-**Local**: Beira, Moçambique  
+**Final Year Project (TCC)**
 
-## 📖 Sobre o Projeto
+## Architecture
 
-O **KaniMente** é uma plataforma educativa inovadora concebida para auxiliar crianças do ensino primário (3ª à 6ª classe) na aprendizagem de **Português** e **Matemática**.
+The project follows a modern **Microservices Architecture**:
 
-O sistema utiliza **Inteligência Artificial Generativa** para atuar como um tutor personalizado, adaptando-se ao nível da criança, oferecendo explicações, exercícios e feedback pedagógico, enquanto permite aos **Encarregados** e **Professores** monitorizar o progresso.
+* **Frontend (SvelteKit):** Reactive UI/UX with a mobile-first approach.
+* **Core Backend (NestJS):** Handles auth, user management, and business logic.
+* **AI Service (FastAPI):** Python microservice bridging the application with LLMs (Google Gemini).
+* **Database (PostgreSQL):** Relational data persistence managed via Prisma ORM.
 
-## 🏗️ Arquitetura de Microserviços
+## Tech Stack
 
-Este projeto utiliza uma arquitetura moderna baseada em microserviços para garantir escalabilidade e separação de responsabilidades:
+| Component | Technology |
+| --- | --- |
+| **Frontend** | SvelteKit, TypeScript, Tailwind CSS, Skeleton UI |
+| **Backend Core** | NestJS, Prisma ORM, Passport.js (JWT/OAuth) |
+| **AI Microservice** | Python 3.12, FastAPI, Google Gemini API |
+| **Database** | PostgreSQL |
+| **Infra** | Docker & Docker Compose // Podman & Podman Compose |
 
-- **Frontend (SvelteKit)**: A interface do utilizador, rápida e reativa
-- **Backend Core (NestJS)**: O "cérebro" do sistema. Gere utilizadores, autenticação, dados escolares e lógica de negócio
-- **Microserviço de IA (FastAPI)**: O "oráculo". Um serviço Python dedicado a comunicar com os LLMs (Google Gemini)
-- **Base de Dados (PostgreSQL)**: Persistência de dados relacional
+## Key Features
 
-## 🚀 Stack Tecnológica
+**AI Tutor:** Interactive chat with "Tutor" (guided learning) and "Rush" (gamified quiz) modes.
 
-### 🎨 Frontend
-- **Framework**: SvelteKit (TypeScript)
-- **Estilização**: Tailwind CSS v3
-- **Componentes UI**: Skeleton UI v2
-- **Ícones**: Lucide Svelte
-- **Comunicação**: Axios
+**Multi-Role System:** Distinct dashboards for Students, Teachers, and Guardians.
 
-### 🧠 Backend Principal
-- **Framework**: NestJS (TypeScript)
-- **ORM**: Prisma
-- **Autenticação**: Passport.js, JWT (Access + Refresh Tokens), Google OAuth2
-- **Base de Dados**: PostgreSQL
+**Hybrid Auth:** Support for secure local login and Google OAuth2.
 
-### 🤖 Microserviço de IA
-- **Linguagem**: Python 3.12
-- **Framework**: FastAPI
-- **IA**: Google Gemini API (google-generativeai)
+**Analytics:** Progress tracking, XP system, and performance reports.
 
-### 🐳 Infraestrutura
-- **Docker & Docker Compose**: Orquestração dos serviços
+**UI:** Responsive design with native Dark Mode support.
 
-## ✨ Funcionalidades Principais
+## Getting Started
 
-- **Autenticação Híbrida**: Login manual seguro e Login social (Google)
-- **Perfis Dinâmicos**: Um utilizador pode atuar como Professor, Encarregado ou ambos
-- **Dashboard Interativo**:
-  - Visão do Professor: Gestão de turmas e estatísticas de alunos
-  - Visão do Encarrregado: Acompanhamento dos educandos
-- **Chatbot Educacional**: Interface de chat amigável para crianças interagirem com a IA
-- **Dark Mode**: Suporte nativo a temas Claro/Escuro (Wintry Theme)
+### Prerequisites
 
-## 🛠️ Instalação e Execução
+* Docker & Docker Compose // Podman & Podman Compose
+* Google Gemini API Key and GROQ API Key
 
-### Pré-requisitos
-- Docker e Docker Compose
-- Conta Google Cloud (para OAuth)
-- API Key do Google Gemini
+### 1. Environment Setup
 
-### 1. Configuração de Ambiente
-
-Crie um ficheiro `.env` na raiz do projeto com as seguintes variáveis:
+Create a `.env` file in the root directory:
 
 ```env
-# Base de Dados
+# Database
 DATABASE_URL="postgresql://postgres:postgres@db:5432/km_db"
 
-# Backend NestJS
-JWT_SECRET_KEY="seu_segredo_access_token"
-JWT_REFRESH_SECRET_KEY="seu_segredo_refresh_token"
-FRONTEND_URL="http://localhost:4173"
+# Backend Core (NestJS)
+JWT_SECRET_KEY="your_access_secret"
+JWT_REFRESH_SECRET_KEY="your_refresh_secret"
+FRONTEND_URL="http://localhost:5173"
 
 # Google OAuth
-GOOGLE_CLIENT_ID="seu_client_id_google"
-GOOGLE_CLIENT_SECRET="seu_client_secret_google"
+GOOGLE_CLIENT_ID="your_google_client_id"
+GOOGLE_CLIENT_SECRET="your_google_client_secret"
 GOOGLE_CALLBACK_URL="http://localhost:3000/api/auth/google/callback"
 
-# Microserviço IA
-IA_API_URL="http://backend_ia:8000"
-GEMINI_API_KEY="sua_api_key_gemini"
+# AI Service (FastAPI)
+IA_API_URL="http://api:8000"
+GEMINI_API_KEY="your_gemini_api_key"
+GROQ_API_KEY="your_groq_api_key"
+
+# Database Secrets (Postgers)
+POSTGRES_USER="your_postgres_user"
+POSTGRES_PASSWORD="your_postgres_password"
+POSTGRES_DB="your_postgres_database_name"
+
+# Frontend (SvelteKit) 
+PUBLIC_API_URL="http://backend:3000" # Used for Server-Side Rendering (Internal Docker Network)
+PUBLIC_API_URL_HOST="http://localhost:3000" # Used for Client-Side Fetching (Browser Access)
+PUBLIC_IA_HOST_API_URL="http://localhost:8000" # Used for serving Audio/Assets directly to browser
+
 ```
 
-### 2. Executar a Aplicação Completa
+### 2. Run Application
 
-Todos os serviços (frontend, backend, IA e base de dados) executam em containers Docker:
+Start the entire stack using Docker/Podman Compose:
 
 ```bash
-# Na raiz do projeto (modo desenvolvimento)
 docker-compose up --build
 
-# Ou em background
-docker-compose up -d --build
+or
+
+podman compose up --build
 ```
 
-**Serviços disponíveis:**
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:3000
-- **Microserviço IA**: http://localhost:8000
-- **PostgreSQL**: http://localhost:5432
+### 3. Access
 
-### 3. Comandos de Desenvolvimento
+* **Frontend:** `http://localhost:5173`
+* **Backend API:** `http://localhost:3000`
+* **AI Service Docs:** `http://localhost:8000/docs`
 
-Se precisar de executar comandos dentro dos containers:
-
-```bash
-# Executar migrações da base de dados
-docker-compose exec backend_main npx prisma migrate dev --name init
-
-# Gerar cliente Prisma
-docker-compose exec backend_main npx prisma generate
-
-# Ver logs do backend
-docker-compose logs backend_main
-
-# Ver logs do frontend
-docker-compose logs frontend
-
-# Parar todos os serviços
-docker-compose down
-```
-
-## 🗄️ Estrutura da Base de Dados
-
-O projeto utiliza o Prisma ORM. O esquema principal inclui:
-
-- **Usuario**: Dados de login e OAuth
-- **Professor / Encarregado**: Perfis ligados ao utilizador
-- **Aluno**: Ligado aos Encarregados e Professores (M-N)
-- **Turma**: Para gestão de salas de aula
-- **Topico / Disciplina**: Estrutura curricular
-
-## 📋 Comandos Úteis
-
-### Desenvolvimento com Docker
-```bash
-# Iniciar todos os serviços
-docker-compose up --build
-
-# Reiniciar um serviço específico
-docker-compose restart backend_main
-
-# Ver logs em tempo real
-docker-compose logs -f frontend
-
-# Executar comandos no container do backend
-docker-compose exec backend_main npm run test
-
-# Parar e remover containers
-docker-compose down -v
-```
-
-
-## 🔧 Configuração do Google OAuth
-
-1. Aceda ao [Google Cloud Console](https://console.cloud.google.com)
-2. Crie um novo projeto ou selecione um existente
-3. Ative a API Google+
-4. Crie credenciais OAuth 2.0
-5. Adicione URIs de redirecionamento:
-   - `http://localhost:3000/api/auth/google/callback`
+---
