@@ -7,7 +7,7 @@ The project follows a modern **Microservices Architecture**:
 
 * **Frontend (SvelteKit):** Reactive UI/UX with a mobile-first approach.
 * **Core Backend (NestJS):** Handles auth, user management, and business logic.
-* **AI Service (FastAPI):** Python microservice bridging the application with LLMs (Google Gemini).
+* **AI Service (FastAPI):** Python microservice bridging the application with LLMs (Google Gemini and llama 3).
 * **Database (PostgreSQL):** Relational data persistence managed via Prisma ORM.
 
 ## Tech Stack
