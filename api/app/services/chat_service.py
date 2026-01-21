@@ -1,8 +1,9 @@
 import json
 import re
-from app.services.llm_client import get_tutor_model, get_rush_client
+from app.services.llm_client import get_rush_client, generate_groq_response
+from app.services.voice_service import generate_voice_audio
 from app.models.schemas import ChatRequest, ChatResponse
-from app.utils.text_helpers import safe_load_json_object
+from app.utils.text_helpers import safe_load_json_object, clean_json_text
 from app.config import LANG_VARIANT
 
 # ==============================================================================
@@ -11,6 +12,14 @@ from app.config import LANG_VARIANT
 PROMPT_TUTOR_FINAL = """
 ROLE: KaniMente, interactive Tutor for kids (Mozambique).
 CONTEXT: Subject="{subject}", Topic="{topic}".
+
+🌍 MOZAMBICAN LANGUAGE & CONTEXT RULES (CRITICAL):
+1. **Language Variant:** Use Portuguese from Mozambique (pt-MZ). 
+   - Use **"Tu"** for the student (never "Você").
+   - Use **"a + infinitive"** (e.g., "estás a ler") instead of gerund (e.g., "lendo").
+   - Avoid Brazilian slang (e.g., use "Fixe" instead of "Legal").
+2. **Local References:** If giving examples, use Mozambican context (e.g., Meticais, Machamba, Capulanas, Beira, Maputo, names like Ali, Joao, Neyma).
+3. **Tone:** Warm, encouraging, and protective (like a friendly teacher).
 
 📋 SPECIFIC LESSON GUIDELINES:
 {context_rules}
@@ -41,15 +50,71 @@ Check the [STATE: TYPE] tag in the chat history.
 4. **IF NO HISTORY:**
    - Start with [EXPLANATION] (Short Intro).
 
+--- 🧠 STYLE EXAMPLES (IMITATE THIS!) ---
+
+User: Explica a gravidade.
+Kani:
+{{
+  "messages": [
+    "Eish, boa pergunta! 🚀", 
+    "Imagina que a Terra é um íman gigante.", 
+    "Ela puxa tudo para o chão para não voarmos para o espaço. Maningue fixe, né?"
+  ],
+  "emotion": "INTERESTED",
+  "interaction_type": "EXPLANATION",
+  "interaction_data": {{ "options": ["Entendi!", "Explica mais"] }}
+}}
+
+User: Entendi.
+Kani:
+{{
+  "messages": [
+    "Boa, campeão! Toca aqui! ✋", 
+    "Então diz-me lá...",
+    "Se soltares uma pedra, para onde ela vai?"
+  ],
+  "emotion": "HAPPY",
+  "interaction_type": "TESTING",
+  "interaction_data": {{ "options": ["Sobe", "Cai no chão"] }}
+}}
+
+🎓 PEDAGOGICAL ALIGNMENT (DO NOT FAIL THIS):
+1. **TEST WHAT YOU TAUGHT:** The question in [TESTING] MUST be answerable ONLY using the information given in the previous [EXPLANATION].
+   - ⛔ BAD: Explain "Meaning of Verb". Ask "Conjugate the Verb". (Student doesn't know conjugation yet!).
+   - ✅ GOOD: Explain "Meaning of Verb". Ask "Which sentence uses the verb correctly based on the meaning?".
+   - ✅ GOOD: Explain "Conjugation (Eu estou, Tu estás...)". Ask "How do you say 'He is'?".
+
+2. **SCAFFOLDING:** If the topic is grammar (Verbs), TEACH the forms (conjugation) visually in the [EXPLANATION] bubble before asking about them.
+
+⛔ ANTI-SPOILER RULE (CRITICAL):
+In [TESTING] mode (Quizzes):
+1. **NEVER** reveal the answer inside the question bubbles.
+   - ❌ BAD: "Qual é o passado de Ser? Lembra-te que é 'Eu Fui'." -> Options: ["Eu Fui", "Eu Sou"]
+   - ✅ GOOD: "Qual é o passado de Ser?" -> Options: ["Eu Fui", "Eu Sou"]
+2. **TRUST THE STUDENT:** If you explained it in the previous turn, assume they know it. Don't repeat the answer immediately.
+3. **HINTS:** Only give hints if the student fails (Assessment: INCORRECT). Do not give hints on the first try.
+
+⛔ ANTI-OVERLOADING RULE (STRICT):
+1. NEVER explain a topic and ask a test question (Quiz) in the same response.
+2. IF "interaction_type" is "EXPLANATION":
+   - The LAST bubble MUST be a confirmation check: "Ficou claro?", "Percebeste?", "Posso avançar?".
+   - The "options" MUST BE confirmation only: ["Entendi!", "Tenho dúvidas"].
+   - DO NOT include A/B/C options yet.
+
 🛑 OUTPUT FORMAT RULES (JSON):
+- **FRAGMENTATION (CRITICAL):** Do not output long paragraphs. Break the explanation into short, digestible sentences (max 15-20 words per bubble).
 - Use "interaction_type": "EXPLANATION" for teaching.
 - **CRITICAL:** For Explanations, "interaction_data" MUST have "options": ["Entendi!", "Não percebi..."]
 - For Testing/Transitions, use "options" for the user's answer or choice.
 
 OUTPUT JSON ONLY:
 {{
-  "text": "Kid-friendly text",
-  "emotion": "HAPPY",
+  "messages": [
+      "Bubble 1: Greeting or enthusiastic intro! 👋",
+      "Bubble 2: The core concept explained simply (Kid-Friendly). 🧠",
+      "Bubble 3: A simple confirmation check (e.g. 'Ficou claro?'). 🛑 DO NOT QUIZ YET."
+  ],
+  "emotion": "HAPPY" | "INTERESTED" | "THOUGHTFUL",
   "interaction_type": "EXPLANATION" | "CHIPS" | "CLOZE",
   "assessment": "CORRECT" | "INCORRECT" | null,
   "interaction_data": {{
@@ -66,7 +131,7 @@ Just give a short feedback and chips: <<Continuar|Sair>>.
 """
 async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
     
-    # --- MODO RUSH ---
+    # --- MODO RUSH (Manteve-se igual) ---
     if request.mode == "rush_feedback":
         client = get_rush_client()
         if not client: return ChatResponse(response_text="Erro: Rush indisponível.")
@@ -74,102 +139,49 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
             completion = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": f"{PROMPT_RUSH_LEGACY}\n{request.user_query}"}],
-                temperature=0.2, max_tokens=150
+                temperature=0.8, max_tokens=150
             )
             return ChatResponse(response_text=completion.choices[0].message.content)
         except: return ChatResponse(response_text="Muito bem! <<Continuar>>")
 
-   # --- MODO TUTOR (Gemini) ---
-    model = get_tutor_model()
-    
-    # 1. Configurar Variáveis e Regras de Contexto
+   # --- MODO TUTOR (ALTERADO PARA USAR RUSH_CLIENT EM VEZ DE GOOGLE) ---
+    # 1. Configurar Contexto
     subject = request.subject or "Matemática"
     topic = request.topic or "Geral"
-    # ✅ AQUI: Pegamos as regras vindas do NestJS (metadata do tópico)
-    context_rules = request.context_rules or "Use standard primary school pedagogy."
+    context_rules = request.context_rules or "Seja divertido."
     
-    # Injetamos as regras no Prompt
+    # Formata o prompt com os exemplos "Fixes"
     system_text = PROMPT_TUTOR_FINAL.format(
         subject=subject, 
         topic=topic,
         context_rules=context_rules 
     )
 
-    # 2. Histórico Inteligente (Com Correção de Regex e Estado)
-    chat_history = []
-    
-    raw_history = request.history[-6:] 
-    
-    for msg in raw_history:
-        role = "model" if msg.get("role") in ["assistant", "model"] else "user"
-        
-        # Garante que content é string limpa
-        parts = msg.get("parts", [])
-        if isinstance(parts, list) and parts:
-            content = str(parts[0])
-        else:
-            content = str(msg.get("text", ""))
-
-        prefix = ""
-        
-        # Lógica de Estado (Recuperada da nossa conversa anterior)
-        if role == "model":
-            found_type = "UNKNOWN"
-            
-            # Tenta ler do campo explícito (se o NestJS mandar)
-            if msg.get("type"):
-                 found_type = msg.get("type")
-            # Senão, usa REGEX para ler dentro do JSON stringify
-            else:
-                match = re.search(r'"interaction_type":\s*"([A-Z_]+)"', content)
-                if match:
-                    found_type = match.group(1)
-            
-            # Traduz para Tags
-            if found_type in ["EXPLICACAO", "EXPLANATION"]:
-                prefix = "[STATE: EXPLANATION] "
-            elif found_type in ["PERGUNTA", "TESTING", "CHIPS", "CLOZE"]:
-                prefix = "[STATE: TESTING] "
-            else:
-                # Fallback visual
-                if "options" in content: prefix = "[STATE: TESTING] "
-                else: prefix = "[STATE: EXPLANATION] "
-
-        chat_history.append({"role": role, "parts": [prefix + content]})
-
-    # === DIAGNÓSTICO (Opcional, podes remover depois) ===
-    print(f"✅ CONTEXT RULES ATIVAS: {context_rules}")
-    # ====================================================
-
-    # 3. Executar
+    # 2. Executar (CHAMADA GROQ DIRECTA)
+    # Não precisamos de montar messages_payload aqui, o service faz isso.
     try:
-        chat = model.start_chat(history=chat_history)
+        json_obj = await generate_groq_response(
+            system_prompt=system_text,
+            user_query=request.user_query,
+            history=request.history
+        )
         
-        final_msg = f"{system_text}\n\nUSER: {request.user_query}"
+        # 3. Gerar Áudio
+        # Como o json_obj já vem limpo do Groq, é seguro usar.
+        audio_file = await generate_voice_audio(json_obj.get("messages", []))
         
-        response = chat.send_message(final_msg)
-        
-        # 4. Limpeza de JSON Robusta
-        raw_text = response.text
-        json_str = re.search(r'\{.*\}', raw_text, re.DOTALL)
-        
-        if json_str:
-            json_obj = json.loads(json_str.group())
+        if audio_file:
+            json_obj["audio_url"] = f"/static/audio_cache/{audio_file}"
         else:
-            json_obj = {
-                "text": raw_text, 
-                "emotion": "NEUTRAL", 
-                "interaction_type": "EXPLANATION",
-                "interaction_data": {"button_text": "Continuar"}
-            }
+            json_obj["audio_url"] = None
 
         return ChatResponse(response_text=json.dumps(json_obj))
 
     except Exception as e:
-        print(f"ERRO GEMINI: {e}")
+        print(f"ERRO CONTROLADOR: {e}")
         return ChatResponse(response_text=json.dumps({
-            "text": "Tive um problema técnico. Tenta de novo!",
-            "emotion": "THOUGHTFUL",
+            "messages": ["Erro técnico no sistema. ⚙️"],
+            "emotion": "SAD",
             "interaction_type": "CHIPS",
-            "interaction_data": {"options": ["Recarregar"]}
+            "interaction_data": {"options": ["Tentar de novo"]}
         }))

@@ -1,3 +1,6 @@
+<svelte:head>
+    <title>KaniMente</title>
+</svelte:head>
 <script lang="ts">
   import '../app.css'
   import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';

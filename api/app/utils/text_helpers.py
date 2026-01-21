@@ -90,3 +90,26 @@ def _sanitize_rush_payload(raw_obj: dict) -> dict:
         "correct_answer": final_correct, # Agora garantido que está em options
         "explanation": str(raw_obj.get("explanation", "")).strip()
     }
+
+
+def clean_json_text(raw_text):
+    """
+    Remove lixo que a IA coloca antes ou depois do JSON.
+    Ex: Remove '[STATE: EXPLANATION]', '```json', etc.
+    """
+    # 1. Remove blocos de código Markdown
+    text = raw_text.replace("```json", "").replace("```", "")
+    
+    # 2. Remove a tag de estado se ela aparecer (Ex: [STATE: EXPLANATION])
+    text = re.sub(r'\[STATE:.*?\]', '', text)
+    
+    # 3. Remove espaços extras no início/fim
+    text = text.strip()
+    
+    # 4. Procura o primeiro '{' e o último '}'
+    # Isto ignora qualquer texto introdutório como "Aqui está o JSON:"
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    
+    if match:
+        return match.group()
+    return text

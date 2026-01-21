@@ -66,7 +66,7 @@
         
         <button 
             class="btn variant-ghost-primary md:hidden"
-            on:click={() => goto('/dashboard/foreman/students/new')}
+            on:click={() => goto('/dashboard/foreman/student/create?ref=home')}
         >
             <Plus size={24} />
         </button>

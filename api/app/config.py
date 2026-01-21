@@ -7,5 +7,8 @@ BASE_URL = os.environ.get("OPENROUTER_BASE_URL", "https://api.groq.com/openai/v1
 # --- Configuração Tutor (Google Gemini) ---
 GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
 
+# --- Configuração Tutor (HugginFace) ---
+HF_TOKEN = os.getenv("HF_TOKEN")
+
 # --- Configuração Geral ---
 LANG_VARIANT = "Português (Portugal)"

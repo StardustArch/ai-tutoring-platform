@@ -44,7 +44,6 @@
 		"apexcharts": "^5.3.6",
 		"axios": "^1.13.2",
 		"canvas-confetti": "^1.9.4",
-		"html2pdf.js": "^0.12.1",
 		"lucide-svelte": "^0.554.0",
 		"svelte-apexcharts": "^1.0.2"
 	}

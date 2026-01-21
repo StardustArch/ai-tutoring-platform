@@ -2,50 +2,42 @@
   import { onMount, afterUpdate, onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { apiFetch } from '$lib/utils/api';
-  import { PUBLIC_API_URL_HOST } from '$env/static/public';
+  import { PUBLIC_API_URL_HOST, PUBLIC_IA_HOST_API_URL } from '$env/static/public';
   import { 
     Send, Bot, ArrowLeft, Sparkles, Brain, X,
-    Smile, Frown, BookOpen, Calculator, ChevronRight, GraduationCap, Volume2
+    Smile, Frown, BookOpen, Calculator, ChevronRight, GraduationCap, Volume2, Star
   } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import confetti from 'canvas-confetti';
 
   // --- PARÂMETROS ---
   let studentId = $page.params.id || '';
-  
-  // 🚨 NOVO: Captura o SessionID da URL
   let sessionId = $page.url.searchParams.get('sessionId') ? parseInt($page.url.searchParams.get('sessionId')!) : null;
+  $: turmaId =  $page.params.class ? parseInt($page.params.class!) : null;
 
-  $: turmaId =  $page.params.class
-      ? parseInt($page.params.class!) 
-      : null;
-
-  // Lista de IDs permitidos (Se houver sessão)
   let allowedTopicIds: number[] = []; 
-
-  // Variável visual para mostrar ao aluno
-  $: modoTurma = !!turmaId;
-  
-  // View State: 'TOPICS' (Menu) ou 'CHAT' (Sala de Aula)
   let viewState: 'TOPICS' | 'CHAT' = 'TOPICS';
   
-  // Contexto da Sessão
-  let sessionContext = {
-      subject: '', 
-      topic: '' 
-  };
-
-  // Dados do Currículo (Filtrados)
-  let availableTopics = { matematica: [], portugues: [] };
+  let sessionContext = { subject: '', topic: '' };
+  let lastAudio: HTMLAudioElement | null = null;
+let availableTopics: { [key: string]: any[] } = { 
+    matematica: [], 
+    portugues: [] 
+};
   let loadingTopics = true;
+  let availableVoices: SpeechSynthesisVoice[] = [];
 
   // --- ESTADO DO CHAT ---
   let messageInput = '';
   let isTyping = false;
   let chatContainer: HTMLElement;
+  let isRevealing = false;
+  
+  // 🚨 CORREÇÃO VISUAL: Usamos esta lista para renderizar os balões um a um
+  let visibleBubbles: string[] = []; 
 
   let currentAiMessage = {
-      text: "",
+      messages: [] as string[],
       emotion: "NEUTRAL",
       type: "FREE_TEXT",
       data: {} as any
@@ -60,62 +52,41 @@
   });
 
   onDestroy(() => {
-    if (typeof window !== 'undefined') window.speechSynthesis.cancel();
+    if (typeof window !== 'undefined' && lastAudio) lastAudio.pause();
   });
 
   afterUpdate(() => {
     if (viewState === 'CHAT' && chatContainer) {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        // Scroll suave para o fundo
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
   });
 
-  // --- CARREGAMENTO DE DADOS (COM FILTRO DE SESSÃO) ---
+  // --- CARREGAMENTO (MANTIDO IGUAL) ---
   async function loadStudentAndTopics() {
       loadingTopics = true;
       try {
-          // 1. SE TEM SESSÃO, BUSCA PRIMEIRO OS IDs PERMITIDOS
           if (sessionId) {
               const resSession = await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}`);
               if (resSession.ok) {
                   const sessionData = await resSession.json();
-                  
-                  // Tratamento robusto de dados (igual ao Rush)
                   let rawIds = sessionData.topicosAlvo;
-                  if (typeof rawIds === 'string') {
-                      try { rawIds = JSON.parse(rawIds); } catch(e) {}
-                  }
-                  if (Array.isArray(rawIds)) {
-                      allowedTopicIds = rawIds.map((id: any) => Number(id));
-                  }
-                  console.log('🎯 Tópicos Permitidos (Chat):', allowedTopicIds);
+                  if (typeof rawIds === 'string') { try { rawIds = JSON.parse(rawIds); } catch(e) {} }
+                  if (Array.isArray(rawIds)) allowedTopicIds = rawIds.map((id: any) => Number(id));
               }
           }
-
-          // 2. Buscar Classe do Aluno
           const resUser = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`);
           if (!resUser.ok) throw new Error('Erro aluno');
           const student = await resUser.json();
           const classe = student.classe || 3;
-
-          // 3. Buscar TODOS os Tópicos dessa Classe
           const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${classe}&studentId=${studentId}`);
           
           if (resTopics.ok) {
               const allTopics = await resTopics.json();
-
-              // 4. FILTRAR (Se houver sessão)
               if (sessionId) {
-                  availableTopics.matematica = (allTopics.matematica || [])
-                      .filter((t: any) => allowedTopicIds.includes(Number(t.id)));
-
-                  availableTopics.portugues = (allTopics.portugues || [])
-                      .filter((t: any) => allowedTopicIds.includes(Number(t.id)));
-                  
-                  // Reatividade Svelte
-                  availableTopics = { ...availableTopics };
-                  
+                  availableTopics.matematica = (allTopics.matematica || []).filter((t: any) => allowedTopicIds.includes(Number(t.id)));
+                  availableTopics.portugues = (allTopics.portugues || []).filter((t: any) => allowedTopicIds.includes(Number(t.id)));
               } else {
-                  // Modo Livre: Mostra tudo
                   availableTopics = allTopics;
               }
             }
@@ -126,38 +97,41 @@
       }
   }
 
-  // --- RESTO DAS FUNÇÕES MANTÉM-SE IGUAIS ---
   function speakText() {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); 
-        const utterance = new SpeechSynthesisUtterance(currentAiMessage.text);
-        utterance.lang = 'pt-PT'; 
-        utterance.rate = 0.9; 
-        window.speechSynthesis.speak(utterance);
-    }
+      if (lastAudio) {
+          lastAudio.currentTime = 0;
+          lastAudio.play();
+      }
   }
 
   function startSession(subject: string, topicName: string) {
       sessionContext = { subject, topic: topicName };
       viewState = 'CHAT';
       historyLog = []; 
-      
-      currentAiMessage = {
-          text: `Olá! Vamos aprender sobre **${topicName}** (${subject}). O que queres saber?`,
+      const introMessages = [`Olá campeão! 🌟`, `Hoje vamos dominar **${topicName}**!`, "Estás pronto?"];
+      handleAiResponse(JSON.stringify({
+          messages: introMessages,
           emotion: "HAPPY",
-          type: "CHIPS",
-          data: { options: ["Explica-me isto", "Dá-me um exemplo", "Vamos praticar"] }
-      };
+          interaction_type: "CHIPS",
+          interaction_data: { options: ["Vamos lá!", "O que é isso?"] }
+      }));
   }
 
   async function sendMessage(textOverride?: string) {
     const textToSend = textOverride || messageInput;
     if (!textToSend.trim() || isTyping) return;
 
-    historyLog = [...historyLog, { sender: 'user', text: textToSend }];
+    // Adiciona ao histórico visual (se for texto livre)
+    if (!textOverride) {
+        // historyLog = [...historyLog, { sender: 'user', text: textToSend }];
+    }
+    
     messageInput = '';
     isTyping = true;
-    currentAiMessage.emotion = "NEUTRAL"; 
+    visibleBubbles = []; // Limpa balões para dar efeito de "pensando"
+    
+    // Feedback imediato visual (opcional)
+    currentAiMessage.emotion = "THOUGHTFUL"; 
 
     try {
         const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/chat/send`, {
@@ -170,7 +144,7 @@
                 topic: sessionContext.topic,
                 mode: 'tutor',
                 turmaId: turmaId,
-                sessaoId: sessionId || null // 👈 IMPORTANTE: Enviar SessionID
+                sessaoId: sessionId || null
             })
         });
 
@@ -180,14 +154,13 @@
         } else {
             throw new Error('Erro API');
         }
-
     } catch (err: any) {
-        currentAiMessage = {
-            text: "Perdi a ligação... 🔌",
-            emotion: "THOUGHTFUL",
-            type: "CHIPS",
-            data: { options: ["Tentar de novo"] }
-        };
+        handleAiResponse(JSON.stringify({
+            messages: ["Eish, a minha internet tropeçou! 🔌", "Podes repetir?"],
+            emotion: "SAD",
+            interaction_type: "CHIPS",
+            interaction_data: { options: ["Tentar de novo"] }
+        }));
     } finally {
         isTyping = false;
     }
@@ -196,210 +169,261 @@
   function handleAiResponse(rawText: string) {
       try {
           const content = JSON.parse(rawText);
+          let msgs: string[] = [];
+          
+          if (content.messages && Array.isArray(content.messages)) {
+              msgs = content.messages;
+          } else if (content.text) {
+              msgs = [content.text];
+          } else {
+              msgs = ["..."];
+          }
+
           currentAiMessage = {
-              text: content.text || "...",
+              messages: msgs,
               emotion: content.emotion || "NEUTRAL",
               type: content.interaction_type || "FREE_TEXT",
               data: content.interaction_data || {}
           };
-          if (content.emotion === 'HAPPY') confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-          historyLog = [...historyLog, { sender: 'ai', text: content.text }];
+
+          // Efeito de Confetti se estiver feliz
+          if (content.emotion === 'HAPPY' || content.assessment === 'CORRECT') {
+              confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FFD700', '#FF4500', '#00BFFF'] });
+          }
+
+          // Áudio
+          if (content.audio_url) {
+              const fullAudioUrl = `${PUBLIC_IA_HOST_API_URL}${content.audio_url}`;
+              lastAudio = new Audio(fullAudioUrl);
+              lastAudio.play().catch(e => console.warn("Autoplay bloqueado"));
+          }
+
+          // Inicia a sequência de balões
+          triggerBubbleSequence(msgs);
+
       } catch (e) {
           console.warn("IA enviou texto plano:", e);
-          currentAiMessage = { text: rawText, emotion: "NEUTRAL", type: "FREE_TEXT", data: {} };
-          historyLog = [...historyLog, { sender: 'ai', text: rawText }];
+          triggerBubbleSequence([rawText]);
       }
   }
 
   function getMascotState(emotion: string) {
+      // Cores mais vibrantes e ícones mais expressivos
       switch (emotion) {
-          case 'HAPPY': return { color: 'from-green-400 to-emerald-500', icon: Smile, bubble: 'bg-green-50 dark:bg-green-900/20 border-green-200' };
-          case 'THOUGHTFUL': return { color: 'from-orange-400 to-amber-500', icon: Frown, bubble: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200' };
-          default: return { color: 'from-blue-400 to-indigo-500', icon: Bot, bubble: 'bg-white dark:bg-surface-800 border-surface-200' };
+          case 'HAPPY': return { color: 'bg-green-400', ring: 'ring-green-200', icon: Smile, animation: 'animate-bounce-slow' };
+          case 'INTERESTED': return { color: 'bg-violet-500', ring: 'ring-violet-200', icon: Sparkles, animation: 'animate-pulse' };
+          case 'THOUGHTFUL': return { color: 'bg-amber-400', ring: 'ring-amber-200', icon: Brain, animation: 'animate-float' };
+          case 'SAD': return { color: 'bg-rose-400', ring: 'ring-rose-200', icon: Frown, animation: 'animate-shake' };
+          default: return { color: 'bg-blue-500', ring: 'ring-blue-200', icon: Bot, animation: 'animate-float' };
       }
   }
 
+  async function triggerBubbleSequence(messages: string[]) {
+      isRevealing = true;
+      visibleBubbles = []; 
+
+      for (let i = 0; i < messages.length; i++) {
+          // Pequena pausa para criar ritmo de leitura
+          const delay = i === 0 ? 100 : Math.min(messages[i-1].length * 20, 1000); 
+          await new Promise(r => setTimeout(r, delay));
+          visibleBubbles = [...visibleBubbles, messages[i]];
+      }
+      isRevealing = false;
+  }
+  
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
     }
   }
-  
-  // Função para sair da sessão
+
   async function exitSession() {
-      if (sessionId) {
-          await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}/end`, { method: 'PATCH' });
-      }
+      if (sessionId) await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}/end`, { method: 'PATCH' });
       goto(`/dashboard/foreman/student/${studentId}/class`);
   }
 </script>
-<div class="flex flex-col h-screen bg-surface-50 dark:bg-surface-900 relative font-sans overflow-hidden transition-colors duration-500">
+
+<svelte:head>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+</svelte:head>
+
+<div class="flex flex-col h-screen bg-gradient-to-b from-sky-200 via-blue-50 to-white font-['Fredoka'] overflow-hidden">
     
-    <div class="bg-white dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700 p-4 flex items-center justify-between shadow-sm z-30">
+    <div class="bg-white/80 backdrop-blur-md border-b border-blue-100 p-3 flex items-center justify-between shadow-sm z-30">
         <div class="flex items-center gap-3">
-            {#if viewState === 'CHAT'}
-                <button on:click={() => viewState = 'TOPICS'} class="p-2 rounded-full hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 transition-colors">
-                    <ArrowLeft size={24} />
-                </button>
-            {:else}
             <button 
-    on:click={() => sessionId ? exitSession() : goto(`/dashboard/student/${studentId}/class`)} 
-    class="p-2 rounded-full hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 transition-colors"
->
-    <ArrowLeft size={24} />
-</button>
-            {/if}
+                on:click={() => viewState === 'CHAT' ? viewState = 'TOPICS' : (sessionId ? exitSession() : goto(`/dashboard/student/${studentId}/class`))} 
+                class="p-2 rounded-full bg-white border-2 border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-500 transition-all shadow-sm active:scale-95"
+            >
+                <ArrowLeft size={24} strokeWidth={3} />
+            </button>
             
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-sm">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-400 text-white flex items-center justify-center shadow-md border-2 border-white">
                     <Brain size={20} />
                 </div>
                 <div>
-                    <h2 class="font-bold text-surface-800 dark:text-surface-100">KaniMente</h2>
-                    <p class="text-xs text-surface-500 font-bold uppercase tracking-wider">
-                        {viewState === 'CHAT' ? sessionContext.topic : 'Escolhe o Tópico'}
+                    <h2 class="font-bold text-slate-700 leading-tight">KaniMente</h2>
+                    <p class="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                        {viewState === 'CHAT' ? sessionContext.topic : 'Menu Principal'}
                     </p>
-                    {#if turmaId}
-                             <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200">
-                                 TURMA #{turmaId}
-                             </span>
-                        {:else}
-                             <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold border border-green-200">
-                                 AUTÓNOMO
-                             </span>
-                        {/if}
                 </div>
             </div>
         </div>
     </div>
 
     {#if viewState === 'TOPICS'}
-        <div class="flex-1 overflow-y-auto p-6">
+        <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
             <div class="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
                 
-                <div class="text-center mb-8">
-                    <h1 class="text-3xl font-black text-surface-900 dark:text-white mb-2">O que vamos aprender?</h1>
-                    <p class="text-surface-500">Escolhe um tema para o Kani te ajudar.</p>
+                <div class="text-center py-6">
+                    <h1 class="text-3xl md:text-4xl font-black text-slate-800 mb-2 drop-shadow-sm">O que vamos aprender? 🚀</h1>
+                    <p class="text-slate-500 font-medium text-lg">Escolhe uma missão para começarmos!</p>
                 </div>
 
                 {#if loadingTopics}
-                {#if availableTopics.matematica.length === 0 && availableTopics.portugues.length === 0 && !loadingTopics}
-    <div class="text-center p-10 bg-red-50 rounded-2xl border border-red-100">
-        <p class="text-red-500 font-bold">Atenção: Esta missão não tem tópicos definidos.</p>
-        <button on:click={exitSession} class="mt-4 text-sm underline text-red-600">Voltar</button>
-    </div>
-{/if}
-                    <div class="flex justify-center py-10">
-                        <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div class="flex justify-center py-20">
+                        <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                     </div>
                 {:else}
-                    <section>
-                        {#if availableTopics.matematica.length != 0}
-                        <h3 class="text-xl font-bold text-surface-800 dark:text-surface-100 mb-4 flex items-center gap-2">
-                            <Calculator class="text-blue-500" /> Matemática
+                    {#if availableTopics.matematica.length > 0}
+                    <section class="bg-white/60 p-6 rounded-3xl border border-blue-100 shadow-sm">
+                        <h3 class="text-2xl font-black text-slate-700 mb-4 flex items-center gap-3">
+                            <div class="p-2 bg-blue-100 rounded-xl text-blue-600"><Calculator size={28} /></div>
+                            Matemática
                         </h3>
-                        {/if}
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {#each availableTopics.matematica as topic}
                                 <button 
                                     on:click={() => startSession('Matemática', topic.nome)}
-                                    class="p-4 bg-white dark:bg-surface-800 rounded-2xl border-2 border-surface-200 dark:border-surface-700 
-                                           hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all text-left group flex items-center justify-between"
+                                    class="group relative p-4 bg-white rounded-2xl border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 active:bg-blue-50 hover:border-blue-300 transition-all text-left flex items-center justify-between shadow-sm hover:shadow-md"
                                 >
-                                    <span class="font-bold text-surface-700 dark:text-surface-200">{topic.nome}</span>
-                                    <ChevronRight size={20} class="text-surface-400 group-hover:text-blue-500 transition-colors" />
+                                    <span class="font-bold text-slate-700 text-lg group-hover:text-blue-600 transition-colors">{topic.nome}</span>
+                                    <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-300 group-hover:bg-blue-500 group-hover:text-white flex items-center justify-center transition-all">
+                                        <ChevronRight size={20} strokeWidth={3} />
+                                    </div>
                                 </button>
                             {/each}
                         </div>
                     </section>
+                    {/if}
 
-                    <section>
-                        {#if availableTopics.portugues.length != 0}
-
-                        <h3 class="text-xl font-bold text-surface-800 dark:text-surface-100 mb-4 flex items-center gap-2">
-                            <BookOpen class="text-green-500" /> Português
+                    {#if availableTopics.portugues.length > 0}
+                    <section class="bg-white/60 p-6 rounded-3xl border border-green-100 shadow-sm">
+                        <h3 class="text-2xl font-black text-slate-700 mb-4 flex items-center gap-3">
+                            <div class="p-2 bg-green-100 rounded-xl text-green-600"><BookOpen size={28} /></div>
+                            Português
                         </h3>
-                        {/if}
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {#each availableTopics.portugues as topic}
                                 <button 
                                     on:click={() => startSession('Português', topic.nome)}
-                                    class="p-4 bg-white dark:bg-surface-800 rounded-2xl border-2 border-surface-200 dark:border-surface-700 
-                                           hover:border-green-400 dark:hover:border-green-500 hover:shadow-md transition-all text-left group flex items-center justify-between"
+                                    class="group relative p-4 bg-white rounded-2xl border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 active:bg-green-50 hover:border-green-300 transition-all text-left flex items-center justify-between shadow-sm hover:shadow-md"
                                 >
-                                    <span class="font-bold text-surface-700 dark:text-surface-200">{topic.nome}</span>
-                                    <ChevronRight size={20} class="text-surface-400 group-hover:text-green-500 transition-colors" />
+                                    <span class="font-bold text-slate-700 text-lg group-hover:text-green-600 transition-colors">{topic.nome}</span>
+                                    <div class="w-8 h-8 rounded-full bg-green-50 text-green-300 group-hover:bg-green-500 group-hover:text-white flex items-center justify-center transition-all">
+                                        <ChevronRight size={20} strokeWidth={3} />
+                                    </div>
                                 </button>
                             {/each}
                         </div>
                     </section>
+                    {/if}
                 {/if}
             </div>
         </div>
 
     {:else}
-        <div class="flex-1 flex flex-col items-center justify-center p-6 space-y-8 overflow-y-auto relative" bind:this={chatContainer}>
+    
+        <div class="flex-1 overflow-y-auto relative pb-48 scroll-smooth" bind:this={chatContainer}>
             
-            <div class="relative group">
-                <div class={`w-32 h-32 md:w-40 md:h-40 bg-gradient-to-tr ${mascotState.color} rounded-full flex items-center justify-center shadow-xl animate-float transition-all duration-700`}>
-                    <svelte:component this={mascotState.icon} size={64} class="text-white transition-all duration-300" />
-                </div>
-                {#if isTyping}
-                    <div class="absolute -right-2 -top-2 bg-white dark:bg-surface-700 p-2 rounded-full shadow-lg animate-pulse">
-                        <Sparkles class="text-yellow-400" size={24} />
-                    </div>
-                {/if}
-            </div>
-
-<div class="relative max-w-2xl w-full animate-fade-in-up">
-                <div class={`p-8 rounded-3xl shadow-xl border-2 text-center relative z-10 transition-all duration-500 ${mascotState.bubble}`}>
-                    <div class={`absolute -top-3 left-1/2 transform -translate-x-1/2 w-6 h-6 border-t-2 border-l-2 rotate-45 transition-colors duration-500 ${mascotState.bubble} border-transparent`}></div>
+            <div class="flex flex-col md:items-center items-start justify-start pt-6 md:pt-10 px-4 space-y-6 min-h-[60vh]">
+                
+                <div class="w-full flex justify-center relative z-10 shrink-0">
+                    <div class={`absolute inset-0 rounded-full opacity-30 blur-xl ${mascotState.color}`}></div>
                     
-                    <button 
-                        on:click={speakText}
-                        class="absolute top-4 right-4 p-2 rounded-full bg-surface-100 dark:bg-surface-700/50 
-                               text-surface-500 hover:text-blue-500 hover:bg-blue-50 transition-colors"
-                        title="Ouvir mensagem"
-                    >
-                        <Volume2 size={20} />
-                    </button>
+                    <div class={`
+                        w-28 h-28 md:w-48 md:h-48 rounded-full shadow-xl flex items-center justify-center 
+                        border-4 border-white transition-all duration-700
+                        ${mascotState.color} ${mascotState.animation}
+                    `}>
+                        <svelte:component this={mascotState.icon} size={$page.url.searchParams.get('mobile') ? 48 : 80} class="text-white drop-shadow-md w-12 h-12 md:w-20 md:h-20" strokeWidth={2.5} />
+                    </div>
 
-                    <p class="text-xl md:text-2xl font-medium text-surface-800 dark:text-surface-100 leading-relaxed mt-2">
-                        {#if isTyping}
-                            <span class="opacity-50">Deixa-me pensar... 🤔</span>
-                        {:else}
-                            {@html currentAiMessage.text.replace(/\[\[BLANK\]\]/g, '<span class="text-primary-500 font-bold mx-1">...</span>')}
+                    {#if isTyping}
+                        <div class="absolute right-1/3 md:-right-4 top-0 bg-white p-2 md:p-3 rounded-full shadow-lg animate-bounce">
+                            <Sparkles class="text-yellow-400 fill-yellow-400 w-5 h-5 md:w-6 md:h-6" />
+                        </div>
+                    {/if}
+                </div>
+
+                <div class="w-full max-w-2xl flex flex-col md:items-center items-start space-y-3 pb-4">
+                    {#if visibleBubbles.length > 0}
+                        {#each visibleBubbles as bubble, i}
+                            <div class={`
+                                animate-pop-in relative
+                                px-5 py-3 md:px-8 md:py-5 
+                                shadow-sm border-b-4 
+                                max-w-[95%] md:max-w-[85%] w-auto
+                                transition-all duration-500
+                                bg-white border-slate-200 text-slate-700
+                                
+                                /* MUDANÇA CRÍTICA: Mobile = Balão de Fala (Esquerda) | Desktop = Cartão (Centro) */
+                                rounded-2xl rounded-tl-none md:rounded-3xl md:text-center text-left
+                            `} style="animation-delay: {i * 100}ms;">
+                                
+                                <p class="text-lg md:text-2xl font-medium leading-snug md:leading-relaxed">
+                                    {@html bubble}
+                                </p>
+                            </div>
+                        {/each}
+                        
+                        {#if visibleBubbles.length === currentAiMessage.messages.length && !isRevealing}
+                        <div class="self-start md:self-center pl-2 md:pl-0">
+                             <button 
+                                on:click={() => speakText()} 
+                                class="mt-1 p-2 md:p-3 rounded-full bg-slate-100 text-slate-400 hover:text-blue-500 hover:scale-110 transition-all"
+                                title="Ouvir novamente"
+                            >
+                                <Volume2 size={20} class="md:w-6 md:h-6" />
+                            </button>
+                        </div>
                         {/if}
-                    </p>
+
+                    {:else if !isTyping}
+                         <div class="w-full text-center opacity-50 text-sm font-bold animate-pulse text-slate-400 mt-4">
+                            À espera do Kani...
+                         </div>
+                    {/if}
                 </div>
             </div>
-
-            {#if historyLog.length > 0}
-                <div class="opacity-30 text-center text-sm mt-8 max-w-md mx-auto pointer-events-none select-none transition-opacity duration-500">
-                    <p>Última resposta: {historyLog[historyLog.length - 1].text.slice(0, 40)}...</p>
-                </div>
-            {/if}
         </div>
 
-        <div class="bg-white dark:bg-surface-800 border-t border-surface-200 dark:border-surface-700 p-6 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] transition-all duration-300">
+        <div class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-lg border-t-2 border-slate-100 p-4 pb-6 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
             <div class="max-w-3xl mx-auto min-h-[80px] flex flex-col justify-center">
                 
                 {#if isTyping}
-                    <div class="flex justify-center items-center gap-2 text-surface-400 font-bold text-sm uppercase tracking-widest animate-pulse">
-                        <div class="w-2 h-2 bg-surface-400 rounded-full"></div>
-                        <div class="w-2 h-2 bg-surface-400 rounded-full animation-delay-200"></div>
-                        <div class="w-2 h-2 bg-surface-400 rounded-full animation-delay-400"></div>
+                    <div class="flex justify-center items-center gap-2">
+                        <span class="sr-only">Kani está a escrever...</span>
+                        <div class="h-3 w-3 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                        <div class="h-3 w-3 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                        <div class="h-3 w-3 bg-blue-400 rounded-full animate-bounce"></div>
                     </div>
 
-                {:else if currentAiMessage.type === 'CHIPS'}
-                    <div class="flex flex-wrap justify-center gap-3 animate-slide-up">
+                {:else if currentAiMessage.type === 'CHIPS' || currentAiMessage.type === 'TESTING' || (currentAiMessage.data.options && currentAiMessage.data.options.length > 0)}
+                    
+                    <div class="flex flex-wrap justify-center gap-3 w-full px-2 animate-slide-up">
                         {#each (currentAiMessage.data.options || []) as option}
                             <button 
-                                class="px-6 py-4 bg-surface-50 dark:bg-surface-700 hover:bg-blue-100 dark:hover:bg-blue-900/20 
-                                       text-surface-700 dark:text-surface-200 font-bold text-lg rounded-2xl 
-                                       border-2 border-surface-200 dark:border-surface-600 hover:border-blue-400 dark:hover:border-blue-500
-                                       transition-all transform hover:-translate-y-1 active:translate-y-0 active:scale-95 shadow-sm"
+                                class="
+                                    min-w-[140px] px-6 py-4 text-xl font-bold rounded-2xl shadow-md border-b-4 
+                                    transition-all transform hover:-translate-y-1 active:border-b-0 active:translate-y-1
+                                    flex items-center justify-center gap-2
+                                    {option.toLowerCase().includes('não') || option.toLowerCase().includes('percebi')
+                                        ? 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' 
+                                        : 'bg-white text-blue-600 border-slate-200 hover:border-blue-500 hover:bg-blue-50'}
+                                "
                                 on:click={() => sendMessage(option)}
                             >
                                 {option}
@@ -407,36 +431,15 @@
                         {/each}
                     </div>
 
-{:else if currentAiMessage.type === 'CLOZE'}
-{:else if currentAiMessage.type === 'EXPLANATION'}
-                    <div class="flex flex-wrap justify-center gap-4 animate-slide-up w-full px-4">
-                        
-                        {#if currentAiMessage.data.options && currentAiMessage.data.options.length > 0}
-                            {#each currentAiMessage.data.options as option}
-                                <button 
-                                    class="min-w-[140px] px-6 py-4 font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 
-                                           transition-all active:scale-95 flex items-center justify-center gap-2
-                                           {option.toLowerCase().includes('não') || option.toLowerCase().includes('percebi')
-                                               ? 'bg-surface-200 text-surface-700 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-200' // Estilo Secundário (Cinzento)
-                                               : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'} // Estilo Primário (Azul)
-                                           "
-                                    on:click={() => sendMessage(option)}
-                                >
-                                    {option}
-                                </button>
-                            {/each}
-
-                        {:else}
-                            <button 
-                                class="w-full max-w-sm px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white 
-                                       font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 
-                                       transition-all active:scale-95 flex items-center justify-center gap-2"
-                                on:click={() => sendMessage(currentAiMessage.data.button_text || "Continuar")}
-                            >
-                                <span>{currentAiMessage.data.button_text || "Entendi 👍"}</span>
-                                <ChevronRight size={24} />
-                            </button>
-                        {/if}
+                {:else if currentAiMessage.type === 'EXPLANATION'}
+                    <div class="flex justify-center w-full animate-slide-up">
+                        <button 
+                            class="w-full max-w-sm px-8 py-5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold text-xl rounded-2xl shadow-lg border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 hover:brightness-110 transition-all flex justify-center items-center gap-3" 
+                            on:click={() => sendMessage(currentAiMessage.data.button_text || "Continuar")}
+                        >
+                            <span>{currentAiMessage.data.button_text || "Entendi 👍"}</span>
+                            <ChevronRight size={28} strokeWidth={3} />
+                        </button>
                     </div>
 
                 {:else}
@@ -444,22 +447,21 @@
                         <div class="flex-1 relative">
                             <input 
                                 type="text" 
-                                class="w-full pl-6 pr-12 py-4 bg-surface-100 dark:bg-surface-900 border-2 border-transparent 
-                                       focus:border-blue-400 focus:bg-white dark:focus:bg-surface-950 rounded-2xl outline-none transition-all 
-                                       text-surface-900 dark:text-surface-100 placeholder-surface-400 text-lg shadow-inner"
-                                placeholder={currentAiMessage.data.placeholder || "Escreve a tua resposta aqui..."}
+                                class="w-full pl-6 pr-4 py-4 bg-slate-100 border-2 border-slate-200 
+                                       focus:border-blue-400 focus:bg-white rounded-2xl outline-none transition-all 
+                                       text-slate-700 placeholder-slate-400 text-lg font-bold shadow-inner"
+                                placeholder={currentAiMessage.data.placeholder || "Escreve aqui..."}
                                 bind:value={messageInput}
                                 on:keydown={handleKeydown}
                                 autocomplete="off"
                             />
                         </div>
                         <button 
-                            class="p-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 dark:shadow-none
-                                   hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+                            class="p-4 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             on:click={() => sendMessage()}
                             disabled={!messageInput.trim()}
                         >
-                            <Send size={24} fill="currentColor" />
+                            <Send size={28} fill="currentColor" strokeWidth={2} />
                         </button>
                     </div>
                 {/if}
@@ -469,30 +471,54 @@
 </div>
 
 <style>
+    /* Animações CSS Personalizadas */
     @keyframes float {
         0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
+        50% { transform: translateY(-15px); }
     }
     .animate-float {
-        animation: float 5s ease-in-out infinite;
+        animation: float 4s ease-in-out infinite;
+    }
+    
+    @keyframes bounce-slow {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    .animate-bounce-slow {
+        animation: bounce-slow 2s infinite;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+    .animate-shake {
+        animation: shake 0.5s ease-in-out infinite;
+    }
+    
+    @keyframes popIn {
+        0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .animate-pop-in {
+        animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
     
     @keyframes slideUp {
-        from { opacity: 0; transform: translateY(10px); }
+        from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
     .animate-slide-up {
         animation: slideUp 0.3s ease-out forwards;
     }
     
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+    /* Esconder Scrollbar mas permitir scroll */
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
     }
-    .animate-fade-in-up {
-        animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
     }
-
-    .animation-delay-200 { animation-delay: 200ms; }
-    .animation-delay-400 { animation-delay: 400ms; }
 </style>
