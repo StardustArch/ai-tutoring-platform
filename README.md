@@ -16,7 +16,7 @@ The project follows a modern **Microservices Architecture**:
 | --- | --- |
 | **Frontend** | SvelteKit, TypeScript, Tailwind CSS, Skeleton UI |
 | **Backend Core** | NestJS, Prisma ORM, Passport.js (JWT/OAuth) |
-| **AI Microservice** | Python 3.12, FastAPI, Google Gemini API |
+| **AI Microservice** | Python 3.12, FastAPI |
 | **Database** | PostgreSQL |
 | **Infra** | Docker & Docker Compose // Podman & Podman Compose |
 
