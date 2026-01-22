@@ -6,7 +6,9 @@
   import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
   import { 
     Sparkles, BookOpen, Brain, Zap, Users, TrendingUp, 
-    MessageCircle, Award, Target, ChevronRight, Check, Star 
+    MessageCircle, Award, Target, ChevronRight, Check, Star, 
+	Calculator
+
   } from 'lucide-svelte';
 
   // Dados das funcionalidades
@@ -50,10 +52,28 @@
   ];
 
   // Matérias disponíveis
-  const subjects = [
-    { name: 'Matemática', topics: ['Aritmética', 'Geometria', 'Frações', 'Problemas'], emoji: '🔢' },
-    { name: 'Português', topics: ['Gramática', 'Ortografia', 'Interpretação', 'Verbos'], emoji: '📚' }
-  ];
+const subjects = [
+  { 
+    id: 'matematica',
+    name: 'Matemática', 
+    description: 'Operações fundamentais e lógica',
+    topics: ['Aritmética', 'Geometria', 'Frações', 'Problemas'], 
+    icon: 'Calculator' // Referência ao componente Lucide
+  },
+  { 
+    id: 'portugues',
+    name: 'Português', 
+    description: 'Língua e comunicação',
+    topics: ['Gramática', 'Ortografia', 'Interpretação', 'Verbos'], 
+    icon: 'BookOpen'   // Referência ao componente Lucide
+  }
+];
+const iconMap: Record<string, any> = {
+  'Calculator': Calculator,
+  'BookOpen': BookOpen,
+  // Fallback
+  'default': Brain 
+};
 
   // Testemunhos
   const testimonials = [
@@ -199,7 +219,13 @@
       <div class="grid md:grid-cols-2 gap-8">
         {#each subjects as subject}
           <div class="bg-white dark:bg-surface-800 rounded-3xl p-8 shadow-xl border border-surface-200 dark:border-surface-700 hover:shadow-2xl transition-all group">
-            <div class="text-6xl mb-4">{subject.emoji}</div>
+         <div class="mb-6 inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300">
+        <svelte:component 
+            this={iconMap[subject.icon] || iconMap['default']} 
+            size={32} 
+            strokeWidth={2.5}
+        />
+    </div>
             <h3 class="text-2xl font-bold text-surface-900 dark:text-white mb-4">{subject.name}</h3>
             <div class="flex flex-wrap gap-2">
               {#each subject.topics as topic}
@@ -268,54 +294,6 @@
             </div>
           </div>
         {/each}
-      </div>
-    </div>
-  </section>
-
-  <!-- TESTEMUNHOS -->
-  <section class="py-20 px-4">
-    <div class="max-w-4xl mx-auto">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl sm:text-4xl md:text-5xl font-black text-surface-900 dark:text-white mb-4">
-          O Que Dizem as Famílias
-        </h2>
-        <p class="text-lg text-surface-600 dark:text-surface-400">
-          Resultados reais de quem já usa
-        </p>
-      </div>
-
-      <div class="relative">
-        <div class="bg-white dark:bg-surface-800 rounded-3xl p-8 md:p-12 shadow-2xl border border-surface-200 dark:border-surface-700">
-          <!-- Aspas decorativas -->
-          <div class="text-6xl text-primary-500 opacity-20 absolute top-4 left-4">"</div>
-          
-          <div class="relative z-10">
-            <div class="flex gap-1 mb-4 justify-center">
-              {#each Array(testimonials[currentTestimonial].rating) as _}
-                <Star size={20} class="fill-yellow-400 text-yellow-400" />
-              {/each}
-            </div>
-
-            <p class="text-xl md:text-2xl text-surface-900 dark:text-white font-medium text-center mb-6 italic">
-              {testimonials[currentTestimonial].text}
-            </p>
-
-            <div class="text-center">
-              <p class="font-bold text-surface-900 dark:text-white">{testimonials[currentTestimonial].name}</p>
-              <p class="text-sm text-surface-600 dark:text-surface-400">{testimonials[currentTestimonial].role}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Navegação -->
-        <div class="flex justify-center gap-2 mt-6">
-          {#each testimonials as _, i}
-            <button
-              on:click={() => currentTestimonial = i}
-              class="w-2.5 h-2.5 rounded-full transition-all {i === currentTestimonial ? 'bg-primary-500 w-8' : 'bg-surface-300 dark:bg-surface-600'}"
-            ></button>
-          {/each}
-        </div>
       </div>
     </div>
   </section>
