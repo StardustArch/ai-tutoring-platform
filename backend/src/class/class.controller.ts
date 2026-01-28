@@ -41,7 +41,8 @@ export class ClassController {
   @Get('topics')
   async getTopics(
     @Query('classe') classe: number,
-    @Query('studentId') studentId: number // <--- NOVO: Obrigatório para ver o progresso
+    @Query('studentId') studentId: number, // <--- NOVO: Obrigatório para ver o progresso
+    @Query('classId') classId?: number
   ) {
     if (!classe) throw new BadRequestException('Classe é obrigatória');
 
@@ -49,7 +50,7 @@ export class ClassController {
     // Aqui assumimos que para jogar, tem de ter ID.
     if (!studentId) throw new BadRequestException('ID do aluno é obrigatório para verificar progresso');
 
-    return this.classService.getTopicsForStudent(Number(classe), Number(studentId));
+    return this.classService.getTopicsForStudent(Number(classe), Number(studentId), Number(classId));
   }
 
   @Get(':id')

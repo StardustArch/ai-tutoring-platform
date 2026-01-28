@@ -55,16 +55,17 @@
         const resTurma = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/${turmaId}`);
         if (resTurma.ok) {
            const data = await resTurma.json();
-           const discNome = data.turma.disciplina.nome;
+           console.log(data)
+           const discNome = data.disciplina.nome;
            config.subject = discNome;
         }
       }
 
-      const url = `${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${studentData.classe}&studentId=${studentId}`;
+      const url = `${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${studentData.classe}&studentId=${studentId}&classId=${turmaId}`;
       const resTopics = await apiFetch(url);
-      
       if (resTopics.ok) {
         allTopicsData = await resTopics.json(); 
+        console.log(allTopicsData);
         updateVisibleTopics();
       }
 
