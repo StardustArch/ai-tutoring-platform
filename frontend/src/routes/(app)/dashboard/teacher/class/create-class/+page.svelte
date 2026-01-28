@@ -18,7 +18,8 @@
   // Dados do formulário
   let formData = {
     nome: '',
-    disciplinaId: ''
+    disciplinaId: '',
+    classe: 3
   };
 
   let disciplinas: any[] = [];
@@ -53,6 +54,7 @@
     if (!formData.nome.trim()) errors.nome = 'Dê um nome à sua turma.';
     if (formData.nome.length < 3) errors.nome = 'O nome é muito curto.';
     if (!formData.disciplinaId) errors.disciplinaId = 'Selecione a disciplina.';
+    if(!formData.classe) errors.classe = 'Selecione a classe';
     
     if (Object.keys(errors).length > 0) {
       notifications.send('Por favor, corrija os erros no formulário.', 'warning');
@@ -73,7 +75,8 @@
         method: 'POST',
         body: JSON.stringify({
             nome: formData.nome,
-            disciplinaId: parseInt(formData.disciplinaId)
+            disciplinaId: parseInt(formData.disciplinaId),
+            classe: formData.classe
         })
       });
 
@@ -254,6 +257,30 @@
                         </div>
                     {/if}
                 {/if}
+            </div>
+
+                        <!-- Classe -->
+            <div class="space-y-2">
+                <label for="classe" class="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                    Classe *
+                </label>
+                
+                <div class="relative">
+                        <select
+                            id="disciplina"
+                            class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 transition-colors appearance-none {errors.disciplinaId ? 'border-red-500 focus:ring-red-500' : ''}"
+                            bind:value={formData.classe}
+                            disabled={isLoading || formData.classe.toString().length === 0}
+                        >
+                            <option value="" disabled selected>Selecione uma classe...</option>
+                                <option value={3}>3ª Classe</option>
+                                <option value={4}>4ª Classe</option>
+                        </select>
+                    </div>
+
+                    {#if errors.classe}
+                        <p class="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={12}/> {errors.classe}</p>
+                    {/if}
             </div>
 
             <!-- Info Box -->
