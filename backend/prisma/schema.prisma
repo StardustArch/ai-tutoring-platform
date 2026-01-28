@@ -246,6 +246,7 @@ model Turma {
   codigo       String @unique
   disciplinaId Int
   professorId  Int
+  classe       Int // Ex: 3, 5, 10
 
   // 3. O campo escolaId (que apontava para a tabela Escola) é substituído pelo nome
   escolaNome String? // Nome da escola (redundância segura)

@@ -40,6 +40,7 @@ export class ClassService {
         disciplinaId: dto.disciplinaId,
         professorId: professor.id,
         escolaNome: professor.escolaNome || 'Escola Não Informada',
+        classe: dto.classe, // ✅ AQUI: Salvamos a classe (ex: 5)
       },
     });
 
@@ -430,4 +431,37 @@ async getTopicsForStudent(classe: number, alunoId: number, turmaId?: number) {
 
     return { message: 'Conteúdos da turma atualizados com sucesso!' };
   }
+
+
+  async listarTopicosGerenciamento(turmaId: number, usuarioId: number) {
+  await this.validarPropriedadeTurma(turmaId, usuarioId);
+
+  const turma = await this.prisma.turma.findUnique({
+    where: { id: turmaId },
+    include: { 
+      disciplina: true,
+      topicosDisponiveis: { select: { id: true } }
+    }
+  });
+
+  const idsAtivos = new Set(turma?.topicosDisponiveis.map(t => t.id));
+
+  // ✅ A CORREÇÃO DA BRECHA:
+  // Filtra por Disciplina E por Classe
+  const topicosDaClasse = await this.prisma.topico.findMany({
+    where: { 
+        disciplinaId: turma?.disciplinaId,
+        nivelClasse: turma?.classe // <--- Só traz tópicos da 5ª classe se a turma for da 5ª
+    },
+    orderBy: { ordem: 'asc' }
+  });
+
+  return topicosDaClasse.map(topico => ({
+    id: topico.id,
+    nome: topico.nome,
+    nivel: topico.nivelClasse,
+    ordem: topico.ordem,
+    ativo: idsAtivos.has(topico.id) 
+  }));
+}
 }
