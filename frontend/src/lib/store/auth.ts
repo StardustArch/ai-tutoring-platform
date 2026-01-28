@@ -71,6 +71,24 @@ const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
 const USER_KEY = 'user';
 
+
+
+function setCookie(name: string, value: string, days = 7) {
+  if (!browser) return;
+  const date = new Date();
+  date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+  // Importante: path=/ para funcionar em todo o site
+  document.cookie = `${name}=${value}; expires=${date.toUTCString()}; path=/; SameSite=Lax`; 
+}
+
+function deleteCookie(name: string) {
+  if (!browser) return;
+  document.cookie = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+}
+
+
+
+
 /**
  * Cria o store base (writable)
  */
@@ -122,12 +140,14 @@ const logout = () => {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    deleteCookie(ACCESS_TOKEN_KEY);
   }
   set({
     user: null, isAuthenticated: false, isLoading: false,
     accessToken: null,
     refreshToken: null
   });
+  if (browser) window.location.href = '/auth/login';
 };
 
 /**
@@ -332,6 +352,7 @@ function createAuthStore() {
         // SEGUNDO: Persistir tokens e user
         if (browser) {
           localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+          setCookie(ACCESS_TOKEN_KEY, tokens.accessToken);
           if (tokens.refreshToken) {
             localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
           }
@@ -355,6 +376,7 @@ function createAuthStore() {
           localStorage.removeItem(ACCESS_TOKEN_KEY);
           localStorage.removeItem(REFRESH_TOKEN_KEY);
           localStorage.removeItem(USER_KEY);
+          deleteCookie(ACCESS_TOKEN_KEY);
         }
         update(s => ({ ...s, isLoading: false }));
         throw error;

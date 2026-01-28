@@ -44,7 +44,7 @@ if (!escolaNome || escolaNome.trim() === "") {
 
         // Pequeno delay para o utilizador ler a mensagem antes de mudar de página
         setTimeout(() => {
-            goto('/dashboard/teacher');
+            goto('/dashboard/unified/overview');
         }, 1000);
 
       } else {
