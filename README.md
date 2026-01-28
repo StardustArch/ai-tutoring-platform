@@ -45,7 +45,7 @@ Create a `.env` file in the root directory:
 
 ```env
 # Database
-DATABASE_URL="postgresql://postgres:postgres@db:5432/km_db"
+DATABASE_URL="postgresql://postgres:postgres@db:5432/{your_postgres_database_name}"
 
 # Backend Core (NestJS)
 JWT_SECRET_KEY="your_access_secret"
