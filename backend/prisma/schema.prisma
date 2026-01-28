@@ -141,6 +141,7 @@ model Topico {
   requisito           Topico?                   @relation("Dependencia", fields: [requisitoId], references: [id])
   desbloqueia         Topico[]                  @relation("Dependencia")
   disciplina          Disciplina                @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  turmasComAcesso     Turma[]                   @relation("TurmaTopicos")
   chatMensagens       ChatMensagem[]
   exercicioResultados ExercicioResultado[]
   proficienciaTopicos AlunoProficienciaTopico[]
@@ -254,7 +255,7 @@ model Turma {
   // Relações
   disciplina         Disciplina           @relation(fields: [disciplinaId], references: [id])
   professor          Professor            @relation(fields: [professorId], references: [id])
-  // REMOVIDA: escola Escola @relation(fields: [escolaId], references: [id])
+  topicosDisponiveis Topico[]             @relation("TurmaTopicos")
   alunos             AlunoTurma[]
   chatMensagens      ChatMensagem[]
   exercicioResultado ExercicioResultado[]

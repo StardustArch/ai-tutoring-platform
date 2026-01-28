@@ -322,62 +322,112 @@ export class ClassService {
     });
     if (count === 0) throw new ForbiddenException('Turma não encontrada ou sem permissão.');
   }
-  async getTopicsForStudent(classe: number, alunoId: number) {
-    // 1. Buscar todos os tópicos da classe (Ordenados por Disciplina e depois Ordem)
+async getTopicsForStudent(classe: number, alunoId: number, turmaId?: number) {
+    
+    let whereClause: any = { nivelClasse: classe };
+
+    // 🚨 LÓGICA NOVA: Se vier TurmaID, filtra pelo que o professor liberou
+    if (turmaId) {
+        whereClause = {
+            ...whereClause,
+            turmasComAcesso: {
+                some: { id: turmaId }
+            }
+        };
+    }
+
+    // 1. Buscar tópicos (Agora com o filtro dinâmico)
     const todosTopicos = await this.prisma.topico.findMany({
-      where: { nivelClasse: classe },
-      include: { disciplina: true }, // Necessário para o filtro final
+      where: whereClause,
+      include: { disciplina: true },
       orderBy: [
         { disciplinaId: 'asc' },
-        { ordem: 'asc' } // CRÍTICO: Garante a sequência 1, 2, 3...
+        { ordem: 'asc' }
       ]
     });
 
-    // 2. Buscar o progresso do aluno
+    // Se for modo Turma e não houver tópicos, avisar ou retornar vazio
+    if (turmaId && todosTopicos.length === 0) {
+        // Podes retornar vazio, o frontend mostra "Professor ainda não liberou conteúdos"
+        return { matematica: [], portugues: [] };
+    }
+
+    // 2. Buscar o progresso do aluno (Mantém igual)
     const progresso = await this.prisma.alunoProficienciaTopico.findMany({
       where: { alunoId: alunoId },
       select: { topicoId: true, nivel: true }
     });
 
-    // Set de IDs concluídos (Nível > INICIANTE ou outro critério que definas)
     const topicosConcluidos = new Set(
       progresso
-        .filter(p => p.nivel !== 'NAO_DIAGNOSTICADO') // Ajusta conforme a tua lógica de "Passou"
+        .filter(p => p.nivel !== 'NAO_DIAGNOSTICADO')
         .map(p => p.topicoId)
     );
 
-    // 3. Processar Bloqueios (A tua lógica nova)
+    // 3. Processar Bloqueios (Mantém a tua lógica de gamificação)
     const topicosProcessados = todosTopicos.map(topico => {
       let isLocked = false;
       let isCompleted = topicosConcluidos.has(topico.id);
 
       // Regra de Gamificação: Se ordem > 1, verifica o anterior
+      // NOTA: No modo Turma, se o professor libertou o tópico 5 mas não o 4,
+      // esta lógica pode bloquear o 5. 
+      // Para Turma, talvez queiras remover o bloqueio sequencial?
+      // Por agora, mantemos a lógica original:
       if (topico.ordem > 1) {
-        // Procura o tópico anterior da MESMA disciplina
         const anterior = todosTopicos.find(t =>
           t.disciplinaId === topico.disciplinaId &&
           t.ordem === topico.ordem - 1
         );
 
-        // Se o anterior existe E não foi concluído -> BLOQUEIA ESTE
         if (anterior && !topicosConcluidos.has(anterior.id)) {
           isLocked = true;
         }
       }
 
-      // Retorna o objeto combinado
-      return {
-        ...topico,
-        isLocked,
-        isCompleted
-      };
+      return { ...topico, isLocked, isCompleted };
     });
 
-    // 4. Formatar para o Frontend (A tua estrutura antiga)
-    // Mantemos isto para não teres de mudar nada no Svelte (apenas adicionar o cadeado visual)
+    // 4. Retorno
     return {
       matematica: topicosProcessados.filter(t => t.disciplina.nome === 'Matemática'),
       portugues: topicosProcessados.filter(t => t.disciplina.nome === 'Português')
     };
+  }
+
+
+  async atualizarTopicosTurma(turmaId: number, usuarioId: number, topicosIds: number[]) {
+    // 1. Validar se a turma pertence ao professor
+    await this.validarPropriedadeTurma(turmaId, usuarioId);
+
+    // 2. Validar se os tópicos pertencem à disciplina da turma
+    // (Para evitar que um professor de Mat adicione tópicos de Português)
+    const turma = await this.prisma.turma.findUnique({ 
+        where: { id: turmaId },
+        select: { disciplinaId: true }
+    });
+
+    const countValidos = await this.prisma.topico.count({
+        where: {
+            id: { in: topicosIds },
+            disciplinaId: turma?.disciplinaId
+        }
+    });
+
+    if (countValidos !== topicosIds.length) {
+        throw new BadRequestException('Alguns tópicos não pertencem à disciplina desta turma.');
+    }
+
+    // 3. Atualizar a lista (A técnica "set" substitui tudo o que estava lá pelos novos)
+    await this.prisma.turma.update({
+        where: { id: turmaId },
+        data: {
+            topicosDisponiveis: {
+                set: topicosIds.map(id => ({ id }))
+            }
+        }
+    });
+
+    return { message: 'Conteúdos da turma atualizados com sucesso!' };
   }
 }
