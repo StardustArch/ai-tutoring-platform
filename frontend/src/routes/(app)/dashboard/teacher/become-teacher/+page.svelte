@@ -12,6 +12,11 @@
 
   async function handleSubmit() {
     // Validação básica local
+// Verifica se não existe (null/undefined) OU se, removendo os espaços, fica vazio
+if (!escolaNome || escolaNome.trim() === "") {
+    notifications.send('O nome da escola é obrigatório.', "error");
+    return;
+}
     if (escolaNome.length > 0 && escolaNome.length < 3) {
         notifications.send('O nome da escola é muito curto.', 'warning');
         return;
@@ -86,7 +91,7 @@
     <form on:submit|preventDefault={handleSubmit} class="space-y-6">
       
       <label class="label">
-        <span class="font-bold">Nome da Escola (Opcional)</span>
+        <span class="font-bold">Nome da Escola</span>
         <input 
                         class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
           type="text" 
