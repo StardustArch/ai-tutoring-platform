@@ -15,9 +15,10 @@
   let isSaving = false;
 
   // Carregar dados quando o modal abre
-  $: if (isOpen && turmaId) {
-    loadTopics();
-  }
+  onMount(async () => {
+    await loadTopics();
+  });
+
 
   async function loadTopics() {
     isLoading = true;
@@ -25,6 +26,7 @@
       const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/${turmaId}/topics/manage`);
       if (res.ok) {
         topics = await res.json();
+        console.log(topics)
       } else {
         notifications.send('Erro ao carregar tópicos.', 'error');
         close();

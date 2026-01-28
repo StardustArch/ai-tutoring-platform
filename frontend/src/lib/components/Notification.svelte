@@ -14,7 +14,7 @@
 
     // Cores mapeadas por tipo (Tailwind/Skeleton classes)
     const colors = {
-        success: 'bg-success-500 text-white',
+        success: 'bg-emerald-500 text-white',
         error: 'bg-error-500 text-white',
         warning: 'bg-warning-500 text-black',
         info: 'bg-blue-500 text-white'

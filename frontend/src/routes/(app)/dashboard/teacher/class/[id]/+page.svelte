@@ -169,7 +169,8 @@
         <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Detalhes da Turma</h1>
     </div>
 
-    <button 
+<div class="flex ">
+        <button 
         class="hidden md:flex btn variant-filled-surface gap-2 rounded-xl font-bold"
         on:click={() => goto(`/dashboard/teacher/class/${classId}/edit`)}
     >
@@ -183,9 +184,10 @@
   <Settings2 size={18} />
   <span>Gerir Conteúdos</span>
 </button>
+</div>
 
 <ManageTopicsModal 
-  turmaId={data.turma?.id} 
+  turmaId={parseInt(classId || '')} 
   isOpen={showTopicsModal} 
   on:close={() => showTopicsModal = false}
   on:saved={() => {
