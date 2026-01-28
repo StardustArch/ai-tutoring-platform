@@ -44,34 +44,31 @@ The project follows a modern **Microservices Architecture**:
 Create a `.env` file in the root directory:
 
 ```env
-# Database
-DATABASE_URL="postgresql://postgres:postgres@db:5432/{your_postgres_database_name}"
+# Database Secrets (Postgers)
+POSTGRES_USER="your_postgres_user"
+POSTGRES_PASSWORD="your_postgres_password"
+POSTGRES_DB="your_postgres_database_name"
 
 # Backend Core (NestJS)
 JWT_SECRET_KEY="your_access_secret"
 JWT_REFRESH_SECRET_KEY="your_refresh_secret"
 FRONTEND_URL="http://localhost:5173"
+DATABASE_URL="postgresql://postgres:postgres@db:5432/{your_postgres_database_name}"
 
 # Google OAuth
 GOOGLE_CLIENT_ID="your_google_client_id"
 GOOGLE_CLIENT_SECRET="your_google_client_secret"
 GOOGLE_CALLBACK_URL="http://localhost:3000/api/auth/google/callback"
 
-# AI Service (FastAPI)
-IA_API_URL="http://api:8000"
-GEMINI_API_KEY="your_gemini_api_key"
-GROQ_API_KEY="your_groq_api_key"
-
-# Database Secrets (Postgers)
-POSTGRES_USER="your_postgres_user"
-POSTGRES_PASSWORD="your_postgres_password"
-POSTGRES_DB="your_postgres_database_name"
-
 # Frontend (SvelteKit) 
 PUBLIC_API_URL="http://backend:3000" # Used for Server-Side Rendering (Internal Docker Network)
 PUBLIC_API_URL_HOST="http://localhost:3000" # Used for Client-Side Fetching (Browser Access)
 PUBLIC_IA_HOST_API_URL="http://localhost:8000" # Used for serving Audio/Assets directly to browser
 
+# AI Service (FastAPI)
+IA_API_URL="http://api:8000"
+GEMINI_API_KEY="your_gemini_api_key"
+GROQ_API_KEY="your_groq_api_key"
 ```
 
 ### 2. Run Application
