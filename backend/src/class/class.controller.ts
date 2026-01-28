@@ -11,12 +11,14 @@ import {
   Request,
   Query,
   BadRequestException,
+  Patch,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ClassService } from './class.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { JoinClassDto, AddStudentDto } from './dto/join-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
+import { ManageClassTopicsDto } from './dto/manage-topics.dto';
 
 @Controller('api/classes') // Mudei para 'classes' (plural é convenção REST)
 @UseGuards(AuthGuard('jwt')) // Aplica proteção a tudo por padrão
@@ -88,6 +90,22 @@ export class ClassController {
     @Request() req
   ) {
     return this.classService.removerAlunoTurma(turmaId, alunoId, req.user.id);
+  }
+
+  // 📋 GET: Listar tópicos para gerenciar (Checkbox List)
+  @Get(':id/topics/manage')
+  async getTopicsForManagement(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.classService.listarTopicosGerenciamento(id, req.user.id);
+  }
+
+  // 💾 PATCH: Salvar a seleção do professor
+  @Patch(':id/topics')
+  async updateClassTopics(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ManageClassTopicsDto
+  ) {
+    return this.classService.atualizarTopicosTurma(id, req.user.id, dto.topicosIds);
   }
 
   // ==========================================

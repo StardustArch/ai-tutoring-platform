@@ -9,8 +9,12 @@
   import { 
     ArrowLeft, Users, Settings, Copy, BookOpen, 
     Calendar, UserX, Search, School, CheckCircle,
-    RefreshCw, Loader, AlertTriangle, Hash
+    RefreshCw, Loader, AlertTriangle, Hash,
+
+	Settings2
+
   } from 'lucide-svelte';
+	import ManageTopicsModal from '$lib/components/ManageTopicsModal.svelte';
 
   // --- ESTADO ---
   let turma: any = null;
@@ -148,6 +152,10 @@
         ];
         return gradients[name.charCodeAt(0) % gradients.length];
     }
+
+    export let data; // Dados da página
+
+  let showTopicsModal = false;
 </script>
 
 
@@ -167,6 +175,23 @@
     >
         <Settings size={18} /> Editar
     </button>
+
+    <button 
+  on:click={() => showTopicsModal = true}
+  class="flex items-center gap-2 px-4 py-2 bg-white border border-surface-200 text-surface-700 font-bold rounded-xl hover:bg-surface-50 transition-colors shadow-sm"
+>
+  <Settings2 size={18} />
+  <span>Gerir Conteúdos</span>
+</button>
+
+<ManageTopicsModal 
+  turmaId={data.turma?.id} 
+  isOpen={showTopicsModal} 
+  on:close={() => showTopicsModal = false}
+  on:saved={() => {
+     // Opcional: Recarregar a página ou mostrar notificação
+     // invalidateAll(); 
+  }}/>
   </div>
 
   {#if isLoading}
