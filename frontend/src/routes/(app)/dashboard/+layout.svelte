@@ -15,7 +15,7 @@
         LayoutDashboard, GraduationCap, FileText, Settings, Menu, X,
         Users, School, Key, AlertCircle, BookOpen, ChevronLeft, ChevronRight
     } from 'lucide-svelte';
-	import { browser } from '$app/environment';
+    import { browser } from '$app/environment';
 
     // --- ESTADO REATIVO ---
     $: user = $auth.user;
@@ -33,11 +33,10 @@
     let isMobile = false;
     
     onMount(() => {
-
         // svelte-ignore reactive_declaration_invalid_placement
-                $: if (browser && !$auth.isAuthenticated) {
-    goto('/login');
-  }
+        $: if (browser && !$auth.isAuthenticated) {
+            goto('/login');
+        }
         // Detectar tamanho de tela
         const checkMobile = () => {
             isMobile = window.innerWidth < 768;
@@ -81,144 +80,98 @@
     }
 
    // --- GERAÇÃO DINÂMICA DO MENU ---
-$: menuItems = getMenuItems(isEncarregado, isProfessor, isProfessorAtivo);
+    $: menuItems = getMenuItems(isEncarregado, isProfessor, isProfessorAtivo);
 
-function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
-    const items: any[] = [];
-    const userHasBothProfiles = isEnc && isProf;
+    function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
+        const items: any[] = [];
+        const userHasBothProfiles = isEnc && isProf;
 
-    if (userHasBothProfiles) {
-        // Usuário tem ambos os perfis - mostrar apenas opção unificada + seções separadas
-        
-        // Visão Geral Unificada (apenas quando ambos perfis estão ativos)
-        if (isProfAtivo) {
-            items.push(
-                { 
+        if (userHasBothProfiles) {
+            if (isProfAtivo) {
+                items.push({ 
                     label: 'Visão Geral', 
                     href: '/dashboard/unified/overview', 
                     icon: LayoutDashboard,
                     badge: 'ambos'
-                }
-            );
-        }
-        
-        // Divisão entre perfis
-        // items.push({ type: 'divider' });
-        
-        // Cabeçalho para Professor
-        items.push({ type: 'header', label: 'Docência' });
-        
-        if (!isProfAtivo) {
-            items.push(
-                { 
+                });
+            }
+            
+            items.push({ type: 'header', label: 'Docência' });
+            
+            if (!isProfAtivo) {
+                items.push({ 
                     label: 'Concluir Perfil Professor', 
                     href: '/dashboard/teacher/become-teacher', 
                     icon: AlertCircle, 
                     highlight: true,
                     badge: 'professor'
-                }
-            );
-        } else {
-            items.push(
-                { 
-                    label: 'Minhas Turmas', 
-                    href: '/dashboard/teacher/class', 
-                    icon: BookOpen,
-                    badge: 'professor'
-                },
-                { 
-                    label: 'Relatórios Turma', 
-                    href: '/dashboard/teacher/reports', 
-                    icon: FileText,
-                    badge: 'professor'
-                }
-            );
-        }
-        
-        // Divisão entre perfis
-        // items.push({ type: 'divider' });
-        
-        // Cabeçalho para Família
-        items.push({ type: 'header', label: 'Família' });
-        
-        items.push(
-            { 
-                label: 'Meus Educandos', 
-                href: '/dashboard/foreman/student', 
-                icon: GraduationCap,
-                badge: 'família'
-            },
-            { 
-                label: 'Relatórios Família', 
-                href: '/dashboard/foreman/reports', 
-                icon: FileText,
-                badge: 'família'
-            }
-        );
-    } else {
-        // Usuário tem apenas um perfil - manter lógica anterior
-        if (isEnc) {
-            items.push({ type: 'header', label: 'Família' });
-            items.push(
-                { label: 'Visão Geral', href: '/dashboard/foreman/overview', icon: LayoutDashboard },
-                { label: 'Meus Educandos', href: '/dashboard/foreman/student', icon: GraduationCap },
-                { label: 'Relatórios', href: '/dashboard/foreman/reports', icon: FileText }
-            );
-        }
-
-        if (isProf) {
-            items.push({ type: 'header', label: 'Docência' });
-
-            if (!isProfAtivo) {
-                items.push(
-                    { label: 'Concluir Perfil', href: '/dashboard/teacher/become-teacher', icon: AlertCircle, highlight: true }
-                );
+                });
             } else {
                 items.push(
-                    { label: 'Visão Geral', href: '/dashboard/teacher/overview', icon: LayoutDashboard },
-                    { label: 'Minhas Turmas', href: '/dashboard/teacher/class', icon: BookOpen },
-                    { label: 'Relatórios Turma', href: '/dashboard/teacher/reports', icon: FileText }
+                    { label: 'Minhas Turmas', href: '/dashboard/teacher/class', icon: BookOpen, badge: 'professor' },
+                    { label: 'Relatórios Turma', href: '/dashboard/teacher/reports', icon: FileText, badge: 'professor' }
                 );
             }
+            
+            items.push({ type: 'header', label: 'Família' });
+            
+            items.push(
+                { label: 'Meus Educandos', href: '/dashboard/foreman/student', icon: GraduationCap, badge: 'família' },
+                { label: 'Relatórios Família', href: '/dashboard/foreman/reports', icon: FileText, badge: 'família' }
+            );
+        } else {
+            if (isEnc) {
+                items.push({ type: 'header', label: 'Família' });
+                items.push(
+                    { label: 'Visão Geral', href: '/dashboard/foreman/overview', icon: LayoutDashboard },
+                    { label: 'Meus Educandos', href: '/dashboard/foreman/student', icon: GraduationCap },
+                    { label: 'Relatórios', href: '/dashboard/foreman/reports', icon: FileText }
+                );
+            }
+
+            if (isProf) {
+                items.push({ type: 'header', label: 'Docência' });
+
+                if (!isProfAtivo) {
+                    items.push({ label: 'Concluir Perfil', href: '/dashboard/teacher/become-teacher', icon: AlertCircle, highlight: true });
+                } else {
+                    items.push(
+                        { label: 'Visão Geral', href: '/dashboard/teacher/overview', icon: LayoutDashboard },
+                        { label: 'Minhas Turmas', href: '/dashboard/teacher/class', icon: BookOpen },
+                        { label: 'Relatórios Turma', href: '/dashboard/teacher/reports', icon: FileText }
+                    );
+                }
+            }
         }
+
+        items.push(
+            { type: 'divider' },
+            { label: 'Definições', href: '/dashboard/settings', icon: Settings }
+        );
+
+        return items;
     }
 
-    // Configurações sempre disponível
-    items.push(
-        { type: 'divider' },
-        { label: 'Definições', href: '/dashboard/settings', icon: Settings }
-    );
-
-    return items;
-}
-
     function isActive(itemHref: string, currentPath: string) {
+        if (!itemHref) return false;
         if (itemHref === '/dashboard') {
             return currentPath === '/dashboard';
         }
         return currentPath.startsWith(itemHref);
     }
 
+    // Helper para pegar o item ativo com segurança
+    $: activeItem = menuItems.find(i => i.href && isActive(i.href, $page.url.pathname));
+
     function formatarNome(user: any): string {
-  // Junta nome e sobrenome
-  const fullName = `${user.nome} ${user.sobrenome}`.trim();
-
-  // Divide em palavras
-  const parts = fullName.split(/\s+/);
-
-  if (parts.length === 0) return '';
-
-  // Primeiro nome
-  const firstName = parts[0];
-
-  // Último nome
-  const lastName = parts.length > 1 ? parts[parts.length - 1] : '';
-
-  // Nomes do meio → iniciais
-  const middleInitials = parts.slice(1, -1).map(n => n[0].toUpperCase() + '.');
-
-  return [firstName, ...middleInitials, lastName].filter(Boolean).join(' ');
-}
+        const fullName = `${user.nome} ${user.sobrenome}`.trim();
+        const parts = fullName.split(/\s+/);
+        if (parts.length === 0) return '';
+        const firstName = parts[0];
+        const lastName = parts.length > 1 ? parts[parts.length - 1] : '';
+        const middleInitials = parts.slice(1, -1).map(n => n[0].toUpperCase() + '.');
+        return [firstName, ...middleInitials, lastName].filter(Boolean).join(' ');
+    }
 </script>
 
 <Notification/>
@@ -231,18 +184,15 @@ function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
 {:else}
     <div class="h-screen flex overflow-hidden bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-surface-100 transition-colors duration-300">
         
-        <!-- OVERLAY MOBILE -->
         {#if isMobile && sidebarOpen}
             <div 
                 class="fixed inset-0 bg-black/50 z-30 md:hidden transition-opacity duration-300"
                 on:click={closeMobileSidebar}
                 on:keydown={(e) => e.key === 'Escape' && closeMobileSidebar()}
                 role="button"
-                tabindex="0"
             ></div>
         {/if}
 
-        <!-- SIDEBAR -->
         <aside 
             class="fixed md:relative h-full flex flex-col bg-surface-100 dark:bg-surface-800 border-r border-surface-200 dark:border-surface-700 transition-all duration-300 shadow-lg z-40
                    {isMobile 
@@ -250,8 +200,6 @@ function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
                        : (sidebarExpanded ? 'w-64' : 'w-20')
                    }"
         >
-            
-            <!-- HEADER -->
             <div class="p-6 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-3 min-w-0 {sidebarExpanded || isMobile ? '' : 'justify-center w-full'}">
                     <div class="w-8 h-8 bg-gradient-to-tr from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
@@ -264,7 +212,6 @@ function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
                     {/if}
                 </div>
 
-                <!-- Botão de fechar (mobile) ou collapse (desktop) -->
                 <button 
                     on:click={toggleSidebar}
                     class="p-1.5 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors flex-shrink-0
@@ -278,7 +225,6 @@ function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
                 </button>
             </div>
 
-            <!-- NAVEGAÇÃO -->
             <nav class="flex-1 px-4 py-2 space-y-1 overflow-y-auto custom-scrollbar">
                 {#each menuItems as item}
                     {#if item.type === 'header'}
@@ -312,7 +258,6 @@ function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
                 {/each}
             </nav>
 
-            <!-- RODAPÉ PERFIL -->
             <div class="p-4 border-t border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800">
                 <div class="flex items-center gap-3 {sidebarExpanded || isMobile ? '' : 'justify-center'}">
                     <div class="w-10 h-10 rounded-full bg-surface-200 dark:bg-surface-700 flex items-center justify-center text-surface-700 dark:text-surface-200 font-bold text-lg ring-2 ring-white dark:ring-surface-700 shadow-sm flex-shrink-0">
@@ -325,8 +270,8 @@ function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
                             </p>
                             <p class="text-xs text-surface-500 dark:text-surface-400 truncate flex items-center gap-1">
                                {#if isProfessor && isEncarregado}
-                                    <span class="badge variant-soft-primary text-[10px] px-1 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Professor</span>
-                                    <span class="badge variant-soft-secondary text-[10px] px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Encarregado</span>
+                                    <span class="badge variant-soft-primary text-[10px] px-1 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Pro</span>
+                                    <span class="badge variant-soft-secondary text-[10px] px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Enc</span>
                                {:else if isProfessor}
                                     <span>Professor</span>
                                {:else if isEncarregado}
@@ -340,7 +285,6 @@ function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
                 </div>
             </div>
 
-            <!-- BOTÃO DE EXPANDIR (DESKTOP - COLLAPSED) -->
             {#if !isMobile && !sidebarExpanded}
                 <button 
                     on:click={toggleSidebar}
@@ -352,38 +296,41 @@ function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
             {/if}
         </aside>
 
-        <!-- ÁREA PRINCIPAL -->
         <div class="flex-1 flex flex-col h-full overflow-hidden relative bg-surface-50 dark:bg-surface-900 transition-all duration-300">
             
             <header class="h-16 bg-white/80 dark:bg-surface-900/80 backdrop-blur-md border-b border-surface-200 dark:border-surface-700 flex items-center justify-between px-4 md:px-8 z-10 sticky top-0">
                {#if isMobile }
-                <button 
-                    on:click={toggleSidebar}
-                    class="p-2 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-                >
-                    <Menu size={24} class="text-surface-600 dark:text-surface-300" />
-                </button>
-                
-                   {/if}
- <h2 class="hidden md:flex items-center gap-2 text-sm font-medium text-surface-500 dark:text-surface-400">
-    <span class="opacity-50">Dashboard</span>
-    <span>/</span>
-    
-        {#if  menuItems.find(i => i.href && isActive(i.href, $page.url.pathname))?.badge}
-            <span class="text-[10px] px-1.5 py-0.5 rounded-full 
-                {menuItems.find(i => i.href && isActive(i.href, $page.url.pathname)).badge === 'professor' 
-                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
-                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                } mr-1">
-                {menuItems.find(i => i.href && isActive(i.href, $page.url.pathname)).badge === 'professor' ? 'Professor' : 
-                 menuItems.find(i => i.href && isActive(i.href, $page.url.pathname)).badge === 'família' ? 'Família' : 'Ambos'}
-            </span>
-        {/if}
-        <span class="text-surface-900 dark:text-surface-100 font-bold">
-            {menuItems.find(i => i.href && isActive(i.href, $page.url.pathname))?.label || 'Visão Geral'}
-        </span>
- 
-</h2>
+                    <button 
+                        on:click={toggleSidebar}
+                        class="p-2 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+                    >
+                        <Menu size={24} class="text-surface-600 dark:text-surface-300" />
+                    </button>
+               {/if}
+
+                <h2 class="hidden md:flex items-center gap-2 text-sm font-medium text-surface-500 dark:text-surface-400">
+                    <span class="opacity-50">Dashboard</span>
+                    <span>/</span>
+                    
+                    {#if activeItem}
+                        {#if activeItem.badge}
+                            <span class="text-[10px] px-1.5 py-0.5 rounded-full 
+                                {activeItem.badge === 'professor' 
+                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                                    : activeItem.badge === 'família' 
+                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
+                                        : 'bg-surface-200 text-surface-800 dark:bg-surface-700 dark:text-surface-200'
+                                } mr-1 uppercase font-bold tracking-wide">
+                                {activeItem.badge}
+                            </span>
+                        {/if}
+                        <span class="text-surface-900 dark:text-surface-100 font-bold">
+                            {activeItem.label}
+                        </span>
+                    {:else}
+                         <span class="text-surface-900 dark:text-surface-100 font-bold">Visão Geral</span>
+                    {/if}
+                </h2>
                 
                 <div class="flex items-center gap-2">
                     <ThemeSwitch />
@@ -392,8 +339,18 @@ function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
                 </div>
             </header>
             
-            <main class="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
+            <main class="flex-1 flex flex-col overflow-y-auto p-4 md:p-8 scroll-smooth">
                 <slot />
+
+                <div class="mt-auto pt-8">
+                    <div class="border-t border-surface-200 dark:border-surface-700 pt-6 text-center md:text-left text-sm text-surface-500 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <span>&copy; {new Date().getFullYear()} KaniMente - Plataforma Educativa.</span>
+                        <div class="flex gap-4">
+                        <button class="hover:text-primary-600 transition-colors">Ajuda</button>
+                        <button class="hover:text-primary-600 transition-colors">Termos</button>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     </div>

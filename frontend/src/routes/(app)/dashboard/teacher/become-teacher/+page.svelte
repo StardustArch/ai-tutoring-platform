@@ -1,131 +1,143 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { auth } from '$lib/store/auth'; 
-  import { apiFetch } from '$lib/utils/api'; 
-  import { notifications } from '$lib/store/notifications'; // Importamos a nossa store personalizada
-  import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { School, Check, ArrowLeft } from 'lucide-svelte';
-	import { page } from '$app/stores';
+    import { goto } from '$app/navigation';
+    import { auth } from '$lib/store/auth'; 
+    import { apiFetch } from '$lib/utils/api'; 
+    import { notifications } from '$lib/store/notifications';
+    import { PUBLIC_API_URL_HOST } from '$env/static/public';
+    import { School, Check, ArrowLeft, Info, Loader } from 'lucide-svelte';
+    import { page } from '$app/stores';
 
-  let escolaNome = '';
-  let isLoading = false;
+    let escolaNome = '';
+    let isLoading = false;
 
-  async function handleSubmit() {
-    // Validação básica local
-// Verifica se não existe (null/undefined) OU se, removendo os espaços, fica vazio
-if (!escolaNome || escolaNome.trim() === "") {
-    notifications.send('O nome da escola é obrigatório.', "error");
-    return;
-}
-    if (escolaNome.length > 0 && escolaNome.length < 3) {
-        notifications.send('O nome da escola é muito curto.', 'warning');
-        return;
+    // Estilo do Input Padronizado
+    const inputClass = "w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-400 dark:placeholder-surface-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed";
+
+    async function handleSubmit() {
+        if (!escolaNome || escolaNome.trim() === "") {
+            notifications.send('O nome da escola é obrigatório.', "error");
+            return;
+        }
+        if (escolaNome.length > 0 && escolaNome.length < 3) {
+            notifications.send('O nome da escola é muito curto.', 'warning');
+            return;
+        }
+
+        isLoading = true;
+
+        try {
+            const response = await apiFetch(`${PUBLIC_API_URL_HOST}/api/profile/professor`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    escolaNome: escolaNome.trim() || undefined 
+                })
+            });
+
+            if (response.ok) {
+                await auth.refreshUser();
+                notifications.send('Bem-vindo, Professor! Perfil ativado.', 'success');
+                setTimeout(() => {
+                    goto('/dashboard/unified/overview');
+                }, 1000);
+            } else {
+                const err = await response.json();
+                throw new Error(err.message || 'Falha ao criar perfil');
+            }
+        } catch (error: any) {
+            console.error(error);
+            notifications.send(error.message || 'Erro de conexão.', 'error');
+        } finally {
+            isLoading = false;
+        }
     }
 
-    isLoading = true;
-
-    try {
-      // 1. Chamada ao Backend (NestJS)
-      const response = await apiFetch(`${PUBLIC_API_URL_HOST}/api/profile/professor`, {
-        method: 'POST',
-        body: JSON.stringify({
-          escolaNome: escolaNome || undefined 
-        })
-      });
-
-      if (response.ok) {
-        const updatedUser = await response.json();
-        
-        // 2. Atualizar Auth Store
-        auth.refreshUser();
-
-        // 3. Notificação de Sucesso Personalizada
-        notifications.send('Bem-vindo, Professor! O seu perfil foi criado.', 'success');
-
-        // Pequeno delay para o utilizador ler a mensagem antes de mudar de página
-        setTimeout(() => {
-            goto('/dashboard/unified/overview');
-        }, 1000);
-
-      } else {
-        // Tentar ler a mensagem de erro do backend
-        const err = await response.json();
-        throw new Error(err.message || 'Falha ao criar perfil');
-      }
-    } catch (error: any) {
-      console.error(error);
-      notifications.send(error.message || 'Erro de conexão. Tente novamente.', 'error');
-    } finally {
-      isLoading = false;
-    }
-  }
-
-        const ref = $page.url.searchParams.get('ref');
+    const ref = $page.url.searchParams.get('ref');
 
     function goBack() {
-        if (ref === 'homet') {
-            goto('/dashboard/foreman/overview'); // Volta para a Visão Geral
+        if (ref === 'homef') {
+            goto('/dashboard/foreman/overview');
         } else {
-            // Default (ou se vier da lista)
             goto('/dashboard'); 
         }
     }
 </script>
 
-
-<div class="container  mx-auto h-full flex items-center justify-center p-4 animate-fade-in ">
-  <div class="card p-8 max-w-2xl w-full space-y-6 shadow-xl border-t-4 border-secondary-500 bg-surface-100 dark:bg-surface-800 rounded-xl">
-    
-    <header class="text-center space-y-2">
-      <div class="flex justify-center mb-4">
-        <div class="p-4 bg-secondary-500/20 rounded-full text-secondary-500 shadow-inner">
-          <School size={48} />
-        </div>
-      </div>
-      <h2 class="h2 font-bold text-surface-900-50-token">Perfil de Professor</h2>
-      <p class="text-surface-500">
-        Configure a sua sala de aula virtual.
-      </p>
-    </header>
-
-    <form on:submit|preventDefault={handleSubmit} class="space-y-6">
-      
-      <label class="label">
-        <span class="font-bold">Nome da Escola</span>
-        <input 
-                        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
-          type="text" 
-          bind:value={escolaNome} 
-          placeholder="Ex: Escola Primária Heróis Moçambicanos" 
-        />
-        <span class="text-xs text-surface-400">Isto será visível nos detalhes da turma.</span>
-      </label>
-
-      <div class="p-4 variant-soft-secondary rounded-container text-sm flex gap-3 items-start bg-surface-50 dark:bg-surface-700/50 rounded-lg border border-surface-200 dark:border-surface-700">
-        <div class="mt-1"><School size={16}/></div>
-        <div>
-            <p><strong>Acesso Imediato:</strong></p>
-            <p class="opacity-80">Ao confirmar, poderá criar turmas, gerar códigos de convite e monitorizar o progresso dos alunos.</p>
-        </div>
-      </div>
-
-      <div class="flex flex-col gap-3 pt-4">
-        <button type="submit" 
-                    class="inline-flex items-center justify-center px-4 py-2 bg-secondary-600 hover:bg-secondary-700 focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled={isLoading}>
-          {#if isLoading}
-            <span>A configurar...</span>
-          {:else}
-            <Check size={20} class="mr-2" /> Confirmar e Começar
-          {/if}
-        </button>
+<div class="min-h-[80vh] container flex items-center justify-center p-4 animate-fade-in">
+    <div class="max-w-md w-full bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-sm overflow-hidden">
         
-        <button type="button"                     class="inline-flex items-center justify-center px-4 py-2 border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-700 focus:ring-2 focus:ring-surface-500 focus:ring-offset-2 text-surface-700 dark:text-surface-300 font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
- on:click={() => goBack()} disabled={isLoading}>
-          <ArrowLeft size={16} class="mr-2" /> Cancelar
-        </button>
-      </div>
+        <div class="p-8 text-center border-b border-surface-100 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/50">
+            <div class="mx-auto w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mb-4 text-primary-600 dark:text-primary-400">
+                <School size={32} />
+            </div>
+            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Ativar Docência</h1>
+            <p class="text-surface-500 mt-2 text-sm">
+                Configure a sua sala de aula virtual para começar.
+            </p>
+        </div>
 
-    </form>
-  </div>
+        <div class="p-8 space-y-6">
+            <form on:submit|preventDefault={handleSubmit} class="space-y-6">
+                
+                <div class="space-y-2">
+                    <label for="escola" class="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                        Nome da Instituição *
+                    </label>
+                    <input 
+                        id="escola"
+                        type="text" 
+                        class={inputClass}
+                        bind:value={escolaNome} 
+                        placeholder="Ex: Escola Primária Heróis Moçambicanos" 
+                        disabled={isLoading}
+                    />
+                </div>
+
+                <div class="p-4 bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-800 rounded-lg flex gap-3 items-start">
+                    <Info size={18} class="text-primary-600 dark:text-primary-400 mt-0.5 flex-shrink-0"/>
+                    <div class="text-sm text-surface-600 dark:text-surface-300">
+                        <span class="font-semibold text-primary-700 dark:text-primary-300 block mb-1">Acesso Docente</span>
+                        Ao confirmar, o seu perfil ganhará permissões para criar turmas e gerir alunos.
+                    </div>
+                </div>
+
+                <div class="pt-2 flex flex-col gap-3">
+                    
+                    <button
+                        type="submit"
+                        class="w-full btn variant-filled-primary rounded-lg py-2.5 flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                        disabled={isLoading}
+                    >
+                        {#if isLoading}
+                            <Loader size={18} class="animate-spin" />
+                            <span>A Configurar...</span>
+                        {:else}
+                            <Check size={18} />
+                            <span>Confirmar e Começar</span>
+                        {/if}
+                    </button>
+                    
+                    <button
+                        type="button"
+                        class="w-full btn variant-outline-surface border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-700 rounded-lg py-2.5 flex items-center justify-center gap-2 focus:ring-2 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed text-surface-700 dark:text-surface-300 font-medium transition-colors duration-200"
+                        on:click={goBack}
+                        disabled={isLoading}
+                    >
+                        <ArrowLeft size={18} />
+                        Cancelar
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
 </div>
+
+<style>
+    .animate-fade-in {
+        animation: fadeIn 0.4s ease-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
