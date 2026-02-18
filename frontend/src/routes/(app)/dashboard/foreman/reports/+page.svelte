@@ -1,3 +1,7 @@
+<svelte:head>
+    <title>Relatórios de Desempenho | KaniMente</title>
+</svelte:head>
+
 <script lang="ts">
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
@@ -5,7 +9,8 @@
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
     import { 
         BarChart3, ChevronRight, Users, Activity, 
-        Trophy, TrendingUp, Sparkles, Target, BookOpen
+        Trophy, TrendingUp, Sparkles, Target, BookOpen,
+        ArrowUpRight
     } from 'lucide-svelte';
 
     let students: any[] = [];
@@ -26,157 +31,109 @@
         finally { loading = false; }
     });
 
-    function getAvatarColor(name: string) {
-        const gradients = [
-            'bg-gradient-to-br from-blue-500 to-cyan-500',
-            'bg-gradient-to-br from-emerald-500 to-teal-500',
-            'bg-gradient-to-br from-purple-500 to-pink-500',
-            'bg-gradient-to-br from-amber-500 to-orange-500',
-            'bg-gradient-to-br from-rose-500 to-red-500'
-        ];
-        return gradients[name.charCodeAt(0) % gradients.length];
+    function getInitials(name: string) {
+        return name ? name.substring(0, 2).toUpperCase() : '--';
     }
+
+    // Estilos Enterprise
+    const cardBase = "bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg shadow-sm";
+    const labelStyle = "text-[10px] font-bold uppercase tracking-widest text-surface-500 mb-1 block";
 </script>
 
-<div class="max-w-8xl mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
+<div class="container mx-auto max-w-8xl p-4 md:p-8 space-y-8 animate-fade-in pb-24">
     
-    <!-- HEADER -->
-    <div class="space-y-2">
-        <div class="flex items-center gap-3">
-            <div class="p-3 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl shadow-lg">
-                <BarChart3 size={24} class="text-white" />
-            </div>
-            <div>
-                <h1 class="text-2xl md:text-3xl font-bold text-surface-900 dark:text-surface-50">
-                    Relatórios de Progresso
-                </h1>
-                <p class="text-surface-600 dark:text-surface-400">
-                    Visão geral da atividade familiar e análise detalhada por educando.
-                </p>
-            </div>
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-surface-200 dark:border-surface-700 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">
+                Análise de Desempenho
+            </h1>
+            <p class="text-surface-500 text-sm mt-1">
+                Relatórios consolidados de progresso e atividade académica da família.
+            </p>
         </div>
-    </div>
+    </header>
 
     {#if loading}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-            {#each Array(3) as _, i}
-                <div class="h-32 bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 animate-pulse">
+            {#each Array(3) as _}
+                <div class="h-28 bg-surface-200 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700"></div>
             {/each}
         </div>
     {:else}
     
-        <!-- STATS CARDS -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             
-            <!-- ATIVIDADES -->
-            <div class="group relative bg-white dark:bg-surface-800 rounded-2xl p-5 border border-surface-200 dark:border-surface-700 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-                <div class="absolute -right-4 -top-4 w-20 h-20 bg-blue-500/5 rounded-full"></div>
-                
-                <div class="flex items-start justify-between relative z-10">
+            <div class="{cardBase} p-5">
+                <div class="flex justify-between items-start">
                     <div>
-                        <p class="text-surface-500 text-sm font-medium mb-1 flex items-center gap-2">
-                            <Activity size={16} class="text-blue-500" />
-                            Total de Atividades
-                        </p>
-                        <h3 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white">
+                        <span class={labelStyle}>Volume de Estudo</span>
+                        <h3 class="text-3xl font-bold text-surface-900 dark:text-white tracking-tight">
                             {overview?.totalAtividades || 0}
                         </h3>
                     </div>
-                    <div class="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
-                        <Activity size={28} />
+                    <div class="p-2 bg-surface-50 dark:bg-surface-700 rounded-md text-surface-400 border border-surface-100 dark:border-surface-600">
+                        <Activity size={18} />
                     </div>
+                </div>
+                <p class="text-[11px] text-surface-500 mt-3 flex items-center gap-1">
+                    <TrendingUp size={12} class="text-emerald-500" />
+                    Atividades concluídas no período
+                </p>
+            </div>
+
+            <div class="{cardBase} p-5">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class={labelStyle}>Precisão Global</span>
+                        <div class="flex items-baseline gap-1">
+                            <h3 class="text-3xl font-bold text-surface-900 dark:text-white tracking-tight">
+                                {overview?.mediaAcerto || 0}%
+                            </h3>
+                        </div>
+                    </div>
+                    <div class="p-2 bg-surface-50 dark:bg-surface-700 rounded-md text-emerald-600 border border-surface-100 dark:border-surface-600">
+                        <Target size={18} />
+                    </div>
+                </div>
+                <div class="w-full h-1 bg-surface-100 dark:bg-surface-700 rounded-full mt-4 overflow-hidden">
+                    <div 
+                        class="h-full bg-emerald-500 transition-all duration-1000"
+                        style={`width: ${overview?.mediaAcerto || 0}%`}
+                    ></div>
                 </div>
             </div>
 
-            <!-- PRECISÃO -->
-            <div class="group relative bg-white dark:bg-surface-800 rounded-2xl p-5 border border-surface-200 dark:border-surface-700 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-                <div class="absolute -right-4 -top-4 w-20 h-20 bg-emerald-500/5 rounded-full"></div>
-                
-                <div class="flex items-start justify-between relative z-10">
+            <div class="{cardBase} p-5">
+                <div class="flex justify-between items-start">
                     <div>
-                        <p class="text-surface-500 text-sm font-medium mb-1 flex items-center gap-2">
-                            <Target size={16} class="text-emerald-500" />
-                            Precisão Familiar
-                        </p>
-                        <h3 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white">
-                            {overview?.mediaAcerto || 0}%
-                        </h3>
-                    </div>
-                    <div class="p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                        <TrendingUp size={28} />
-                    </div>
-                </div>
-                
-                <!-- PROGRESS BAR -->
-                <div class="mt-4">
-                    <div class="w-full h-2 bg-surface-100 dark:bg-surface-700 rounded-full overflow-hidden">
-                        <div 
-                            class="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-1000"
-                            style={`width: ${Math.min(overview?.mediaAcerto || 0, 100)}%`}
-                        ></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TÓPICOS -->
-            <div class="group relative bg-white dark:bg-surface-800 rounded-2xl p-5 border border-surface-200 dark:border-surface-700 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-                <div class="absolute -right-4 -top-4 w-20 h-20 bg-purple-500/5 rounded-full"></div>
-                
-                <div class="flex items-start justify-between relative z-10">
-                    <div>
-                        <p class="text-surface-500 text-sm font-medium mb-1 flex items-center gap-2">
-                            <BookOpen size={16} class="text-purple-500" />
-                            Tópicos Explorados
-                        </p>
-                        <h3 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white">
+                        <span class={labelStyle}>Abrangência</span>
+                        <h3 class="text-3xl font-bold text-surface-900 dark:text-white tracking-tight">
                             {overview?.topicosExplorados || 0}
                         </h3>
                     </div>
-                    <div class="p-3 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl">
-                        <Trophy size={28} />
+                    <div class="p-2 bg-surface-50 dark:bg-surface-700 rounded-md text-surface-400 border border-surface-100 dark:border-surface-600">
+                        <BookOpen size={18} />
                     </div>
                 </div>
-                
-
+                <p class="text-[11px] text-surface-500 mt-3">Tópicos curriculares abordados</p>
             </div>
         </div>
 
-        <!-- LISTA DE EDUCANDOS -->
-        <div class="space-y-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-bold text-surface-900 dark:text-white flex items-center gap-2">
-                        <Users size={20} class="text-primary-500" />
-                        Detalhes por Educando
-                    </h2>
-                    <p class="text-surface-500 text-sm mt-1">
-                        Clique em um educando para ver análise detalhada
-                    </p>
-                </div>
-                
-                <div class="flex items-center gap-2">
-                    <span class="text-sm text-surface-500">
-                        {students.length} {students.length === 1 ? 'educando' : 'educandos'}
-                    </span>
-                </div>
-            </div>
+        <div class="space-y-4">
+            <h2 class="text-sm font-bold text-surface-500 uppercase tracking-widest flex items-center gap-2">
+                <Users size={16} />
+                Relatórios por Educando
+            </h2>
             
             {#if students.length === 0}
-                <div class="bg-gradient-to-br from-surface-50 to-white dark:from-surface-900 dark:to-surface-800 rounded-2xl p-8 text-center border-2 border-dashed border-surface-300 dark:border-surface-700">
-                    <div class="w-16 h-16 mx-auto mb-4 bg-surface-100 dark:bg-surface-700 rounded-full flex items-center justify-center">
-                        <Users size={32} class="text-surface-400 dark:text-surface-500"/>
-                    </div>
-                    <h4 class="text-lg font-bold text-surface-700 dark:text-surface-300 mb-2">
-                        Nenhum educando registado
-                    </h4>
-                    <p class="text-surface-500 max-w-md mx-auto mb-6">
-                        Adicione educandos para começar a acompanhar o progresso
-                    </p>
+                <div class="bg-surface-50 dark:bg-surface-800/30 rounded-lg p-12 text-center border border-dashed border-surface-300 dark:border-surface-700">
+                    <h4 class="font-bold text-surface-900 dark:text-white">Nenhum educando registado</h4>
+                    <p class="text-sm text-surface-500 mt-1 mb-6">Registe um educando para gerar estatísticas de aprendizagem.</p>
                     <button 
                         on:click={() => goto('/dashboard/foreman/student/create')}
-                    class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="btn bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6 py-2 rounded-md text-sm transition-all"
                     >
-                        Adicionar Primeiro Educando
+                        Adicionar Educando
                     </button>
                 </div>
             {:else}
@@ -184,37 +141,27 @@
                     {#each students as student}
                         <button 
                             on:click={() => goto(`/dashboard/foreman/reports/${student.id}`)}
-                            class="group relative bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-2xl p-5 shadow-sm hover:shadow-lg hover:border-primary-500 transition-all duration-300 text-left overflow-hidden"
+                            class="{cardBase} p-4 hover:border-emerald-500 hover:shadow-md transition-all text-left flex items-center justify-between group"
                         >
-                            <!-- BACKGROUND EFFECT -->
-                            <div class="absolute inset-0 bg-gradient-to-br from-primary-500/0 to-primary-500/0 group-hover:from-primary-500/5 group-hover:to-primary-500/10 transition-all duration-300"></div>
-                            
-                            <!-- CONTENT -->
-                            <div class="relative z-10">
-                                <div class="flex items-center justify-between mb-4">
-                                    <div class="flex items-center gap-4">
-                                        <div class={`w-12 h-12 rounded-xl ${getAvatarColor(student.nome)} flex items-center justify-center text-white font-bold text-lg shadow-lg`}>
-                                            {student.nome.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <h3 class="text-lg font-bold text-surface-900 dark:text-white group-hover:text-primary-500 transition-colors">
-                                                {student.nome}
-                                            </h3>
-                                            <p class="text-sm text-surface-500">{student.classe}ª Classe</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="text-surface-400 group-hover:text-primary-500 transition-colors">
-                                        <ChevronRight size={20} />
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-bold text-sm border border-emerald-100 dark:border-emerald-800/30 shadow-sm">
+                                    {getInitials(student.nome)}
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-surface-900 dark:text-white group-hover:text-emerald-600 transition-colors">
+                                        {student.nome}
+                                    </h3>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span class="text-[10px] font-bold text-surface-400 uppercase tracking-tight">{student.classe}ª Classe</span>
                                     </div>
                                 </div>
-                                
-
+                            </div>
+                            
+                            <div class="p-1.5 rounded-full bg-surface-50 dark:bg-surface-700 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/30 group-hover:text-emerald-600 transition-colors">
+                                <ArrowUpRight size={16} class="text-surface-300 group-hover:text-emerald-500" />
                             </div>
                         </button>
                     {/each}
-                    
-            
                 </div>
             {/if}
         </div>
@@ -223,18 +170,14 @@
 </div>
 
 <style>
+    .animate-fade-in {
+        animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
     @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
-    .animate-fade-in {
-        animation: fadeIn 0.5s ease-out;
-    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>

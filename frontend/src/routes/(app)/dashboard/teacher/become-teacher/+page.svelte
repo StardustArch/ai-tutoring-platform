@@ -1,17 +1,22 @@
+<svelte:head>
+    <title>Ativar Perfil Docente | KaniMente</title>
+    <meta name="description" content="Crie a sua sala de aula virtual e comece a gerir os seus alunos." />
+</svelte:head>
+
 <script lang="ts">
     import { goto } from '$app/navigation';
     import { auth } from '$lib/store/auth'; 
     import { apiFetch } from '$lib/utils/api'; 
     import { notifications } from '$lib/store/notifications';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
-    import { School, Check, ArrowLeft, Info, Loader } from 'lucide-svelte';
+    import { School, Check, ArrowLeft, Info, Loader, Building2 } from 'lucide-svelte';
     import { page } from '$app/stores';
 
     let escolaNome = '';
     let isLoading = false;
 
-    // Estilo do Input Padronizado
-    const inputClass = "w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-400 dark:placeholder-surface-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed";
+    // Estilo do Input Enterprise (Focado, Sombra Suave, Borda Fina)
+    const inputClass = "w-full px-3 py-2.5 border border-surface-300 dark:border-surface-600 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm";
 
     async function handleSubmit() {
         if (!escolaNome || escolaNome.trim() === "") {
@@ -35,7 +40,7 @@
 
             if (response.ok) {
                 await auth.refreshUser();
-                notifications.send('Bem-vindo, Professor! Perfil ativado.', 'success');
+                notifications.send('Perfil docente ativado com sucesso.', 'success');
                 setTimeout(() => {
                     goto('/dashboard/unified/overview');
                 }, 1000);
@@ -55,48 +60,51 @@
 
     function goBack() {
         if (ref === 'homef') {
-            goto('/dashboard/foreman/overview');
+            goto('/dashboard/unified/overview');
         } else {
             goto('/dashboard'); 
         }
     }
 </script>
 
-<div class="min-h-[80vh] container flex items-center justify-center p-4 animate-fade-in">
-    <div class="max-w-md w-full bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-sm overflow-hidden">
+<div class="min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
+    <div class="max-w-md w-full bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg shadow-sm overflow-hidden">
         
-        <div class="p-8 text-center border-b border-surface-100 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/50">
-            <div class="mx-auto w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mb-4 text-primary-600 dark:text-primary-400">
-                <School size={32} />
+        <div class="p-8 pb-6 text-center">
+            <div class="mx-auto w-12 h-12 bg-surface-100 dark:bg-surface-700 rounded-lg flex items-center justify-center mb-4 border border-surface-200 dark:border-surface-600">
+                <School size={24} class="text-surface-600 dark:text-surface-300" />
             </div>
-            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Ativar Docência</h1>
+            <h1 class="text-xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">Ativar Docência</h1>
             <p class="text-surface-500 mt-2 text-sm">
-                Configure a sua sala de aula virtual para começar.
+                Para começar, identifique a instituição de ensino onde leciona.
             </p>
         </div>
 
-        <div class="p-8 space-y-6">
+        <div class="px-8 pb-8 space-y-6">
             <form on:submit|preventDefault={handleSubmit} class="space-y-6">
                 
-                <div class="space-y-2">
-                    <label for="escola" class="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                        Nome da Instituição *
+                <div class="space-y-1.5">
+                    <label for="escola" class="block text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 ml-0.5">
+                        Instituição de Ensino <span class="text-red-500">*</span>
                     </label>
-                    <input 
-                        id="escola"
-                        type="text" 
-                        class={inputClass}
-                        bind:value={escolaNome} 
-                        placeholder="Ex: Escola Primária Heróis Moçambicanos" 
-                        disabled={isLoading}
-                    />
+                    <div class="relative">
+                        <input 
+                            id="escola"
+                            type="text" 
+                            class="{inputClass} pl-9"
+                            bind:value={escolaNome} 
+                            placeholder="Ex: Escola Primária Heróis Moçambicanos" 
+                            disabled={isLoading}
+                        />
+                        <Building2 size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none" />
+                    </div>
                 </div>
 
-                <div class="p-4 bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-800 rounded-lg flex gap-3 items-start">
-                    <Info size={18} class="text-primary-600 dark:text-primary-400 mt-0.5 flex-shrink-0"/>
-                    <div class="text-sm text-surface-600 dark:text-surface-300">
-                        <span class="font-semibold text-primary-700 dark:text-primary-300 block mb-1">Acesso Docente</span>
-                        Ao confirmar, o seu perfil ganhará permissões para criar turmas e gerir alunos.
+                <div class="p-3 bg-surface-50 dark:bg-surface-900/40 border border-surface-200 dark:border-surface-700 rounded-md flex gap-3 items-start">
+                    <Info size={16} class="text-surface-500 mt-0.5 flex-shrink-0"/>
+                    <div class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
+                        <span class="font-semibold text-surface-900 dark:text-surface-100 block mb-0.5">Permissões de Acesso</span>
+                        Este perfil permitirá criar turmas, adicionar alunos e gerar relatórios pedagógicos detalhados.
                     </div>
                 </div>
 
@@ -104,7 +112,7 @@
                     
                     <button
                         type="submit"
-                        class="w-full btn variant-filled-primary rounded-lg py-2.5 flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                        class="w-full btn bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md py-2.5 flex items-center justify-center gap-2 shadow-sm transition-all focus:ring-2 focus:ring-offset-1 focus:ring-primary-500 disabled:opacity-70"
                         disabled={isLoading}
                     >
                         {#if isLoading}
@@ -118,7 +126,7 @@
                     
                     <button
                         type="button"
-                        class="w-full btn variant-outline-surface border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-700 rounded-lg py-2.5 flex items-center justify-center gap-2 focus:ring-2 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed text-surface-700 dark:text-surface-300 font-medium transition-colors duration-200"
+                        class="w-full btn bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 font-medium rounded-md py-2.5 flex items-center justify-center gap-2 transition-all"
                         on:click={goBack}
                         disabled={isLoading}
                     >
@@ -134,10 +142,10 @@
 
 <style>
     .animate-fade-in {
-        animation: fadeIn 0.4s ease-out;
+        animation: fadeIn 0.3s ease-out;
     }
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
+        from { opacity: 0; transform: translateY(5px); }
         to { opacity: 1; transform: translateY(0); }
     }
 </style>

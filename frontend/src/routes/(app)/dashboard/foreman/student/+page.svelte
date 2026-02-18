@@ -1,13 +1,15 @@
+<svelte:head>
+    <title>Gerir Educandos | KaniMente</title>
+</svelte:head>
+
 <script lang="ts">
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { apiFetch } from '$lib/utils/api';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
     import { 
-        UserPlus, Settings, School, Trash2, Edit, 
-        MoreVertical, GraduationCap, Calendar, Users, 
-		Play
-
+        UserPlus, GraduationCap, Calendar, Users, 
+        Play, Settings2, ChevronRight, UserCircle2
     } from 'lucide-svelte';
     
     // --- ESTADO ---
@@ -33,7 +35,7 @@
     }
 
     function calculateAge(dateString: string) {
-        if (!dateString) return 'Idade n/d';
+        if (!dateString) return '--';
         const today = new Date();
         const birthDate = new Date(dateString);
         let age = today.getFullYear() - birthDate.getFullYear();
@@ -44,122 +46,115 @@
         return `${age} anos`;
     }
 
-    // Gerar cor de fundo baseada na inicial do nome (Estética consistente)
-
-        function getAvatarColor(name: string) {
-        const gradients = [
-            'bg-gradient-to-br from-blue-500 to-cyan-500',
-            'bg-gradient-to-br from-emerald-500 to-teal-500',
-            'bg-gradient-to-br from-purple-500 to-pink-500',
-            'bg-gradient-to-br from-amber-500 to-orange-500',
-            'bg-gradient-to-br from-rose-500 to-red-500'
-        ];
-        return gradients[name.charCodeAt(0) % gradients.length];
+    function getInitials(name: string) {
+        return name ? name.substring(0, 2).toUpperCase() : '--';
     }
+
+    // Estilos Enterprise
+    const btnPrimary = "btn bg-emerald-600 hover:bg-emerald-700 text-white rounded-md py-2 px-4 flex items-center justify-center gap-2 font-medium text-sm transition-all shadow-sm";
+    const btnSecondary = "btn bg-white dark:bg-surface-800 border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-200 rounded-md py-2 px-4 flex items-center justify-center gap-2 font-medium text-sm transition-all";
 </script>
 
-<div class="max-w-8xl mx-auto p-6 space-y-8 animate-fade-in">
+<div class="container mx-auto max-w-8xl p-4 md:p-8 space-y-6 animate-fade-in pb-24">
 
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-surface-200 dark:border-surface-700 pb-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-surface-200 dark:border-surface-700 pb-4">
         <div>
-            <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-50 flex items-center gap-3">
-                <Users class="text-primary-500" />
+            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50 tracking-tight flex items-center gap-2">
                 Gerir Educandos
             </h1>
-            <p class="text-surface-600 dark:text-surface-400 mt-1">
-                Adicione, edite ou configure os perfis dos seus filhos.
+            <p class="text-surface-500 text-sm mt-1">
+                Administre os perfis e acompanhe o progresso escolar da sua família.
             </p>
         </div>
 
         <button 
-                                class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
-
+            class={btnPrimary}
             on:click={() => goto('/dashboard/foreman/student/create')}
         >
-            <UserPlus size={20} />
-            <span>Adicionar Novo</span>
+            <UserPlus size={16} />
+            <span>Adicionar Educando</span>
         </button>
     </div>
 
     {#if loading}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
             {#each Array(3) as _}
-                <div class="h-64 bg-surface-200 dark:bg-surface-800 rounded-2xl animate-pulse"></div>
+                <div class="h-44 bg-surface-200 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700"></div>
             {/each}
         </div>
 
     {:else if students.length === 0}
-                           <div class=" flex flex-col items-center justify-center bg-gradient-to-br from-surface-50 to-white dark:from-surface-900 dark:to-surface-800 rounded-2xl p-8 text-center border-2 border-dashed border-surface-300 dark:border-surface-700">
-
-            <div class="p-4 bg-surface-200 dark:bg-surface-700 rounded-full mb-4 text-surface-500">
-                <GraduationCap size={48} />
+        <div class="flex flex-col items-center justify-center bg-surface-50 dark:bg-surface-800/30 rounded-lg p-16 text-center border border-dashed border-surface-300 dark:border-surface-700">
+            <div class="w-12 h-12 bg-surface-100 dark:bg-surface-700 rounded-lg flex items-center justify-center text-surface-400 mb-4 border border-surface-200 dark:border-surface-600">
+                <UserCircle2 size={24} />
             </div>
-            <h3 class="text-xl font-bold text-surface-900 dark:text-white">Nenhum educando encontrado</h3>
-            <p class="text-surface-500 max-w-sm mt-2 mb-6">
-                Para começar a usar o KaniMente, precisa de registar o perfil do seu primeiro educando.
+            <h3 class="font-bold text-surface-900 dark:text-white">Nenhum educando registado</h3>
+            <p class="text-sm text-surface-500 max-w-xs mt-1 mb-6">
+                Para começar, registe o perfil do seu primeiro educando para que ele possa utilizar a plataforma.
             </p>
             <button 
-                    class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                class={btnPrimary}
                 on:click={() => goto('/dashboard/foreman/student/create')}
             >
-                Registar Educando
+                Registar Primeiro Educando
             </button>
         </div>
 
     {:else}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {#each students as student}
-                <div class="group bg-white dark:bg-surface-800 rounded-2xl shadow-sm hover:shadow-md border border-surface-200 dark:border-surface-700 overflow-hidden transition-all duration-300">
+                <div class="group bg-white dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 shadow-sm hover:border-emerald-500/50 hover:shadow-md transition-all flex flex-col">
                     
-                    <div class="p-6 flex items-start justify-between">
+                    <div class="p-5 flex items-start justify-between">
                         <div class="flex items-center gap-4">
-                            <div class={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold ${getAvatarColor(student.nome)}`}>
-                                {student.nome.charAt(0)}
+                            <div class="w-10 h-10 rounded bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-bold text-sm border border-emerald-100 dark:border-emerald-800/30">
+                                {getInitials(student.nome)}
                             </div>
                             
-                            <div>
-                                <h3 class="font-bold text-lg text-surface-900 dark:text-white leading-tight">
-                                    {student.nome}
+                            <div class="min-w-0">
+                                <h3 class="font-bold text-surface-900 dark:text-white leading-tight group-hover:text-emerald-600 transition-colors">
+                                    {student.nome} {student.sobrenome}
                                 </h3>
-                                <p class="text-sm text-surface-500">{student.sobrenome}</p>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-500">
+                                        {student.classe}ª Classe
+                                    </span>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-500">
+                                        {calculateAge(student.dataNascimento)}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
                         <button 
                             on:click={() => goto(`/dashboard/foreman/student/${student.id}/edit`)}
-                            class="text-surface-400 hover:text-primary-500 transition-colors p-2"
+                            class="text-surface-400 hover:text-surface-900 dark:hover:text-white p-1 transition-colors"
                             title="Editar Perfil"
                         >
-                            <Edit size={18} />
+                            <Settings2 size={18} />
                         </button>
                     </div>
 
-                    <div class="px-6 pb-6 space-y-3">
-                        <div class="flex items-center gap-3 text-sm text-surface-600 dark:text-surface-300 bg-surface-50 dark:bg-surface-700/50 p-3 rounded-xl">
-                            <GraduationCap size={18} class="text-primary-500" />
-                            <span class="font-medium">{student.classe}ª Classe</span>
-                        </div>
-                        
-                        <div class="flex items-center gap-3 text-sm text-surface-600 dark:text-surface-300 bg-surface-50 dark:bg-surface-700/50 p-3 rounded-xl">
-                            <Calendar size={18} class="text-primary-500" />
-                            <span>{calculateAge(student.dataNascimento)}</span>
-                        </div>
-                    </div>
-
-<div class="border-t border-surface-100 dark:border-surface-700 grid grid-cols-1 divide-x divide-surface-100 dark:divide-surface-700">
-                        
-                        
-                        <button 
-                            class="p-3 text-sm font-bold text-surface-500 hover:text-blue-600 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors flex items-center justify-center gap-2"
-                            on:click={() => goto(`/dashboard/foreman/student/${student.id}/class`)}
-                        >
-                            <Play size={16} />
-                            Iniciar Sessão
-                        </button>
-                    </div>
+                    <button 
+                        class="mt-auto border-t border-surface-100 dark:border-surface-700 p-3 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 transition-all flex items-center justify-center gap-2 rounded-b-lg uppercase tracking-widest"
+                        on:click={() => goto(`/dashboard/foreman/student/${student.id}/class`)}
+                    >
+                        <Play size={14} class="fill-current" />
+                        Iniciar Sessão
+                    </button>
 
                 </div>
             {/each}
         </div>
     {/if}
 </div>
+
+<style>
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
