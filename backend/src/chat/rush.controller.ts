@@ -19,7 +19,7 @@ export class RushController {
     if (!body.subtopico) {
       throw new BadRequestException('subtopico é obrigatório');
     }
-    
+
     return this.rushService.getNextQuestion(
       body.alunoId ?? 0, // 0 = anónimo (sem verificação de bloqueio)
       body.classe,
@@ -28,13 +28,6 @@ export class RushController {
     );
   }
   
-  // Adicionar este endpoint
-  @Get('topics')
-  async getTopics(@Query('classe') classe: number) {
-    if (!classe) throw new BadRequestException('Classe é obrigatória');
-    return this.rushService.getTopicsByClass(Number(classe));
-  }
-
   @Post('answer')
   async answer(@Body() dto: AnswerExerciseDto) {
     if (!dto.alunoId) {
@@ -50,13 +43,19 @@ export class RushController {
     // Valida resposta
     const acertou = String(dto.respostaAluno).trim() === String(exercicio.resposta).trim();
 
+    if(dto.turmaId){
+      console.log("NULLLLLLLLOOOOOOOO")
+      console.log(dto)
+    }
     // Salva resultado (usa o topicoId do exercício!)
     const saved = await this.rushService.saveExerciseResult(
       dto.alunoId,
       dto.exercicioId,
       dto.respostaAluno,
       acertou,
-      exercicio.topicoId
+      exercicio.topicoId,
+      dto.turmaId,
+      dto.sessaoId // <--- Passar o que vem do frontend
     );
 
     // Gera feedback
@@ -76,9 +75,13 @@ export class RushController {
     };
   }
 
-  @Get('stats/:alunoId')
-  async getStats(@Param('alunoId', ParseIntPipe) alunoId: number) {
-    return this.rushService.getStudentStats(alunoId);
+@Get('stats/:alunoId')
+  async getStats(
+    @Param('alunoId', ParseIntPipe) alunoId: number,
+    @Query('turmaId') turmaId?: string // <--- NOVO
+  ) {
+    const tId = turmaId ? parseInt(turmaId) : null;
+    return this.rushService.getStudentStats(alunoId, tId);
   }
 
   @Get('lives/:alunoId')

@@ -1,3 +1,7 @@
+<svelte:head>
+    <title>Configurar Educando | KaniMente</title>
+</svelte:head>
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
@@ -5,11 +9,10 @@
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import { notifications } from '$lib/store/notifications';
-  import Notification from '$lib/components/Notification.svelte';
   
   import { 
     ArrowLeft, Save, Trash2, AlertTriangle, User, 
-    Loader, Calendar, GraduationCap 
+    Loader, Calendar, GraduationCap, X, User2
   } from 'lucide-svelte';
 
   // --- ESTADO ---
@@ -25,6 +28,10 @@
     classe: 1
   };
 
+  // Estilos Padronizados Enterprise
+  const inputClass = "w-full px-3 py-2.5 border border-surface-300 dark:border-surface-600 rounded-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm transition-all disabled:opacity-60 shadow-sm";
+  const labelClass = "block text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-400 mb-1.5 ml-0.5";
+
   onMount(async () => {
     await loadStudent();
   });
@@ -35,10 +42,8 @@
       const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`);
       if (res.ok) {
         const data = await res.json();
-        // Preencher o form
         formData.nome = data.nome;
         formData.sobrenome = data.sobrenome;
-        // Formatar data para o input type="date" (YYYY-MM-DD)
         if (data.dataNascimento) {
             formData.dataNascimento = new Date(data.dataNascimento).toISOString().split('T')[0];
         }
@@ -48,13 +53,11 @@
       }
     } catch (err: any) {
       notifications.send(err.message, 'error');
-      goto('/dashboard/home');
+      goBack();
     } finally {
       isLoading = false;
     }
   }
-
-  // --- ACÇÕES ---
 
   async function saveChanges() {
     if (!formData.nome || !formData.sobrenome || !formData.dataNascimento) {
@@ -64,7 +67,6 @@
 
     isSaving = true;
     try {
-        // Endpoint PATCH
         const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`, {
             method: 'PATCH',
             body: JSON.stringify({
@@ -75,7 +77,7 @@
 
         if (res.ok) {
             notifications.send('Dados atualizados com sucesso!', 'success');
-            goto(`/dashboard/foreman/student/${studentId}`); // Volta aos detalhes
+            goBack();
         } else {
             throw new Error('Falha ao atualizar.');
         }
@@ -87,8 +89,7 @@
   }
 
   async function deleteStudent() {
-    const confirmacao = confirm('Tem a certeza? Isto irá apagar todo o histórico escolar deste aluno. Esta ação é irreversível.');
-    if (!confirmacao) return;
+    if (!confirm('Tem a certeza que deseja remover este perfil? Todos os dados e o histórico escolar serão apagados permanentemente.')) return;
 
     isDeleting = true;
     try {
@@ -98,7 +99,7 @@
 
         if (res.ok) {
             notifications.send('Educando removido com sucesso.', 'success');
-            goto('/dashboard/home');
+            goto('/dashboard/foreman/student');
         } else {
             throw new Error('Falha ao remover.');
         }
@@ -108,90 +109,138 @@
         isDeleting = false;
     }
   }
+
+  const ref = $page.url.searchParams.get('ref');
+
+  function goBack() {
+    if (ref === 'home') goto('/dashboard/foreman/overview'); 
+    else goto('/dashboard/foreman/student'); 
+  }
 </script>
 
-<Notification />
+<div class="container mx-auto max-w-2xl p-4 md:p-8 space-y-6 animate-fade-in pb-24">
 
-<div class="max-w-2xl mx-auto p-4 pb-20 space-y-8 animate-fade-in">
-
-  <!-- CABEÇALHO -->
-  <div class="flex items-center gap-4">
-    <button 
-      on:click={() => goto(`/dashboard/foreman/student/${studentId}`)} 
-      class="p-2 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 transition-colors"
-    >
-      <ArrowLeft size={24} />
+  <div class="flex items-center gap-3 border-b border-surface-200 dark:border-surface-700 pb-4">
+    <button on:click={goBack} class="p-2 -ml-2 rounded-md hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-500 hover:text-emerald-600 transition-colors">
+      <ArrowLeft size={20} />
     </button>
-    <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Gerir Educando</h1>
+    <div>
+        <h1 class="text-xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">Configurar Educando</h1>
+    </div>
   </div>
 
   {#if isLoading}
-    <div class="h-96 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse"></div>
+    <div class="bg-white dark:bg-surface-800 rounded-lg p-8 space-y-4 animate-pulse border border-surface-200 dark:border-surface-700">
+        <div class="h-4 w-1/4 bg-surface-200 dark:bg-surface-700 rounded"></div>
+        <div class="h-10 w-full bg-surface-200 dark:bg-surface-700 rounded"></div>
+        <div class="h-20 w-full bg-surface-200 dark:bg-surface-700 rounded mt-4"></div>
+    </div>
   {:else}
 
-    <!-- FORMULÁRIO DE EDIÇÃO -->
-    <div class="bg-white dark:bg-surface-800 rounded-xl shadow-sm border border-surface-200 dark:border-surface-700 p-6 md:p-8 space-y-6">
+    <div class="bg-white dark:bg-surface-800 rounded-lg shadow-sm border border-surface-200 dark:border-surface-700 overflow-hidden">
         
-        <div class="flex items-center gap-3 border-b border-surface-100 dark:border-surface-700 pb-4 mb-4">
-            <User class="text-primary-500" size={24} />
-            <h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Dados Pessoais</h2>
+        <div class="p-6 border-b border-surface-100 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/50">
+             <h2 class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300 flex items-center gap-2">
+                <User2 size={16} />
+                Perfil do Aluno
+            </h2>
         </div>
 
-        <div class="space-y-4">
-            <!-- Nome e Sobrenome -->
+        <div class="p-6 md:p-8 space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label class="label">
-                    <span class="font-medium text-sm">Nome</span>
-                    <input type="text" class="input p-3" bind:value={formData.nome} />
-                </label>
-                <label class="label">
-                    <span class="font-medium text-sm">Sobrenome</span>
-                    <input type="text" class="input p-3" bind:value={formData.sobrenome} />
-                </label>
+                <div>
+                    <label for="nome" class={labelClass}>Nome</label>
+                    <input id="nome" type="text" class={inputClass} bind:value={formData.nome} disabled={isSaving} />
+                </div>
+                <div>
+                    <label for="sobrenome" class={labelClass}>Sobrenome</label>
+                    <input id="sobrenome" type="text" class={inputClass} bind:value={formData.sobrenome} disabled={isSaving} />
+                </div>
             </div>
 
-            <!-- Data Nascimento -->
-            <label class="label">
-                <span class="font-medium text-sm flex items-center gap-2"><Calendar size={14}/> Data de Nascimento</span>
-                <input type="date" class="input p-3" bind:value={formData.dataNascimento} />
-            </label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="nascimento" class={labelClass}>Data de Nascimento</label>
+                    <div class="relative">
+                        <input id="nascimento" type="date" class="{inputClass} pl-10" bind:value={formData.dataNascimento} disabled={isSaving} />
+                        <Calendar size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+                    </div>
+                </div>
 
-            <!-- Classe -->
-            <label class="label">
-                <span class="font-medium text-sm flex items-center gap-2"><GraduationCap size={16}/> Classe</span>
-                <select class="select p-3" bind:value={formData.classe}>
-                    {#each Array(12) as _, i}
-                        <option value={i + 1}>{i + 1}ª Classe</option>
-                    {/each}
-                </select>
-            </label>
-        </div>
+                <div>
+                    <label for="classe" class={labelClass}>Nível Escolar</label>
+                    <div class="relative">
+                        <select id="classe" class="{inputClass} appearance-none pl-10" bind:value={formData.classe} disabled={isSaving}>
+                            {#each [3,4,5,6] as c}
+                                <option value={c}>{c}ª Classe</option>
+                            {/each}
+                        </select>
+                        <GraduationCap size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+                    </div>
+                </div>
+            </div>
 
-        <!-- Ações -->
-        <div class="pt-4 flex justify-end gap-3">
-            <button class="btn variant-ghost-surface" on:click={() => goto(`/dashboard/foreman/student/${studentId}`)}>
-                Cancelar
-            </button>
-            <button class="btn variant-filled-primary font-bold" on:click={saveChanges} disabled={isSaving}>
-                {#if isSaving}
-                    <Loader size={18} class="animate-spin mr-2"/> A Guardar...
-                {:else}
-                    <Save size={18} class="mr-2"/> Guardar Alterações
-                {/if}
-            </button>
+            <div class="pt-4 flex justify-end gap-3 border-t border-surface-100 dark:border-surface-700">
+                <button 
+                    class="btn bg-white dark:bg-surface-700 border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 px-4 py-2 rounded-md text-sm font-medium transition-colors" 
+                    on:click={goBack}
+                    disabled={isSaving}
+                >
+                    Cancelar
+                </button>
+                <button 
+                    class="btn bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-md py-2 px-6 flex items-center gap-2 shadow-sm transition-all focus:ring-2 focus:ring-offset-1 focus:ring-emerald-500 disabled:opacity-70 text-sm" 
+                    on:click={saveChanges} 
+                    disabled={isSaving}
+                >
+                    {#if isSaving}
+                        <Loader size={16} class="animate-spin" />
+                        <span>A Guardar...</span>
+                    {:else}
+                        <Save size={16} />
+                        <span>Guardar Alterações</span>
+                    {/if}
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- ZONA DE PERIGO -->
-    <div class="bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/30 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div class="text-red-800 dark:text-red-300">
-            <h3 class="font-bold flex items-center gap-2"><AlertTriangle size={20}/> Remover Educando</h3>
-            <p class="text-sm opacity-80 mt-1">Esta ação irá apagar permanentemente o perfil e histórico escolar.</p>
+    <div class="rounded-lg border border-red-200 dark:border-red-900/30 bg-white dark:bg-surface-800 overflow-hidden">
+        <div class="p-6">
+            <h3 class="text-sm font-bold text-red-700 dark:text-red-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+                <AlertTriangle size={16}/> Zona de Perigo
+            </h3>
+            
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <p class="text-sm text-surface-600 dark:text-surface-300 max-w-md">
+                    Ao remover este educando, todos os dados de progresso escolar, XP e interações com a IA serão apagados permanentemente.
+                </p>
+                
+                <button 
+                    class="btn bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-md flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap shadow-sm" 
+                    on:click={deleteStudent} 
+                    disabled={isDeleting}
+                >
+                    {#if isDeleting}
+                        <Loader size={16} class="animate-spin" />
+                    {:else}
+                        <Trash2 size={16} />
+                    {/if}
+                    <span>Remover Perfil</span>
+                </button>
+            </div>
         </div>
-        <button class="btn variant-filled-error font-bold whitespace-nowrap" on:click={deleteStudent} disabled={isDeleting}>
-            <Trash2 size={18} class="mr-2"/> Remover
-        </button>
     </div>
 
   {/if}
 </div>
+
+<style>
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>

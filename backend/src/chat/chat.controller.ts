@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, UsePipes, ValidationPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ChatService } from './chat.service';
 import { SendChatDto } from './dto/send-chat.dto';
@@ -9,8 +9,9 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post('send')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true })) 
   async sendChat(@Request() req, @Body() dto: SendChatDto) {
-    // Requer o ID do aluno e a query, e usa o ID do usuário logado para segurança
+    // req.user.id vem do JWT (Encarregado)
     return this.chatService.sendChat(req.user.id, dto);
   }
 }

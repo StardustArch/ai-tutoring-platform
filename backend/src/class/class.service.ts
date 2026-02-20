@@ -40,6 +40,7 @@ export class ClassService {
         disciplinaId: dto.disciplinaId,
         professorId: professor.id,
         escolaNome: professor.escolaNome || 'Escola Não Informada',
+        classe: dto.classe, // ✅ AQUI: Salvamos a classe (ex: 5)
       },
     });
 
@@ -49,7 +50,7 @@ export class ClassService {
     };
   }
 
-    async atualizarTurma(turmaId: number, usuarioId: number, dto: UpdateClassDto) {
+  async atualizarTurma(turmaId: number, usuarioId: number, dto: UpdateClassDto) {
     await this.validarPropriedadeTurma(turmaId, usuarioId);
 
     const turma = await this.prisma.turma.update({
@@ -322,4 +323,145 @@ export class ClassService {
     });
     if (count === 0) throw new ForbiddenException('Turma não encontrada ou sem permissão.');
   }
+async getTopicsForStudent(classe: number, alunoId: number, turmaId?: number) {
+    
+    let whereClause: any = { nivelClasse: classe };
+
+    // 🚨 LÓGICA NOVA: Se vier TurmaID, filtra pelo que o professor liberou
+    if (turmaId) {
+        whereClause = {
+            ...whereClause,
+            turmasComAcesso: {
+                some: { id: turmaId }
+            }
+        };
+    }
+
+    // 1. Buscar tópicos (Agora com o filtro dinâmico)
+    const todosTopicos = await this.prisma.topico.findMany({
+      where: whereClause,
+      include: { disciplina: true },
+      orderBy: [
+        { disciplinaId: 'asc' },
+        { ordem: 'asc' }
+      ]
+    });
+
+    // Se for modo Turma e não houver tópicos, avisar ou retornar vazio
+    if (turmaId && todosTopicos.length === 0) {
+        // Podes retornar vazio, o frontend mostra "Professor ainda não liberou conteúdos"
+        return { matematica: [], portugues: [] };
+    }
+
+    // 2. Buscar o progresso do aluno (Mantém igual)
+    const progresso = await this.prisma.alunoProficienciaTopico.findMany({
+      where: { alunoId: alunoId },
+      select: { topicoId: true, nivel: true }
+    });
+
+    const topicosConcluidos = new Set(
+      progresso
+        .filter(p => p.nivel !== 'NAO_DIAGNOSTICADO')
+        .map(p => p.topicoId)
+    );
+
+    // 3. Processar Bloqueios (Mantém a tua lógica de gamificação)
+    const topicosProcessados = todosTopicos.map(topico => {
+      let isLocked = false;
+      let isCompleted = topicosConcluidos.has(topico.id);
+
+      // Regra de Gamificação: Se ordem > 1, verifica o anterior
+      // NOTA: No modo Turma, se o professor libertou o tópico 5 mas não o 4,
+      // esta lógica pode bloquear o 5. 
+      // Para Turma, talvez queiras remover o bloqueio sequencial?
+      // Por agora, mantemos a lógica original:
+      if (topico.ordem > 1) {
+        const anterior = todosTopicos.find(t =>
+          t.disciplinaId === topico.disciplinaId &&
+          t.ordem === topico.ordem - 1
+        );
+
+        if (anterior && !topicosConcluidos.has(anterior.id)) {
+          isLocked = true;
+        }
+      }
+
+      return { ...topico, isLocked, isCompleted };
+    });
+
+    // 4. Retorno
+    return {
+      matematica: topicosProcessados.filter(t => t.disciplina.nome === 'Matemática'),
+      portugues: topicosProcessados.filter(t => t.disciplina.nome === 'Português')
+    };
+  }
+
+
+  async atualizarTopicosTurma(turmaId: number, usuarioId: number, topicosIds: number[]) {
+    // 1. Validar se a turma pertence ao professor
+    await this.validarPropriedadeTurma(turmaId, usuarioId);
+
+    // 2. Validar se os tópicos pertencem à disciplina da turma
+    // (Para evitar que um professor de Mat adicione tópicos de Português)
+    const turma = await this.prisma.turma.findUnique({ 
+        where: { id: turmaId },
+        select: { disciplinaId: true }
+    });
+
+    const countValidos = await this.prisma.topico.count({
+        where: {
+            id: { in: topicosIds },
+            disciplinaId: turma?.disciplinaId
+        }
+    });
+
+    if (countValidos !== topicosIds.length) {
+        throw new BadRequestException('Alguns tópicos não pertencem à disciplina desta turma.');
+    }
+
+    // 3. Atualizar a lista (A técnica "set" substitui tudo o que estava lá pelos novos)
+    await this.prisma.turma.update({
+        where: { id: turmaId },
+        data: {
+            topicosDisponiveis: {
+                set: topicosIds.map(id => ({ id }))
+            }
+        }
+    });
+
+    return { message: 'Conteúdos da turma atualizados com sucesso!' };
+  }
+
+
+  async listarTopicosGerenciamento(turmaId: number, usuarioId: number) {
+  await this.validarPropriedadeTurma(turmaId, usuarioId);
+
+  const turma = await this.prisma.turma.findUnique({
+    where: { id: turmaId },
+    include: { 
+      disciplina: true,
+      topicosDisponiveis: { select: { id: true } }
+    }
+  });
+
+  const idsAtivos = new Set(turma?.topicosDisponiveis.map(t => t.id));
+
+  // ✅ A CORREÇÃO DA BRECHA:
+  // Filtra por Disciplina E por Classe
+  const topicosDaClasse = await this.prisma.topico.findMany({
+    where: { 
+        disciplinaId: turma?.disciplinaId,
+        nivelClasse: turma?.classe // <--- Só traz tópicos da 5ª classe se a turma for da 5ª
+    },
+    orderBy: { ordem: 'asc' }
+  });
+
+  return topicosDaClasse.map(topico => ({
+    id: topico.id,
+    nome: topico.nome,
+    nivel: topico.nivelClasse,
+    ordem: topico.ordem,
+    ativo: idsAtivos.has(topico.id) 
+  }));
+}
 }

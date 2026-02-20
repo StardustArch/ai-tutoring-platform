@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. Serviço de IA (Python/Django)
+  # 1. Serviço de IA (Python/FastAPI)
   api:
     build: ./api  
     container_name: km_api

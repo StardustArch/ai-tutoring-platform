@@ -3,6 +3,8 @@ export class AnswerExerciseDto {
   exercicioId: number; // id vindo do servidor (ou null se gerar on-the-fly)
   respostaAluno: string;
   sessionId?: string;
-    classe?: number;
+  classe?: number;
+  turmaId?: number;
+  sessaoId?: number; // <--- ADICIONAR ISTO
 
 }

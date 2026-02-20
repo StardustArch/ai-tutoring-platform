@@ -24,6 +24,7 @@ model Usuario {
   passwordHash  String?
   oauthProvider String?
   oauthId       String? @unique
+  hashedRt      String? // <--- Adiciona isto (Pode ser nulo se o user não estiver logado)
 
   // Relações 1-para-1 com os Perfis
   perfilProfessor   Professor?
@@ -115,6 +116,7 @@ model Aluno {
   proficienciaTopicos AlunoProficienciaTopico[]
   alunoTurmas         AlunoTurma[]
   diagnosticos        DiagnosticoInicial[] // ✅ NOVO
+  sessoesEstudo       SessaoEstudo[]
 
   @@map("alunos")
 }
@@ -135,7 +137,12 @@ model Topico {
   nivelClasse         Int
   disciplinaId        Int
   metadata            Json?
+  ordem               Int                       @default(1) // 1=Início, 2=Seguinte...
+  requisitoId         Int?
+  requisito           Topico?                   @relation("Dependencia", fields: [requisitoId], references: [id])
+  desbloqueia         Topico[]                  @relation("Dependencia")
   disciplina          Disciplina                @relation(fields: [disciplinaId], references: [id], onDelete: Cascade)
+  turmasComAcesso     Turma[]                   @relation("TurmaTopicos")
   chatMensagens       ChatMensagem[]
   exercicioResultados ExercicioResultado[]
   proficienciaTopicos AlunoProficienciaTopico[]
@@ -150,6 +157,8 @@ enum TipoInteracaoChat {
   EXERCICIO
   SAUDACAO
   DESCONHECIDO
+  PERGUNTA
+  RUSH
 }
 
 model ChatMensagem {
@@ -162,6 +171,10 @@ model ChatMensagem {
   aluno         Aluno             @relation(fields: [alunoId], references: [id], onDelete: Cascade)
   topicoId      Int?
   topico        Topico?           @relation(fields: [topicoId], references: [id])
+  turmaId       Int? // Opcional: Se NULL, é Standalone
+  turma         Turma?            @relation(fields: [turmaId], references: [id])
+  sessaoId      Int? // Opcional para suportar mensagens antigas, mas idealmente obrigatório daqui p/ frente
+  sessao        SessaoEstudo?     @relation(fields: [sessaoId], references: [id])
 
   @@map("chat_mensagens")
 }
@@ -176,6 +189,10 @@ model ExercicioResultado {
   alunoId     Int
   topicoId    Int
   exercicioId Int?
+  turmaId     Int? // Se NULL = Standalone; Se ID = Contexto Escolar
+  turma       Turma?        @relation(fields: [turmaId], references: [id])
+  sessaoId    Int?
+  sessao      SessaoEstudo? @relation(fields: [sessaoId], references: [id])
 
   aluno     Aluno      @relation(fields: [alunoId], references: [id])
   topico    Topico     @relation(fields: [topicoId], references: [id])
@@ -198,6 +215,9 @@ model Exercicio {
   resposta    String // resposta correta
   dificuldade Int // 1-5
   criadoEm    DateTime @default(now())
+  
+  @@map("exercicios")
+
 }
 
 enum NivelProficiencia {
@@ -230,6 +250,7 @@ model Turma {
   codigo       String @unique
   disciplinaId Int
   professorId  Int
+  classe       Int // Ex: 3, 5, 10
 
   // 3. O campo escolaId (que apontava para a tabela Escola) é substituído pelo nome
   escolaNome String? // Nome da escola (redundância segura)
@@ -237,13 +258,16 @@ model Turma {
   ativa Boolean @default(true)
 
   // Relações
-  disciplina Disciplina   @relation(fields: [disciplinaId], references: [id])
-  professor  Professor    @relation(fields: [professorId], references: [id])
-  // REMOVIDA: escola Escola @relation(fields: [escolaId], references: [id])
-  alunos     AlunoTurma[]
+  disciplina         Disciplina           @relation(fields: [disciplinaId], references: [id])
+  professor          Professor            @relation(fields: [professorId], references: [id])
+  topicosDisponiveis Topico[]             @relation("TurmaTopicos")
+  alunos             AlunoTurma[]
+  chatMensagens      ChatMensagem[]
+  exercicioResultado ExercicioResultado[]
 
-  criadoEm     DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
+  criadoEm      DateTime       @default(now())
+  atualizadoEm  DateTime       @updatedAt
+  sessaoEstudos SessaoEstudo[]
 
   @@map("turmas")
 }
@@ -259,4 +283,42 @@ model AlunoTurma {
 
   @@unique([alunoId, turmaId])
   @@map("aluno_turma")
+}
+
+enum ModoEstudo {
+  TUTOR
+  RUSH
+}
+
+enum StatusSessao {
+  EM_ANDAMENTO
+  CONCLUIDA
+  ABANDONADA // Se fechar o browser sem terminar
+}
+
+model SessaoEstudo {
+  id Int @id @default(autoincrement())
+
+  // Quem e Onde
+  alunoId Int
+  aluno   Aluno  @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  turmaId Int? // Opcional: Se null, é estudo autónomo
+  turma   Turma? @relation(fields: [turmaId], references: [id])
+
+  // Configuração da Sessão
+  modo        ModoEstudo
+  topicosAlvo Json // IDs dos tópicos selecionados para esta sessão: [10, 12, 15]
+
+  // Métricas
+  inicio          DateTime     @default(now())
+  fim             DateTime? // Preenchido quando o aluno sai
+  duracaoSegundos Int? // Calculado no fim (útil para relatórios rápidos)
+  xpGanho         Int          @default(0)
+  status          StatusSessao @default(EM_ANDAMENTO)
+
+  // Conteúdo Gerado na Sessão (Relações)
+  mensagens  ChatMensagem[]
+  exercicios ExercicioResultado[]
+
+  @@map("sessoes_estudo")
 }

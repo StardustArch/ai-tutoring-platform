@@ -101,6 +101,8 @@ export class AuthService {
             }),
         ]);
 
+            await this.updateRtHash(usuario.id, refreshToken);
+
         return {
             accessToken,
             refreshToken,
@@ -157,6 +159,7 @@ export class AuthService {
         expiresIn: '7d',
       }),
     ]);
+    await this.updateRtHash(userId, newRefreshToken);
 
     return {
       accessToken: newAccessToken,
@@ -230,6 +233,8 @@ export class AuthService {
         expiresIn: '7d',
       }),
     ]);
+
+    await this.updateRtHash(user.id, refreshToken);
 
     return {
       accessToken,
@@ -321,4 +326,24 @@ export class AuthService {
 
     return { message: 'Senha atualizada com sucesso.' };
   }
+
+  async updateRtHash(userId: number, rt: string) {
+  const hash = await bcrypt.hash(rt, 10);
+  await this.prisma.usuario.update({
+    where: { id: userId },
+    data: { hashedRt: hash },
+  });
+}
+
+async logout(userId: number) {
+  // Ao definir como NULL, o token que está no browser deixa de valer
+  // porque a comparação vai falhar.
+  await this.prisma.usuario.updateMany({
+    where: {
+      id: userId,
+      hashedRt: { not: null }, // Só atualiza se tiver hash
+    },
+    data: { hashedRt: null },
+  });
+}
 }

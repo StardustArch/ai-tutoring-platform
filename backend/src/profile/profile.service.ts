@@ -124,4 +124,112 @@ export class ProfileService {
       throw new Error('Erro interno ao atualizar perfil');
     }
   }
+
+  async getUnifiedDashboardData(userId: number) {
+  // 1. Verificar os perfis existentes
+  const user = await this.prisma.usuario.findUnique({
+    where: { id: userId },
+    include: {
+      perfilProfessor: true,
+      perfilEncarregado: true,
+    },
+  });
+
+  const promises = [];
+
+  // 2. Preparar as queries baseadas no perfil
+  const professorDataPromise = user?.perfilProfessor
+    ? this.getProfessorDashboard(user.perfilProfessor.id)
+    : Promise.resolve(null);
+
+  const encarregadoDataPromise = user?.perfilEncarregado
+    ? this.getEncarregadoDashboard(user.perfilEncarregado.id)
+    : Promise.resolve(null);
+
+  const [professorData, encarregadoData] = await Promise.all([
+    professorDataPromise,
+    encarregadoDataPromise,
+  ]);
+
+  // 3. Montar o objeto unificado seguindo a estrutura do seu Front-end
+  return {
+    professor: professorData,
+    encarregado: encarregadoData,
+    stats: {
+      totalAlunosEnsina: professorData?.totalAlunos || 0,
+      totalTurmas: professorData?.totalTurmas || 0,
+      totalEducandos: encarregadoData?.totalEducandos || 0,
+      atividadesHoje: encarregadoData?.atividadesHoje || 0,
+    }
+  };
+}
+
+// Métodos auxiliares privados para manter o código limpo
+private async getProfessorDashboard(professorId: number) {
+  const [totalTurmas, turmas] = await Promise.all([
+    this.prisma.turma.count({ where: { professorId, ativa: true } }),
+    this.prisma.turma.findMany({
+      where: { professorId, ativa: true },
+      take: 3,
+      orderBy: { criadoEm: 'desc' },
+      include: { _count: { select: { alunos: true } } }
+    })
+  ]);
+
+  // Contagem de alunos únicos
+  const totalAlunos = await this.prisma.alunoTurma.count({
+    where: { turma: { professorId } }
+  });
+
+  return {
+    totalTurmas,
+    totalAlunos,
+    turmasRecentes: turmas.map(t => ({
+      id: t.id,
+      nome: t.nome,
+      totalAlunos: t._count.alunos
+    }))
+  };
+}
+
+private async getEncarregadoDashboard(encarregadoId: number) {
+  const educandos = await this.prisma.aluno.findMany({
+    where: { encarregadoId },
+    include: {
+      exercicioResultados: {
+        take: 5,
+        orderBy: { timestamp: 'desc' }
+      }
+    }
+  });
+
+  // Cálculo de atividades hoje (filtro de data simplificado)
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const atividadesHoje = await this.prisma.exercicioResultado.count({
+    where: {
+      aluno: { encarregadoId },
+      timestamp: { gte: hoje }
+    }
+  });
+
+  return {
+    totalEducandos: educandos.length,
+    atividadesHoje,
+    educandos: educandos.map(e => ({
+      id: e.id,
+      nome: e.nome,
+      classe: e.classe,
+      desempenho: this.calcularMedia(e.exercicioResultados) // Função helper sua
+    })),
+    atividadesRecentes: [] // Mapear aqui exercicioResultados se necessário
+  };
+}
+
+private calcularMedia(resultados: any[]): number {
+  if (resultados.length === 0) return 0;
+  const acertos = resultados.filter(r => r.acertou).length;
+  return Math.round((acertos / resultados.length) * 100);
+}
 }

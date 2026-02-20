@@ -1,191 +1,135 @@
 <script lang="ts">
-  import { auth } from '$lib/store/auth';
-  import { goto } from '$app/navigation';
-  import { 
-    Users, School, ChevronRight, BookOpen, GraduationCap, 
-    LayoutDashboard, AlertTriangle, Plus 
-  } from 'lucide-svelte';
-  import '../../../app.css'
+    import { auth } from '$lib/store/auth'; // Caminho 'store' confirmado
+    import { goto } from '$app/navigation';
+    import { browser } from '$app/environment';
+    import { 
+        Users, School, ArrowRight, Loader2 
+    } from 'lucide-svelte';
+    import '../../../app.css';
 
-  // Estado Reativo
-  $: user = $auth.user;
-  $: isEncarregado = !!user?.perfilEncarregado;
-  
-  // Lógica de Professor
-  $: isProfessor = !!user?.perfilProfessor;
-  $: isProfessorAtivo = isProfessor && !!user?.perfilProfessor?.escolaNome;
-  
-  // Estado Global
-  $: hasAnyRole = isEncarregado || isProfessor;
+    let showDashboardSelection = false;
 
-  // Navegação Rápida
-  function goTeacher() { goto('/dashboard/teacher/home'); }
-  function goParent() { goto('/dashboard/home'); } // Ou /dashboard/educandos
-  
-  function becomeTeacher() { goto('/dashboard/teacher/become-teacher'); }
-  function becomeParent() { goto('/dashboard/foreman/become-foreman'); } // Ou fluxo de criação de encarregado
+    // LÓGICA REATIVA
+    $: if (browser && !$auth.isLoading) {
+        console.log('🔍 [Dashboard] Loading terminou. User:', $auth.user);
+        checkAndRedirect($auth.user);
+    }
+
+    async function checkAndRedirect(user: any) {
+        // CORREÇÃO 1: Tratar caso de user nulo
+        if (!user) {
+            console.warn('⚠️ [Dashboard] Sem utilizador autenticado. Redirecionando para login...');
+            await goto('/login');
+            return;
+        }
+
+        const isEncarregado = !!user.perfilEncarregado;
+        const isProfessor = !!user.perfilProfessor;
+        const isProfessorAtivo = isProfessor && !!user.perfilProfessor?.escolaNome;
+        const userHasBothProfiles = isEncarregado && isProfessorAtivo;
+
+        console.log('👤 [Dashboard] Perfis:', { isEncarregado, isProfessorAtivo, userHasBothProfiles });
+
+        if (userHasBothProfiles) {
+            await goto('/dashboard/unified/overview', { replaceState: true });
+        } else if (isProfessorAtivo) {
+            await goto('/dashboard/teacher/overview', { replaceState: true });
+        } else if (isEncarregado) {
+            await goto('/dashboard/foreman/overview', { replaceState: true });
+        } else {
+            // CORREÇÃO 2: Só mostramos a seleção se realmente for um user novo sem perfil
+            console.log('✨ [Dashboard] Novo utilizador detetado. A mostrar seleção.');
+            showDashboardSelection = true;
+        }
+    }
+
+    function getFirstName() {
+        if (!$auth.user?.nome) return 'Utilizador';
+        return $auth.user.nome.split(' ')[0];
+    }
 </script>
 
-<div class="space-y-8 animate-fade-in max-w-5xl mx-auto pb-20">
+<div class="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col justify-center items-center p-4">
+    
+    {#if !showDashboardSelection}
+<div class="min-h-screen w-full flex flex-col items-center justify-center bg-white dark:bg-surface-950 p-4">
 
-  <!-- CABEÇALHO DE BOAS-VINDAS -->
-  <header class="space-y-2">
-    <h1 class="h2 font-bold text-surface-900 dark:text-surface-50">
-      Olá, <span class="bg-gradient-to-br from-primary-500 to-secondary-500 bg-clip-text text-transparent">{user?.nome || 'Utilizador'}</span>! 👋
-    </h1>
-    <p class="text-surface-600 dark:text-surface-400 text-lg">
-      {#if !hasAnyRole}
-        Vamos configurar o seu perfil para começar.
-      {:else}
-        Aqui está o resumo das suas atividades hoje.
-      {/if}
-    </p>
-  </header>
+    <div class="text-center space-y-6 animate-fade-in">
 
-  <!-- CENÁRIO 1: UTILIZADOR NOVO (ONBOARDING) -->
-  {#if !hasAnyRole}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-      
-      <!-- Card Professor -->
-      <button 
-        class="card p-8 variant-soft-secondary hover:variant-filled-secondary transition-all hover:scale-[1.02] text-left space-y-4 group relative overflow-hidden"
-        on:click={becomeTeacher}
-      >
-        <div class="absolute -right-6 -bottom-6 opacity-10 rotate-12 group-hover:scale-150 transition-transform duration-500">
-          <School size={120} />
-        </div>
-        <div class="p-4 bg-white/20 dark:bg-black/20 rounded-2xl w-fit backdrop-blur-sm">
-          <School size={32} />
-        </div>
-        <div>
-          <h3 class="h3 font-bold">Sou Professor</h3>
-          <p class="opacity-80 mt-2">Crie turmas, gere códigos para alunos e acompanhe o progresso com IA.</p>
-        </div>
-        <div class="pt-4 font-bold flex items-center gap-2 group-hover:translate-x-2 transition-transform">
-          Configurar Perfil <ChevronRight size={16} />
-        </div>
-      </button>
-
-      <!-- Card Encarregado -->
-      <button 
-        class="card p-8 variant-soft-primary hover:variant-filled-primary transition-all hover:scale-[1.02] text-left space-y-4 group relative overflow-hidden"
-        on:click={becomeParent}
-      >
-        <div class="absolute -right-6 -bottom-6 opacity-10 rotate-12 group-hover:scale-150 transition-transform duration-500">
-          <Users size={120} />
-        </div>
-        <div class="p-4 bg-white/20 dark:bg-black/20 rounded-2xl w-fit backdrop-blur-sm">
-          <Users size={32} />
-        </div>
-        <div>
-          <h3 class="h3 font-bold">Sou Encarregado</h3>
-          <p class="opacity-80 mt-2">Registe os seus educandos e acompanhe a evolução deles na escola.</p>
-        </div>
-        <div class="pt-4 font-bold flex items-center gap-2 group-hover:translate-x-2 transition-transform">
-          Registar Educando <ChevronRight size={16} />
-        </div>
-      </button>
-
-    </div>
-  
-  {:else}
-    <!-- CENÁRIO 2: UTILIZADOR COM PAPÉIS (DASHBOARD HÍBRIDO) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-      <!-- SECÇÃO DO PROFESSOR (Se tiver o perfil) -->
-      {#if isProfessor}
-        <div class="card p-0 overflow-hidden border-t-4 border-secondary-500 shadow-lg flex flex-col h-full">
-          <div class="p-6 bg-secondary-500/5 border-b border-surface-500/10 flex justify-between items-start">
-            <div class="flex items-center gap-3">
-              <div class="p-2 bg-secondary-500 text-white rounded-lg"><School size={24}/></div>
-              <div>
-                <h3 class="h3 font-bold text-surface-900 dark:text-surface-50">Área do Professor</h3>
-                {#if isProfessorAtivo}
-                  <p class="text-xs text-surface-500">{user?.perfilProfessor?.escolaNome}</p>
-                {:else}
-                  <span class="badge variant-filled-warning">Configuração Pendente</span>
-                {/if}
-              </div>
+<div class="relative inline-flex items-center justify-center">
+            <div class="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 flex items-center justify-center shadow-lg shadow-primary-500/10">
+                <Loader2 size={32} class="animate-spin" />
             </div>
-          </div>
-
-          <div class="p-6 flex-1 flex flex-col justify-center space-y-4">
-             {#if isProfessorAtivo}
-                <div class="grid grid-cols-2 gap-4">
-                   <div class="p-4 rounded-container bg-surface-100 dark:bg-surface-700 text-center">
-                      <span class="block text-3xl font-bold text-secondary-600">--</span>
-                      <span class="text-xs uppercase tracking-wide opacity-70">Turmas</span>
-                   </div>
-                   <div class="p-4 rounded-container bg-surface-100 dark:bg-surface-700 text-center">
-                      <span class="block text-3xl font-bold text-secondary-600">--</span>
-                      <span class="text-xs uppercase tracking-wide opacity-70">Alunos</span>
-                   </div>
-                </div>
-                <button class="btn variant-filled-secondary w-full" on:click={goTeacher}>
-                   <LayoutDashboard size={18} class="mr-2"/> Ir para Sala dos Professores
-                </button>
-             {:else}
-                <div class="alert variant-soft-warning">
-                   <AlertTriangle size={24} />
-                   <p>Você precisa indicar a sua escola para criar turmas.</p>
-                </div>
-                <button class="btn variant-filled-warning w-full" on:click={becomeTeacher}>
-                   Concluir Cadastro
-                </button>
-             {/if}
-          </div>
+            <span class="absolute top-0 right-0 -mt-1 -mr-1 flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-primary-500"></span>
+            </span>
         </div>
-      {/if}
 
-      <!-- SECÇÃO DO ENCARREGADO (Se tiver o perfil) -->
-      {#if isEncarregado}
-        <div class="card p-0 overflow-hidden border-t-4 border-primary-500 shadow-lg flex flex-col h-full">
-          <div class="p-6 bg-primary-500/5 border-b border-surface-500/10 flex justify-between items-start">
-            <div class="flex items-center gap-3">
-              <div class="p-2 bg-primary-500 text-white rounded-lg"><Users size={24}/></div>
-              <div>
-                <h3 class="h3 font-bold text-surface-900 dark:text-surface-50">Área Familiar</h3>
-                <p class="text-xs text-surface-500">Gestão de Educandos</p>
-              </div>
+                <div class="space-y-2">
+            <p class="text-sm text-surface-500 dark:text-surface-400">
+                A carregar o seu espaço...
+            </p>
+        </div>
+        </div>
+        </div>
+    
+    {:else}
+        <div class="max-w-4xl w-full animate-fade-in space-y-8 text-center">
+            
+            <div class="space-y-2">
+                <h1 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white tracking-tight">
+                    Olá, {getFirstName()}! 👋
+                </h1>
+                <p class="text-lg text-surface-600 dark:text-surface-400">
+                    Como deseja utilizar o KaniMente hoje?
+                </p>
             </div>
-          </div>
 
-          <div class="p-6 flex-1 flex flex-col justify-center space-y-4">
-             <div class="p-4 rounded-container bg-surface-100 dark:bg-surface-700 flex items-center gap-4">
-                <div class="p-3 bg-primary-500/10 text-primary-600 rounded-full">
-                   <GraduationCap size={24} />
-                </div>
-                <div>
-                   <p class="font-bold">Acompanhamento Escolar</p>
-                   <p class="text-sm opacity-70">Verifique o progresso dos seus filhos.</p>
-                </div>
-             </div>
-             
-             <button class="btn variant-filled-primary w-full" on:click={goParent}>
-                <LayoutDashboard size={18} class="mr-2"/> Aceder ao Portal
-             </button>
-          </div>
+            <div class="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                
+                <button 
+                    on:click={() => goto('/onboarding/parent')}
+                    class="group relative bg-white dark:bg-surface-800 p-8 rounded-3xl border-2 border-surface-200 dark:border-surface-700 hover:border-primary-500 dark:hover:border-primary-500 transition-all hover:shadow-xl hover:shadow-primary-500/10 text-left"
+                >
+                    <div class="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <Users size={28} />
+                    </div>
+                    <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-2">Sou Encarregado</h3>
+                    <p class="text-sm text-surface-500 leading-relaxed mb-6">
+                        Quero registar os meus educandos, acompanhar o progresso escolar e receber relatórios.
+                    </p>
+                    <div class="flex items-center text-primary-600 font-bold text-sm">
+                        Configurar Perfil <ArrowRight size={16} class="ml-2 group-hover:translate-x-1 transition-transform"/>
+                    </div>
+                </button>
+
+                <button 
+                    on:click={() => goto('/onboarding/teacher')}
+                    class="group relative bg-white dark:bg-surface-800 p-8 rounded-3xl border-2 border-surface-200 dark:border-surface-700 hover:border-secondary-500 dark:hover:border-secondary-500 transition-all hover:shadow-xl hover:shadow-secondary-500/10 text-left"
+                >
+                    <div class="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <School size={28} />
+                    </div>
+                    <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-2">Sou Professor</h3>
+                    <p class="text-sm text-surface-500 leading-relaxed mb-6">
+                        Quero gerir as minhas turmas, criar atividades e acompanhar o desempenho dos alunos.
+                    </p>
+                    <div class="flex items-center text-secondary-600 font-bold text-sm">
+                        Configurar Perfil <ArrowRight size={16} class="ml-2 group-hover:translate-x-1 transition-transform"/>
+                    </div>
+                </button>
+
+            </div>
+            
+            <p class="text-sm text-surface-400">
+                Pode ter ambos os perfis associados à mesma conta.
+            </p>
         </div>
-      {/if}
-
-    </div>
-
-    <!-- BOTÕES PARA ADICIONAR NOVO PAPEL (Caso tenha só um) -->
-    <div class="mt-8 pt-8 border-t border-surface-500/20">
-       <h4 class="h4 font-bold mb-4 opacity-80">Outras Ações</h4>
-       <div class="flex gap-4 flex-wrap">
-          {#if !isProfessor}
-             <button class="btn variant-ghost-secondary" on:click={becomeTeacher}>
-                <Plus size={18} class="mr-2"/> Ativar Perfil de Professor
-             </button>
-          {/if}
-          {#if !isEncarregado}
-             <button class="btn variant-ghost-primary" on:click={becomeParent}>
-                <Plus size={18} class="mr-2"/> Ativar Perfil de Encarregado
-             </button>
-          {/if}
-       </div>
-    </div>
-  {/if}
-
+    {/if}
 </div>
+
+<style>
+    .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>

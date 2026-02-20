@@ -32,45 +32,84 @@ export class DiagnosticService {
     return now > diagnostic.validoAte;
   }
 
-  /**
-   * Gera perguntas de diagnóstico adaptadas à classe do aluno
-   */
-  async generateDiagnosticQuestions(
+// diagnostic.service.ts
+
+async generateDiagnosticQuestions(
     alunoId: number,
-    disciplina: string,
-    classe: number
+    disciplina: string, // "matematica" ou "portugues" (lowercase do frontend)
+    classe: number,
+    topicoAlvo?: string
   ) {
     const aluno = await this.prisma.aluno.findUnique({ where: { id: alunoId } });
     if (!aluno) throw new NotFoundException('Aluno não encontrado');
 
-    // Define tópicos por disciplina
-    const topicos = disciplina === 'matematica'
-      ? ['Adição e Subtração', 'Multiplicação', 'Divisão', 'Frações', 'Geometria']
-      : ['Vocabulário', 'Verbos', 'Ortografia', 'Interpretação', 'Gramática'];
+    // 1. Resolver o Nome da Disciplina (para bater com a BD: "Matemática" vs "matematica")
+    const nomeDisciplinaBd = disciplina.toLowerCase() === 'matematica' ? 'Matemática' : 'Português';
+    
+    // 2. Definir Tópicos a Gerar
+    let topicosParaGerar: string[] = [];
+    let perguntasPorTopico = 2;
 
-    const perguntas: any[] = []; // ✅ Tipo explícito
+    if (topicoAlvo) {
+        topicosParaGerar = [topicoAlvo];
+        perguntasPorTopico = 5; // Mais perguntas se for focado
+    } else {
+        // Fallback genérico se não houver tópico (ex: teste inicial de ano)
+        // Idealmente, deverias buscar os tópicos da BD aqui também, mas para brevidade:
+        topicosParaGerar = disciplina === 'matematica'
+          ? ['Adição e Subtração', 'Multiplicação', 'Divisão'] 
+          : ['Verbos', 'Ortografia', 'Interpretação'];
+    }
 
-    // Gera 2 perguntas por tópico (10 perguntas no total)
-    for (const topico of topicos) {
-      for (let i = 0; i < 2; i++) {
+    const perguntas: any[] = [];
+
+    // 3. Loop de Geração com Contexto da BD
+    for (const nomeTopico of topicosParaGerar) {
+      
+      // 🔍 AQUI ESTÁ O SEGREDO: Buscar o Metadata na BD
+      const topicoDb = await this.prisma.topico.findFirst({
+        where: {
+          nome: nomeTopico,
+          nivelClasse: classe,
+          disciplina: { nome: nomeDisciplinaBd }
+        }
+      });
+
+      // Extrair regras específicas do currículo (ai_rules)
+      let regrasContexto = "Gere uma pergunta apropriada para a classe.";
+      if (topicoDb?.metadata && typeof topicoDb.metadata === 'object') {
+          const meta = topicoDb.metadata as any;
+          if (meta.ai_rules) {
+              regrasContexto = meta.ai_rules;
+              this.logger.log(`📜 Regras carregadas para '${nomeTopico}': ${regrasContexto}`);
+          }
+      }
+
+      for (let i = 0; i < perguntasPorTopico; i++) {
         try {
           const payload = {
             student_class: classe,
-            subject: disciplina,
-            subtopic: topico,
+            subject: nomeDisciplinaBd,
+            subtopic: nomeTopico,
             difficulty_level: 3, // Nível médio para diagnóstico
+            
+            // 🚨 ENVIAR AS REGRAS DO METADATA PARA A IA
+            context_rules: regrasContexto, 
+            
             recent_questions: []
           };
 
           const obs = this.http.post(`${this.aiUrl}/generate-rush-question`, payload);
           const res = await firstValueFrom(obs.pipe(timeout(this.httpTimeoutMs)));
           
-          perguntas.push({
-            topico,
-            ...res.data
-          });
+          if (res.data) {
+              perguntas.push({
+                topico: nomeTopico, // Mantém o nome original para o frontend agrupar
+                ...res.data
+              });
+          }
         } catch (err) {
-          this.logger.error(`Erro ao gerar pergunta diagnóstica: ${err.message}`);
+          this.logger.error(`Erro ao gerar pergunta para ${nomeTopico}: ${err.message}`);
         }
       }
     }
@@ -79,11 +118,11 @@ export class DiagnosticService {
       alunoId,
       disciplina,
       classe,
+      foco: topicoAlvo || 'Geral',
       totalPerguntas: perguntas.length,
       perguntas
     };
   }
-
   /**
    * Processa respostas do diagnóstico e calcula o nível
    */

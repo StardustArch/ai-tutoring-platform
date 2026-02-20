@@ -45,7 +45,6 @@ export class RushService {
     const subject = (disciplina || 'matematica').toLowerCase();
     const subtopicName = subtopico || 'Geral';
     const classeInt = Number(classe);
-
     // A. Tenta encontrar o tópico
     let topicoDb = await this.prisma.topico.findFirst({
       where: {
@@ -113,8 +112,10 @@ export class RushService {
     try {
       const obs = this.http.post(`${this.aiUrl}/generate-rush-question`, payload);
       const res = await firstValueFrom(obs.pipe(timeout(this.httpTimeoutMs)));
+      console.log('🚩 [DEBUG] Python respondeu com sucesso!', res);
       const data = res.data;
 
+      console.log('🚩 [DEBUG] A salvar exercício na BD...');
       const created = await this.prisma.exercicio.create({
         data: {
           topicoId,
@@ -126,6 +127,7 @@ export class RushService {
         }
       });
 
+      console.log(`🚩 [DEBUG] Exercício salvo com ID: ${created.id}`);
       return {
         exercicioId: created.id,
         topicoId,
@@ -149,7 +151,7 @@ export class RushService {
   }
 
   // --- 3. SALVAR RESPOSTA ---
-  async saveExerciseResult(alunoId: number, exercicioId: number | null, respostaAluno: string, acertou: boolean, topicoId: number) {
+  async saveExerciseResult(alunoId: number, exercicioId: number | null, respostaAluno: string, acertou: boolean, topicoId: number, turmaId?: number, sessaoId?: number) {
     return await this.prisma.$transaction(async (tx) => {
       const resultado = await tx.exercicioResultado.create({
         data: {
@@ -158,8 +160,10 @@ export class RushService {
           exercicioId: exercicioId ?? undefined,
           respostaAluno,
           acertou,
-          detalhesJson: { note: 'rush' }
-        }
+          detalhesJson: { note: 'rush' },
+          turmaId: turmaId || null, 
+          sessaoId: sessaoId || null      
+          }
       });
 
       let prof = await tx.alunoProficienciaTopico.findUnique({
@@ -215,17 +219,21 @@ export class RushService {
     if (!exercicio) throw new NotFoundException(`Exercício ${exercicioId} não encontrado`);
     return exercicio;
   }
+// --- LER ESTATÍSTICAS ---
+  async getStudentStats(alunoId: number, turmaId: number | null) {
+    
+    // A Lógica de Isolamento:
+    // Se turmaId vem preenchido -> Filtra por essa turma.
+    // Se turmaId é null (vem do controller) -> Filtra onde turmaId é NULL (Standalone).
+    const filtroTurma = turmaId ? { turmaId: turmaId } : { turmaId: null };
 
-  async getStudentStats(alunoId: number) {
-    const aluno = await this.prisma.aluno.findUnique({
-      where: { id: alunoId },
-      select: { id: true, nome: true, xp: true, classe: true }
-    });
-    if (!aluno) throw new NotFoundException('Aluno não encontrado');
-
+    // Buscar dados agregados
     const resultados = await this.prisma.exercicioResultado.groupBy({
       by: ['acertou'],
-      where: { alunoId },
+      where: { 
+          alunoId,
+          ...filtroTurma // <--- Aplica o filtro aqui
+      },
       _count: true
     });
 
@@ -233,8 +241,13 @@ export class RushService {
     const erros = resultados.find(r => !r.acertou)?._count ?? 0;
     const total = acertos + erros;
 
+    // Calcular XP (apenas deste contexto)
+    // Nota: O XP global do aluno (na tabela Aluno) continua a somar tudo.
+    // Mas aqui calculamos o "XP da Sessão/Contexto" visualmente.
+    const xpContexto = acertos * 10; 
+
     return {
-      ...aluno,
+      xp: xpContexto, 
       totalExercicios: total,
       acertos,
       erros,
@@ -306,17 +319,4 @@ export class RushService {
     return topico.id;
   }
 
-  async getTopicsByClass(classe: number) {
-    const topicos = await this.prisma.topico.findMany({
-      where: { nivelClasse: classe },
-      include: { disciplina: true },
-      orderBy: { id: 'asc' }
-    });
-    console.log('------',classe)
-    // Formata para o frontend separar por abas
-    return {
-      matematica: topicos.filter(t => t.disciplina.nome === 'Matemática'),
-      portugues: topicos.filter(t => t.disciplina.nome === 'Português')
-    };
-  }
 }
