@@ -1,18 +1,19 @@
 version: '3.8'
 
 services:
-  # 1. Serviço de IA (Python/Django)
-  # api:
-  #   build: ./api  
-  #   container_name: km_api
-  #   ports:
-  #     - "8000:8000"  
-  #   volumes:
-  #     - ./api:/app 
-  #   depends_on:
-  #     - backend           
-  #   env_file:
-  #     - .env
+  # 1. Serviço de IA (Python/FastAPI)
+  api:
+    build: ./api  
+    container_name: km_api
+    ports:
+      - "8000:8000"  
+    volumes:
+      - ./api:/app 
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload 
+    depends_on:
+      - backend           
+    env_file:
+      - .env
 
 
   # 2. Serviço de Backend (NestJS)

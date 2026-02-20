@@ -1,400 +1,361 @@
 // src/lib/stores/auth.ts
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { PUBLIC_API_URL_HOST } from '$env/static/public';
+import { goto } from '$app/navigation';
 
-// src/lib/stores/auth.ts
-export interface PerfilEncarregado {
-    id: number;
-    usuarioId: number;
-    alunos: Aluno[];
-}
-
-export interface PerfilProfessor {
-    id: number;
-    escola?: string;
-    isVerificado: boolean;
-    usuarioId: number;
-    disciplinas: Disciplina[];
-    alunos: Aluno[];
-}
-
+// --- Interfaces (Mantidas iguais) ---
 export interface Aluno {
-    id: number;
-    nome: string;
-    sobrenome: string;
-    dataNascimento?: string;
-    classe: number;
-    encarregadoId: number;
+  id: number;
+  nome: string;
+  sobrenome: string;
+  dataNascimento?: string;
+  classe: number;
+  encarregadoId: number;
 }
 
 export interface Disciplina {
-    id: number;
-    nome: string;
+  id: number;
+  nome: string;
+}
+
+export interface PerfilEncarregado {
+  id: number;
+  usuarioId: number;
+  alunos: Aluno[];
+}
+
+export interface PerfilProfessor {
+  id: number;
+  escolaNome?: string;
+  isVerificado: boolean;
+  usuarioId: number;
 }
 
 export interface User {
-    id: number;
-    email: string;
-    nome: string;
-    role: string;
-    sobrenome: string;
-    telefone: string;
-    oauthProvider?: string | null;
-    oauthId?: string | null;
-    perfilEncarregado?: PerfilEncarregado | null;
-    perfilProfessor?: PerfilProfessor | null;
+  id: number;
+  email: string;
+  nome: string;
+  sobrenome?: string;
+  telefone?: string;
+  role?: string;
+  oauthProvider?: string | null;
+  oauthId?: string | null;
+  perfilEncarregado?: PerfilEncarregado | null;
+  perfilProfessor?: PerfilProfessor | null;
 }
 
 export interface AuthState {
-    isAuthenticated: boolean;
-    accessToken: string | null;
-    refreshToken: string | null;
-    user: User | null;
-    isLoading: boolean;
+  isAuthenticated: boolean;
+  accessToken: string | null;
+  refreshToken: string | null;
+  user: User | null;
+  isLoading: boolean;
 }
 
 const initialState: AuthState = {
-    isAuthenticated: false,
-    accessToken: null,
-    refreshToken: null,
-    user: null,
-    isLoading: true
+  isAuthenticated: false,
+  accessToken: null,
+  refreshToken: null,
+  user: null,
+  isLoading: true
 };
 
+const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+const USER_KEY = 'user';
 
-    const { subscribe, set, update } = writable<AuthState>(initialState);
+// Variável para controlar se já estamos a fazer refresh (evita race conditions)
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
 
-    // Função de debug
-    const debugTokens = () => {
-        if (!browser) return;
+// --- Helpers de Cookies ---
 
-        const accessToken = localStorage.getItem('accessToken');
-        const refreshToken = localStorage.getItem('refreshToken');
+function setCookie(name: string, value: string, days = 7) {
+  if (!browser) return;
+  const date = new Date();
+  date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+  // Adicionado 'Secure' para produção
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${name}=${value}; expires=${date.toUTCString()}; path=/; SameSite=Lax${secure}`;
+}
 
+function deleteCookie(name: string) {
+  if (!browser) return;
+  document.cookie = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+}
 
-        if (accessToken) {
-            // Tentar decodificar o token JWT (se for JWT)
-            try {
-                const payload = JSON.parse(atob(accessToken.split('.')[1]));
-            } catch (e) {
-            }
-        }
-    };
+// --- Store ---
+const { subscribe, set, update } = writable<AuthState>({ ...initialState });
 
-    // Função auxiliar para buscar dados do usuário
-    // Função auxiliar para buscar dados do usuário
-    const getCurrentUser = async (token: string): Promise<User> => {
+// --- Funções Auxiliares Internas ---
 
+const onRefreshed = (token: string) => {
+  refreshSubscribers.map((cb) => cb(token));
+  refreshSubscribers = [];
+};
 
-        const response = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/me`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
+const addRefreshSubscriber = (cb: (token: string) => void) => {
+  refreshSubscribers.push(cb);
+};
 
+const getCurrentUser = async (token: string): Promise<User> => {
+  const res = await fetch(`${PUBLIC_API_URL_HOST}/api/profile/me`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
 
+  if (!res.ok) {
+    throw new Error(`Failed to fetch user data: ${res.status}`);
+  }
+  return await res.json();
+};
 
-        if (!response.ok) {
-            console.error('❌ [GET USER] Erro ao buscar dados do usuário:', response.status);
-            const errorText = await response.text();
-            console.error('❌ [GET USER] Detalhes do erro:', errorText);
-            throw new Error('Failed to fetch user data');
-        }
+// --- Funções Públicas ---
 
-        const userData = await response.json();
+const logout = async () => {
+  const currentToken = localStorage.getItem(ACCESS_TOKEN_KEY);
 
+  // 1. Limpeza local imediata (UX First)
+  if (browser) {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    deleteCookie(ACCESS_TOKEN_KEY);
+  }
 
-        return userData;
-    };
+  set({ ...initialState, isLoading: false });
 
-    // Função de logout
-    const logout = () => {
+  // 2. Tenta avisar o backend (fire and forget)
+  if (currentToken) {
+    try {
+      await fetch(`${PUBLIC_API_URL_HOST}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json'
+        },
+      });
+    } catch (e) {
+      console.warn('Logout backend failed (non-critical)', e);
+    }
+  }
 
-        if (browser) {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-        }
-        set({ ...initialState, isLoading: false });
-    };
+  if (browser) window.location.href = '/login';
+};
 
-    // Função de refresh
-    const refresh = async (): Promise<{ accessToken: string; refreshToken?: string }> => {
+const refresh = async (): Promise<string> => {
+  if (!browser) throw new Error('Refresh only in browser');
+  
+  const storedRefresh = localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!storedRefresh) {
+    throw new Error('No refresh token');
+  }
 
-        // Debug dos tokens
-        debugTokens();
+  try {
+    const response = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${storedRefresh}`
+      },
+    });
 
-        const refreshTokenLocalStorage = browser ? localStorage.getItem('refreshToken') : null;
+    if (!response.ok) throw new Error('Refresh failed');
 
-        if (!refreshTokenLocalStorage) {
-            logout();
-            throw new Error('No refresh token available');
-        }
+    const tokens = await response.json();
 
-        try {
-            const headers: any = {
-                'Content-Type': 'application/json'
-            };
-
-            // Para OAuth, enviamos no header Authorization
-            headers['Authorization'] = `Bearer ${refreshTokenLocalStorage}`;
-
-
-            const response = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/refresh`, {
-                method: 'POST',
-                headers: headers,
-                credentials: 'include' // Para cookies (login manual)
-            });
-
-
-            if (!response.ok) {
-                let errorMessage = `Token refresh failed: ${response.status}`;
-
-                // Tentar obter mais informações do erro
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.message || errorMessage;
-                } catch (e) {
-                    const errorText = await response.text();
-                }
-
-                throw new Error(errorMessage);
-            }
-
-            const tokens = await response.json();
-
-            // Atualizar tokens
-            if (browser) {
-                localStorage.setItem('accessToken', tokens.accessToken);
-
-                if (tokens.refreshToken) {
-                    localStorage.setItem('refreshToken', tokens.refreshToken);
-                }
-            }
-
-            // Buscar dados do usuário com o novo token
-            const user = await getCurrentUser(tokens.accessToken);
-
-            set({
-                isAuthenticated: true,
-                accessToken: tokens.accessToken,
-                refreshToken: tokens.refreshToken || refreshTokenLocalStorage,
-                user,
-                isLoading: false
-            });
-
-            return tokens;
-        } catch (error) {
-            logout();
-            throw error;
-        }
-    };
+    // Atualiza Storage
+    localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+    setCookie(ACCESS_TOKEN_KEY, tokens.accessToken); // Importante para SSR
     
+    if (tokens.refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+    }
+
+    // Atualiza Store (sem mudar loading, para ser transparente)
+    update(s => ({
+      ...s,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken || storedRefresh,
+      isAuthenticated: true
+    }));
+
+    return tokens.accessToken;
+  } catch (error) {
+    console.error('[AUTH] Refresh fatal error:', error);
+    logout();
+    throw error;
+  }
+};
+
+/**
+ * 🔥 SUPER IMPORTANTE: Wrapper para fetch que lida com 401
+ * Usa isto em vez de 'fetch' ou 'apiFetch' nas tuas páginas
+ */
+const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  let token = get({ subscribe }).accessToken;
+
+  // Se não temos token no estado, tenta ler do storage (caso de F5)
+  if (!token && browser) {
+    token = localStorage.getItem(ACCESS_TOKEN_KEY);
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+    'Authorization': `Bearer ${token}`
+  } as HeadersInit;
+
+  let response = await fetch(url, { ...options, headers });
+
+  // Se der 401 (Unauthorized), tenta fazer refresh
+  if (response.status === 401) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      try {
+        const newToken = await refresh();
+        isRefreshing = false;
+        onRefreshed(newToken);
+      } catch (e) {
+        isRefreshing = false;
+        return response; // Retorna o erro original (logout já foi chamado no refresh)
+      }
+    }
+
+    // Se já estava a fazer refresh, espera que acabe
+    return new Promise((resolve) => {
+      addRefreshSubscriber((newToken) => {
+        // Tenta novamente o pedido original com o novo token
+        const newHeaders = {
+          ...options.headers,
+          'Authorization': `Bearer ${newToken}`
+        } as HeadersInit;
+        resolve(fetch(url, { ...options, headers: newHeaders }));
+      });
+    });
+  }
+
+  return response;
+};
+
+// --- Factory ---
+
 function createAuthStore() {
-    // InitializeAuth corrigido
-    async function initializeAuth() {
-        update(state => ({ ...state, isLoading: true }));
+  async function initializeAuth() {
+    if (!browser) return;
+    
+    // Evita loop infinito se já estiver carregado
+    const current = get({ subscribe });
+    if(current.user && current.isAuthenticated) return;
 
-        const accessToken = browser ? localStorage.getItem('accessToken') : null;
-        const refreshToken = browser ? localStorage.getItem('refreshToken') : null;
+    update(s => ({ ...s, isLoading: true }));
 
+    const storedAccess = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const storedRefresh = localStorage.getItem(REFRESH_TOKEN_KEY);
+    const storedUserRaw = localStorage.getItem(USER_KEY);
 
-        // Se não temos access token mas temos refresh token, tentar renovar
-        if (!accessToken && refreshToken) {
+    // 1. Hidratação Otimista (Mostra dados velhos enquanto valida)
+    if (storedUserRaw && storedAccess) {
+      update(s => ({
+        ...s,
+        user: JSON.parse(storedUserRaw),
+        accessToken: storedAccess,
+        refreshToken: storedRefresh,
+        isAuthenticated: true
+      }));
+    }
+
+    // 2. Validação Real
+    if (storedAccess) {
+      try {
+        const user = await getCurrentUser(storedAccess);
+        // Atualiza cookie para garantir sincronia
+        setCookie(ACCESS_TOKEN_KEY, storedAccess);
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+        
+        update(s => ({ 
+          ...s, 
+          user, 
+          isAuthenticated: true, 
+          accessToken: storedAccess,
+          refreshToken: storedRefresh,
+          isLoading: false 
+        }));
+      } catch (e) {
+        // Token invalido, tenta refresh
+        if (storedRefresh) {
             try {
                 await refresh();
-                return;
-            } catch (error) {
-                // Se o refresh falhar, limpar tudo
-                logout();
-                return;
-            }
-        }
-
-        // Se temos access token, verificar se é válido
-        if (accessToken) {
-            try {
-                const user = await getCurrentUser(accessToken);
-                set({
-                    isAuthenticated: true,
-                    accessToken,
-                    refreshToken,
-                    user,
-                    isLoading: false
-                });
-            } catch (error) {
-
-                // Se o access token é inválido mas temos refresh token, tentar renovar
-                if (refreshToken) {
-                    try {
-                        await refresh();
-                        return;
-                    } catch (refreshError) {
-                        // Se ambos falharem, limpar tudo
-                        logout();
-                    }
-                } else {
-                    // Se não temos refresh token, limpar tudo
-                    logout();
+                const newToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+                if(newToken) {
+                    const user = await getCurrentUser(newToken);
+                    update(s => ({ ...s, user, isLoading: false }));
                 }
+            } catch {
+                // Refresh falhou
+                logout();
             }
         } else {
-            // Sem tokens, estado inicial
-            set({ ...initialState, isLoading: false });
+            logout();
         }
+      }
+    } else {
+      update(s => ({ ...s, isLoading: false }));
     }
+  }
 
-    // Inicializar com tokens do localStorage e buscar dados do usuário
-    if (browser) {
-        initializeAuth();
-    }
-
-    return {
-        subscribe,
-        set,
-
-        // Login unificado para ambos os métodos
-        login: async (credentials: { email: string; password: string } | { accessToken: string; refreshToken: string }) => {
-
-            if ('email' in credentials) {
-            } else {
-            }
-
-            update(state => ({ ...state, isLoading: true }));
-
-            try {
-                let tokens: { accessToken: string; refreshToken: string };
-
-                if ('email' in credentials) {
-                    // Login manual
-
-                    const response = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/token`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(credentials)
-                    });
-
-
-                    if (!response.ok) {
-                        console.error('❌ [AUTH LOGIN] Erro na resposta do servidor');
-                        const error = await response.json();
-                        console.error('❌ [AUTH LOGIN] Detalhes do erro:', error);
-                        throw new Error(error.message || 'Login failed');
-                    }
-
-                    tokens = await response.json();
-
-                } else {
-                    // Login OAuth
-                    tokens = {
-                        accessToken: credentials.accessToken,
-                        refreshToken: credentials.refreshToken || ''
-                    };
-                }
-
-                // PRIMEIRO: Buscar dados do usuário ANTES de salvar (para testar se o token é válido)
-                try {
-                    const user = await getCurrentUser(tokens.accessToken);
-
-                    // SEGUNDO: Guardar tokens no localStorage (após confirmar que funcionam)
-                    if (browser) {
-                        localStorage.setItem('accessToken', tokens.accessToken);
-
-                        if (tokens.refreshToken) {
-                            localStorage.setItem('refreshToken', tokens.refreshToken);
-                        } else {
-                            console.warn('⚠️ [AUTH LOGIN] Nenhum refresh token recebido');
-                        }
-                    }
-
-                    // TERCEIRO: Atualizar estado com todos os dados
-                    set({
-                        isAuthenticated: true,
-                        accessToken: tokens.accessToken,
-                        refreshToken: tokens.refreshToken,
-                        user: user,
-                        isLoading: false
-                    });
-
-
-                    return { success: true, user };
-
-                } catch (userError) {
-
-                    throw new Error('Falha ao carregar dados do usuário: ' + userError);
-                }
-
-            } catch (error) {
-
-
-                // Limpar tokens em caso de erro
-                if (browser) {
-                    localStorage.removeItem('accessToken');
-                    localStorage.removeItem('refreshToken');
-                }
-
-                update(state => ({ ...state, isLoading: false }));
-
-                throw error;
-            }
-        },
-        // Registar novo usuário
-        register: async (userData: { email: string; password: string; name: string }) => {
-            update(state => ({ ...state, isLoading: true }));
-
-            try {
-                const response = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/register`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(userData)
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Registration failed');
-                }
-
-                const result = await response.json();
-                update(state => ({ ...state, isLoading: false }));
-
-                return { success: true, message: result.message };
-            } catch (error) {
-                update(state => ({ ...state, isLoading: false }));
-                throw error;
-            }
-        },
-
-        // Refresh token (expor a função)
-        refresh,
-
-        refreshUser: async () => {
-        const token = localStorage.getItem('accessToken');
-        if (!token) return;
-        try {
-            const user = await getCurrentUser(token);
-            update(s => ({ ...s, user }));
-        } catch (e) {
-            console.error(e);
+  return {
+    subscribe,
+    set,
+    initializeAuth, // Agora deve ser chamado no onMount do +layout.svelte
+    fetchWithAuth,  // Usa isto nas tuas chamadas de API
+    refresh,
+    logout,
+    
+    login: async (credentials: any) => {
+      update(s => ({ ...s, isLoading: true }));
+      try {
+        let tokens;
+        
+        if (credentials.email) {
+            const res = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(credentials)
+            });
+            if (!res.ok) throw new Error('Login failed');
+            tokens = await res.json();
+        } else {
+            tokens = credentials;
         }
-    },
-        // Logout (expor a função)
-        logout,
 
-        // Atualizar dados do usuário
-        updateUser: (userData: Partial<User>) => {
-            update(state => ({
-                ...state,
-                user: state.user ? { ...state.user, ...userData } : null
-            }));
-        },
+        // Guarda
+        localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+        setCookie(ACCESS_TOKEN_KEY, tokens.accessToken);
+        if (tokens.refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
 
-        // Debug function (opcional)
-        debugTokens
-    };
+        // Busca User
+        const user = await getCurrentUser(tokens.accessToken);
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+
+        set({
+          isAuthenticated: true,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          user,
+          isLoading: false
+        });
+
+        return { success: true, user: user };
+      } catch (e) {
+        set({ ...initialState, isLoading: false });
+        throw e;
+      }
+    }
+  };
 }
 
 export const auth = createAuthStore();

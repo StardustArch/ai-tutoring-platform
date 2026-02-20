@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -6,6 +6,9 @@ import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { Usuario } from '@prisma/client'; // Importar o tipo 'Usuario'
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 
 // Definir a forma da resposta do Token
@@ -98,6 +101,8 @@ export class AuthService {
             }),
         ]);
 
+            await this.updateRtHash(usuario.id, refreshToken);
+
         return {
             accessToken,
             refreshToken,
@@ -154,6 +159,7 @@ export class AuthService {
         expiresIn: '7d',
       }),
     ]);
+    await this.updateRtHash(userId, newRefreshToken);
 
     return {
       accessToken: newAccessToken,
@@ -228,9 +234,116 @@ export class AuthService {
       }),
     ]);
 
+    await this.updateRtHash(user.id, refreshToken);
+
     return {
       accessToken,
       refreshToken,
     };
   }
+
+
+    // 1. PEDIR RECUPERAÇÃO
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      // Por segurança, não dizemos se o email existe ou não, mas retornamos sucesso.
+      // Mas para debug, vamos logar.
+      console.log(`[Auth] Tentativa de reset para email inexistente: ${dto.email}`);
+      return { message: 'Se o email existir, receberá um link de recuperação.' };
+    }
+
+    // Gerar um token temporário assinado com o segredo da app + hash da senha atual (para invalidar se a senha mudar entretanto)
+    const payload = { sub: user.id, email: user.email, type: 'reset' };
+    const token = this.jwtService.sign(payload, { expiresIn: '1h' });
+
+    // LINK PARA O FRONTEND (Ajuste a porta se o seu frontend rodar noutra porta, ex: 5173)
+    const resetLink = `http://localhost:5173/reset-password/confirm?token=${token}`;
+
+    // --- SIMULAÇÃO DE EMAIL ---
+    console.log('=========================================================');
+    console.log('📧 EMAIL DE RECUPERAÇÃO (SIMULADO)');
+    console.log(`Para: ${user.email}`);
+    console.log(`Link: ${resetLink}`);
+    console.log('=========================================================');
+
+    return { message: 'Email de recuperação enviado (verifique a consola do servidor).' };
+  }
+
+  // 2. CONFIRMAR NOVA SENHA
+  async resetPassword(dto: ResetPasswordDto) {
+    try {
+      // Verificar o token
+      const payload = this.jwtService.verify(dto.token);
+
+      if (payload.type !== 'reset') {
+        throw new BadRequestException('Token inválido.');
+      }
+
+      const user = await this.prisma.usuario.findUnique({
+        where: { id: payload.sub },
+      });
+
+      if (!user) throw new NotFoundException('Utilizador não encontrado.');
+
+      // Hash da nova senha
+      const salt = await bcrypt.genSalt();
+      const hash = await bcrypt.hash(dto.newPassword, salt);
+
+      // Atualizar na BD
+      await this.prisma.usuario.update({
+        where: { id: user.id },
+        data: { passwordHash: hash },
+      });
+
+      return { message: 'Senha alterada com sucesso! Pode fazer login agora.' };
+
+    } catch (error) {
+      throw new BadRequestException('Link de recuperação inválido ou expirado.');
+    }
+  }
+
+   async changePassword(userId: number, dto: ChangePasswordDto) {
+    const user = await this.prisma.usuario.findUnique({ where: { id: userId } });
+    if (!user || !user.passwordHash) throw new NotFoundException('Utilizador inválido.');
+
+    // Verificar senha atual
+    const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isMatch) throw new BadRequestException('A senha atual está incorreta.');
+
+    // Hash da nova senha
+    const salt = await bcrypt.genSalt();
+    const newHash = await bcrypt.hash(dto.newPassword, salt);
+
+    // Atualizar
+    await this.prisma.usuario.update({
+      where: { id: userId },
+      data: { passwordHash: newHash },
+    });
+
+    return { message: 'Senha atualizada com sucesso.' };
+  }
+
+  async updateRtHash(userId: number, rt: string) {
+  const hash = await bcrypt.hash(rt, 10);
+  await this.prisma.usuario.update({
+    where: { id: userId },
+    data: { hashedRt: hash },
+  });
+}
+
+async logout(userId: number) {
+  // Ao definir como NULL, o token que está no browser deixa de valer
+  // porque a comparação vai falhar.
+  await this.prisma.usuario.updateMany({
+    where: {
+      id: userId,
+      hashedRt: { not: null }, // Só atualiza se tiver hash
+    },
+    data: { hashedRt: null },
+  });
+}
 }

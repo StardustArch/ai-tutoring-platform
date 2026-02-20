@@ -1,10 +1,12 @@
+<svelte:head>
+    <title>Registar | KaniMente</title>
+</svelte:head>
+
 <script lang="ts">
   import axios from 'axios';
   import { goto } from '$app/navigation';
-  import { Eye, EyeOff, Check, X, AlertCircle } from 'lucide-svelte';
-  import '../../app.css'
+  import { Check, X, AlertCircle, Loader2, ArrowRight } from 'lucide-svelte';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-	import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
 
   let nome = '';
   let sobrenome = '';
@@ -14,347 +16,179 @@
   let confirmPassword = '';
   let isLoading = false;
   let error = '';
-  let success = '';
-  let showPassword = false;
-  let showConfirmPassword = false;
+  
+  // Estilos Enterprise
+  const inputClass = "w-full px-4 py-3 bg-surface-50 dark:bg-surface-900/50 border border-surface-200 dark:border-surface-700 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-sm font-medium text-surface-900 dark:text-white placeholder:text-surface-400";
+  const labelClass = "block text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-400 mb-1.5";
 
-  // Validações em tempo real
   $: passwordStrength = calculatePasswordStrength(password);
   $: passwordsMatch = password && confirmPassword && password === confirmPassword;
-  $: isFormValid = nome && sobrenome && telefone && email && password && passwordsMatch && passwordStrength.score >= 2;
+  
+  // Validação simplificada para UX mais fluida
+  $: isFormValid = nome && sobrenome && email && password && passwordsMatch && passwordStrength.score >= 2;
 
   function calculatePasswordStrength(pwd: string) {
-    if (!pwd) return { score: 0, feedback: [] };
-
-    const feedback = [];
+    if (!pwd) return { score: 0 };
     let score = 0;
-
-    // Critérios de força
     if (pwd.length >= 8) score += 1;
-    else feedback.push('Pelo menos 8 caracteres');
-
     if (/[A-Z]/.test(pwd)) score += 1;
-    else feedback.push('Uma letra maiúscula');
-
-    if (/[a-z]/.test(pwd)) score += 1;
-    else feedback.push('Uma letra minúscula');
-
     if (/[0-9]/.test(pwd)) score += 1;
-    else feedback.push('Um número');
-
     if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
-    else feedback.push('Um caractere especial');
-
-    return { score, feedback };
+    return { score };
   }
 
   function getStrengthColor(score: number) {
-    if (score === 0) return 'bg-surface-300';
-    if (score === 1) return 'bg-red-500';
-    if (score === 2) return 'bg-orange-500';
-    if (score === 3) return 'bg-yellow-500';
-    if (score === 4) return 'bg-blue-500';
-    return 'bg-green-500';
-  }
-
-  function getStrengthText(score: number) {
-    if (score === 0) return 'Muito fraca';
-    if (score === 1) return 'Fraca';
-    if (score === 2) return 'Razoável';
-    if (score === 3) return 'Boa';
-    if (score === 4) return 'Forte';
-    return 'Muito forte';
+    if (score <= 1) return 'bg-red-500';
+    if (score === 2) return 'bg-amber-500';
+    return 'bg-emerald-500';
   }
 
   async function handleRegister() {
     isLoading = true;
     error = '';
-    success = '';
-
-    // Validação final
-    if (!passwordsMatch) {
-      error = 'As passwords não coincidem';
-      isLoading = false;
-      return;
-    }
-
-    if (passwordStrength.score < 2) {
-      error = 'A password é muito fraca. Por favor, escolha uma password mais segura.';
-      isLoading = false;
-      return;
-    }
 
     try {
       await axios.post(`${PUBLIC_API_URL_HOST}/api/auth/register`, {
-        nome,
-        sobrenome,
-        telefone,
-        email,
-        password
+        nome, sobrenome, telefone, email, password
       });
-
-      success = 'Conta criada com sucesso! A redirecionar...';
-      setTimeout(() => goto('/login'), 2000);
-
+      goto('/login');
     } catch (err: any) {
-      error = err.response?.data?.message || 'Erro ao criar conta';
+      error = err.response?.data?.message || 'Erro ao criar conta. Tente novamente.';
     } finally {
       isLoading = false;
     }
   }
 
   function handleGoogleLogin() {
-    // Redirecionar para o endpoint de OAuth do Google
     window.location.href = `${PUBLIC_API_URL_HOST}/api/auth/google`;
-  }
-
-  function togglePasswordVisibility() {
-    showPassword = !showPassword;
-  }
-
-  function toggleConfirmPasswordVisibility() {
-    showConfirmPassword = !showConfirmPassword;
   }
 </script>
 
-<div class="min-h-screen w-full flex items-center justify-center bg-surface-50-900-token py-10 px-4">
-    <div class="absolute top-4 right-4">
-    <ThemeSwitch />
-  </div>
+<div class="min-h-screen flex items-center justify-center bg-white dark:bg-surface-950 relative overflow-hidden p-4">
   
-  <div class="card p-8 w-full max-w-md shadow-xl space-y-6 bg-surface-100-800-token border border-surface-200-700-token">
+  <div class="absolute inset-0 w-full h-full bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-50 pointer-events-none"></div>
+
+  <div class="w-full max-w-lg relative z-10 animate-fade-in-up">
     
-    <div class="text-center space-y-2">
-      <h2 class="h2 font-bold text-primary-500">Criar Conta</h2>
-      <p class="text-surface-600-300-token">Junte-se ao KaniMente</p>
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-black text-surface-900 dark:text-white tracking-tight">Crie a sua conta</h1>
+      <p class="text-sm text-surface-500 mt-2">Junte-se ao futuro da educação em Moçambique.</p>
     </div>
 
-    <!-- Alertas -->
-    {#if error}
-      <div class="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 flex items-start gap-2">
-        <AlertCircle size={18} class="flex-shrink-0 mt-0.5" />
-        <p class="text-sm">{error}</p>
-      </div>
-    {/if}
-    
-    {#if success}
-      <div class="p-3 rounded-lg bg-green-50 border border-green-200 text-green-800 flex items-start gap-2">
-        <Check size={18} class="flex-shrink-0 mt-0.5" />
-        <p class="text-sm">{success}</p>
-      </div>
-    {/if}
-
-    <!-- Botão Google -->
-    <button 
-      on:click={handleGoogleLogin}
-      class="w-full flex items-center justify-center gap-3 px-4 py-3 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800"
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24">
-        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-      </svg>
-      <span class="font-medium">Registar com Google</span>
-    </button>
-
-    <!-- Divisor -->
-    <div class="relative flex py-2 items-center">
-      <div class="flex-grow border-t border-surface-500/30"></div>
-      <span class="flex-shrink mx-4 text-surface-500">OU</span>
-      <div class="flex-grow border-t border-surface-500/30"></div>
-    </div>
-
-    <form class="space-y-4" on:submit|preventDefault={handleRegister}>
+    <div class="bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-800 shadow-xl p-6 md:p-8">
       
-      <!-- Nome e Sobrenome -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="space-y-2">
-          <label class="block text-sm font-medium text-surface-700 dark:text-surface-300">
-            Nome *
-          </label>
-          <input 
-            class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 transition-colors"
-            type="text" 
-            bind:value={nome} 
-            required 
-            placeholder="Seu nome"
-          />
+      {#if error}
+        <div class="mb-6 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 flex items-center gap-3 text-red-600 dark:text-red-400 text-sm font-medium animate-shake">
+          <AlertCircle size={18} />
+          {error}
         </div>
-        
-        <div class="space-y-2">
-          <label class="block text-sm font-medium text-surface-700 dark:text-surface-300">
-            Sobrenome *
-          </label>
-          <input 
-            class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 transition-colors"
-            type="text" 
-            bind:value={sobrenome} 
-            required 
-            placeholder="Seu sobrenome"
-          />
-        </div>
-      </div>
+      {/if}
 
-      <!-- Telefone -->
-      <div class="space-y-2">
-        <label class="block text-sm font-medium text-surface-700 dark:text-surface-300">
-          Telefone *
-        </label>
-        <input 
-          class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 transition-colors"
-          type="tel" 
-          bind:value={telefone} 
-          required 
-          placeholder="+258 8X XXX XXXX"
-        />
-      </div>
-
-      <!-- Email -->
-      <div class="space-y-2">
-        <label class="block text-sm font-medium text-surface-700 dark:text-surface-300">
-          Email *
-        </label>
-        <input 
-          class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 transition-colors"
-          type="email" 
-          bind:value={email} 
-          required 
-          placeholder="seu@email.com"
-        />
-      </div>
-
-      <!-- Password -->
-      <div class="space-y-2">
-        <label class="block text-sm font-medium text-surface-700 dark:text-surface-300">
-          Password *
-        </label>
-        <div class="relative">
-          <input 
-            class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 transition-colors pr-10"
-            type={showPassword ? 'text' : 'password'} 
-            bind:value={password} 
-            required 
-            placeholder="Crie uma password segura"
-          />
-          <button 
-            type="button"
-            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors"
-            on:click={togglePasswordVisibility}
-          >
-            {#if showPassword}
-              <EyeOff size={18} />
-            {:else}
-              <Eye size={18} />
-            {/if}
-          </button>
-        </div>
-
-        <!-- Indicador de Força da Password -->
-        {#if password}
-          <div class="space-y-2">
-            <div class="flex justify-between items-center text-xs">
-              <span class="text-surface-600 dark:text-surface-400">Força da password:</span>
-              <span class="font-medium {passwordStrength.score >= 3 ? 'text-green-600' : passwordStrength.score >= 2 ? 'text-yellow-600' : 'text-red-600'}">
-                {getStrengthText(passwordStrength.score)}
-              </span>
-            </div>
-            
-            <!-- Barra de progresso -->
-            <div class="w-full bg-surface-200 dark:bg-surface-600 rounded-full h-2">
-              <div 
-                class="h-2 rounded-full transition-all duration-300 {getStrengthColor(passwordStrength.score)}"
-                style="width: {passwordStrength.score * 20}%"
-              ></div>
-            </div>
-
-            <!-- Feedback -->
-            {#if passwordStrength.feedback.length > 0}
-              <div class="text-xs text-surface-500 dark:text-surface-400 space-y-1">
-                <p class="font-medium">Requisitos:</p>
-                {#each passwordStrength.feedback as requirement}
-                  <div class="flex items-center gap-2">
-                    <X size={12} class="text-red-500 flex-shrink-0" />
-                    <span>{requirement}</span>
-                  </div>
-                {/each}
-              </div>
-            {:else}
-              <div class="flex items-center gap-2 text-xs text-green-600">
-                <Check size={12} class="flex-shrink-0" />
-                <span>Password forte! Todos os requisitos atendidos.</span>
-              </div>
-            {/if}
-          </div>
-        {/if}
-      </div>
-
-      <!-- Confirmar Password -->
-      <div class="space-y-2">
-        <label class="block text-sm font-medium text-surface-700 dark:text-surface-300">
-          Confirmar Password *
-        </label>
-        <div class="relative">
-          <input 
-            class="w-full px-3 py-2 border {passwordsMatch && confirmPassword ? 'border-green-500' : confirmPassword ? 'border-red-500' : 'border-surface-300 dark:border-surface-600'} rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 transition-colors pr-10"
-            type={showConfirmPassword ? 'text' : 'password'} 
-            bind:value={confirmPassword} 
-            required 
-            placeholder="Confirme a password"
-          />
-          <button 
-            type="button"
-            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors"
-            on:click={toggleConfirmPasswordVisibility}
-          >
-            {#if showConfirmPassword}
-              <EyeOff size={18} />
-            {:else}
-              <Eye size={18} />
-            {/if}
-          </button>
-        </div>
-
-        <!-- Feedback da confirmação -->
-        {#if confirmPassword}
-          <div class="flex items-center gap-2 text-xs {passwordsMatch ? 'text-green-600' : 'text-red-600'}">
-            {#if passwordsMatch}
-              <Check size={12} class="flex-shrink-0" />
-              <span>As passwords coincidem</span>
-            {:else}
-              <X size={12} class="flex-shrink-0" />
-              <span>As passwords não coincidem</span>
-            {/if}
-          </div>
-        {/if}
-      </div>
-
-      <!-- Botão de Registo -->
       <button 
-        type="submit" 
-        class="w-full py-3 px-4 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-medium rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed mt-6"
-        disabled={isLoading || !isFormValid}
+        on:click={handleGoogleLogin} 
+        type="button"
+        class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-700 transition-all text-sm font-bold text-surface-700 dark:text-white group mb-6"
       >
-        {#if isLoading}
-          <div class="flex items-center justify-center gap-2">
-            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>A processar...</span>
-          </div>
-        {:else}
-          Criar Conta
-        {/if}
+        <svg width="18" height="18" viewBox="0 0 24 24" class="group-hover:scale-110 transition-transform">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Registar com Google
       </button>
 
-    </form>
+      <div class="relative mb-6">
+        <div class="absolute inset-0 flex items-center"><span class="w-full border-t border-surface-200 dark:border-surface-800"></span></div>
+        <div class="relative flex justify-center text-xs uppercase"><span class="bg-white dark:bg-surface-900 px-2 text-surface-400 font-medium">Ou via email</span></div>
+      </div>
 
-    <div class="text-center pt-4 border-t border-surface-200 dark:border-surface-600">
-      <p class="text-sm text-surface-600 dark:text-surface-400">
+      <form on:submit|preventDefault={handleRegister} class="space-y-4">
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="nome" class={labelClass}>Nome</label>
+            <input id="nome" type="text" bind:value={nome} required class={inputClass} placeholder="Seu nome"/>
+          </div>
+          <div>
+            <label for="sobrenome" class={labelClass}>Sobrenome</label>
+            <input id="sobrenome" type="text" bind:value={sobrenome} required class={inputClass} placeholder="Apelido"/>
+          </div>
+        </div>
+
+        <div>
+          <label for="email" class={labelClass}>Email</label>
+          <input id="email" type="email" bind:value={email} required class={inputClass} placeholder="exemplo@email.com"/>
+        </div>
+
+        <div>
+          <label for="telefone" class={labelClass}>Telefone (Opcional)</label>
+          <input id="telefone" type="tel" bind:value={telefone} class={inputClass} placeholder="+258 84..."/>
+        </div>
+
+        <div>
+          <label for="password" class={labelClass}>Password</label>
+          <input id="password" type="password" bind:value={password} required class={inputClass} placeholder="Mínimo 8 caracteres"/>
+          
+          {#if password}
+            <div class="mt-2 flex gap-1 h-1">
+              {#each Array(4) as _, i}
+                <div class="flex-1 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
+                    <div class="h-full transition-all duration-300 {i < passwordStrength.score ? getStrengthColor(passwordStrength.score) : 'opacity-0'}" style="width: 100%"></div>
+                </div>
+              {/each}
+            </div>
+            <p class="text-[10px] text-surface-400 mt-1 text-right">
+                {passwordStrength.score < 2 ? 'Fraca' : passwordStrength.score === 2 ? 'Média' : 'Forte'}
+            </p>
+          {/if}
+        </div>
+
+        <div>
+          <label for="confirmPassword" class={labelClass}>Confirmar Password</label>
+          <div class="relative">
+            <input id="confirmPassword" type="password" bind:value={confirmPassword} required class="{inputClass} pr-10" placeholder="Repita a password"/>
+            {#if confirmPassword}
+                <div class="absolute right-3 top-1/2 -translate-y-1/2">
+                    {#if passwordsMatch}
+                        <Check size={16} class="text-emerald-500" />
+                    {:else}
+                        <X size={16} class="text-red-500" />
+                    {/if}
+                </div>
+            {/if}
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-primary-500/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed mt-4"
+          disabled={isLoading || !isFormValid}
+        >
+          {#if isLoading}
+            <Loader2 size={18} class="animate-spin" />
+          {:else}
+            Criar Conta
+          {/if}
+        </button>
+      </form>
+
+      <p class="text-center mt-6 text-sm text-surface-500">
         Já tem conta? 
-        <a href="/login" class="text-primary-500 hover:text-primary-600 font-medium transition-colors ml-1">
-          Entrar
-        </a>
+        <a href="/login" class="font-bold text-primary-600 hover:text-primary-700 dark:text-primary-400 transition-colors">Entrar agora</a>
       </p>
-    </div>
 
+    </div>
   </div>
 </div>
+
+<style>
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+  .animate-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+  @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+</style>

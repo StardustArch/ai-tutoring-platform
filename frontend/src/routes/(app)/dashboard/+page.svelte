@@ -1,167 +1,135 @@
 <script lang="ts">
-    import { auth } from '$lib/store/auth';
-    import { apiFetch } from '$lib/utils/api';
-    import { PUBLIC_API_URL_HOST } from '$env/static/public';
-    import '../../../app.css'
-    
-    // Importações dos ícones Lucide
-    import { UserPlus, School, Clock, Users, BookOpen, ChevronRight } from 'lucide-svelte';
+    import { auth } from '$lib/store/auth'; // Caminho 'store' confirmado
+    import { goto } from '$app/navigation';
+    import { browser } from '$app/environment';
+    import { 
+        Users, School, ArrowRight, Loader2 
+    } from 'lucide-svelte';
+    import '../../../app.css';
 
-    let isLoadingAction = false;
+    let showDashboardSelection = false;
 
-    // Lógica para determinar o estado do utilizador
-    $: user = $auth.user;
-    $: isEncarregado = !!user?.perfilEncarregado;
-    $: isProfessor = !!user?.perfilProfessor;
-    $: isNeutral = !isEncarregado && !isProfessor;
-    
-    // Se for professor, verificar se está aprovado (assumindo que o backend envia isso)
-    $: isProfessorPendente = isProfessor && user?.perfilProfessor?.isVerificado === false;
+    // LÓGICA REATIVA
+    $: if (browser && !$auth.isLoading) {
+        console.log('🔍 [Dashboard] Loading terminou. User:', $auth.user);
+        checkAndRedirect($auth.user);
+    }
 
-    // --- AÇÕES DE ONBOARDING ---
+    async function checkAndRedirect(user: any) {
+        // CORREÇÃO 1: Tratar caso de user nulo
+        if (!user) {
+            console.warn('⚠️ [Dashboard] Sem utilizador autenticado. Redirecionando para login...');
+            await goto('/login');
+            return;
+        }
 
-    async function tornarSeEncarregado() {
-        isLoadingAction = true;
-        try {
-            // 1. Cria o perfil de encarregado
-            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/profile/encarregado`, {
-                method: 'POST',
-            });
+        const isEncarregado = !!user.perfilEncarregado;
+        const isProfessor = !!user.perfilProfessor;
+        const isProfessorAtivo = isProfessor && !!user.perfilProfessor?.escolaNome;
+        const userHasBothProfiles = isEncarregado && isProfessorAtivo;
 
-            if (res.ok) {
-                // 2. Atualiza os dados do utilizador localmente para refletir a mudança
-                await auth.refreshUser(); 
-                alert({ message: 'Perfil de Encarregado ativado!', background: 'variant-filled-success' });
-            }
-        } catch (error) {
-            console.error(error);
-            alert({ message: 'Erro ao ativar perfil.', background: 'variant-filled-error' });
-        } finally {
-            isLoadingAction = false;
+        console.log('👤 [Dashboard] Perfis:', { isEncarregado, isProfessorAtivo, userHasBothProfiles });
+
+        if (userHasBothProfiles) {
+            await goto('/dashboard/unified/overview', { replaceState: true });
+        } else if (isProfessorAtivo) {
+            await goto('/dashboard/teacher/overview', { replaceState: true });
+        } else if (isEncarregado) {
+            await goto('/dashboard/foreman/overview', { replaceState: true });
+        } else {
+            // CORREÇÃO 2: Só mostramos a seleção se realmente for um user novo sem perfil
+            console.log('✨ [Dashboard] Novo utilizador detetado. A mostrar seleção.');
+            showDashboardSelection = true;
         }
     }
 
-    async function tornarSeProfessor() {
-        isLoadingAction = true;
-        try {
-            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/profile/professor`, {
-                method: 'POST',
-                body: JSON.stringify({ escola: 'Escola Primária da Beira' }) // Exemplo
-            });
-
-            if (res.ok) {
-                await auth.refreshUser();
-                alert({ message: 'Perfil de Professor criado! Aguarde aprovação.', background: 'variant-filled-success' });
-            }
-        } catch (error) {
-            console.error(error);
-            alert({ message: 'Erro ao criar perfil.', background: 'variant-filled-error' });
-        } finally {
-            isLoadingAction = false;
-        }
+    function getFirstName() {
+        if (!$auth.user?.nome) return 'Utilizador';
+        return $auth.user.nome.split(' ')[0];
     }
 </script>
 
-<!-- LÓGICA DE EXIBIÇÃO -->
+<div class="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col justify-center items-center p-4">
+    
+    {#if !showDashboardSelection}
+<div class="min-h-screen w-full flex flex-col items-center justify-center bg-white dark:bg-surface-950 p-4">
 
-{#if isNeutral}
-    <!-- TELA 1: UTILIZADOR NEUTRO (ONBOARDING) -->
-    <div class="h-full flex flex-col items-center justify-center p-4 space-y-8 animate-fade-in">
-        <div class="text-center space-y-4">
-            <h2 class="h1 font-bold">Bem-vindo, {user?.nome}! 👋</h2>
-            <p class="text-xl text-surface-600-300-token">Como pretende usar o KaniMente hoje?</p>
+    <div class="text-center space-y-6 animate-fade-in">
+
+<div class="relative inline-flex items-center justify-center">
+            <div class="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 flex items-center justify-center shadow-lg shadow-primary-500/10">
+                <Loader2 size={32} class="animate-spin" />
+            </div>
+            <span class="absolute top-0 right-0 -mt-1 -mr-1 flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-primary-500"></span>
+            </span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
+                <div class="space-y-2">
+            <p class="text-sm text-surface-500 dark:text-surface-400">
+                A carregar o seu espaço...
+            </p>
+        </div>
+        </div>
+        </div>
+    
+    {:else}
+        <div class="max-w-4xl w-full animate-fade-in space-y-8 text-center">
             
-            <!-- Opção ENCARREGADO -->
-            <button 
-                class="card p-8 variant-soft-primary hover:variant-filled-primary transition-all hover:scale-105 text-left space-y-4 group"
-                on:click={tornarSeEncarregado}
-                disabled={isLoadingAction}
-            >
-                <div class="p-4 bg-white/20 rounded-full w-fit">
-                    <Users size={32} />
-                </div>
-                <h3 class="h3 font-bold">Sou Encarregado</h3>
-                <p class="opacity-80">Quero registar o meu educando para ele aprender com a IA e acompanhar o seu progresso.</p>
-                <div class="pt-4 font-bold flex items-center gap-2 group-hover:translate-x-2 transition-transform">
-                    Começar Agora <ChevronRight size={16} />
-                </div>
-            </button>
-
-            <!-- Opção PROFESSOR -->
-            <button 
-                class="card p-8 variant-soft-secondary hover:variant-filled-secondary transition-all hover:scale-105 text-left space-y-4 group"
-                on:click={tornarSeProfessor}
-                disabled={isLoadingAction}
-            >
-                <div class="p-4 bg-white/20 rounded-full w-fit">
-                    <School size={32} />
-                </div>
-                <h3 class="h3 font-bold">Sou Professor</h3>
-                <p class="opacity-80">Quero criar turmas, adicionar alunos e monitorizar o desempenho da classe.</p>
-                <div class="pt-4 font-bold flex items-center gap-2 group-hover:translate-x-2 transition-transform">
-                    Pedir Acesso <ChevronRight size={16} />
-                </div>
-            </button>
-
-        </div>
-    </div>
-
-{:else if isProfessorPendente}
-    <!-- TELA 2: PROFESSOR À ESPERA -->
-    <div class="h-full flex flex-col items-center justify-center text-center space-y-6">
-        <div class="p-4 bg-surface-100 rounded-full">
-            <Clock size={48} class="text-surface-600" />
-        </div>
-        <h2 class="h2 font-bold">Aprovação Pendente</h2>
-        <p class="text-surface-600-300-token max-w-md">
-            O seu pedido para ser Professor foi registado. Um administrador irá verificar as suas credenciais em breve.
-        </p>
-        <button class="btn variant-ghost-surface">Contactar Suporte</button>
-    </div>
-
-{:else if isEncarregado}
-    <!-- TELA 3: DASHBOARD DO ENCARREGADO -->
-    <div class="space-y-8 animate-fade-in">
-        <header class="flex justify-between items-center">
-            <div>
-                <h2 class="h2 font-bold">Meus Educandos</h2>
-                <p class="text-surface-500-400-token">Acompanhe o progresso escolar.</p>
+            <div class="space-y-2">
+                <h1 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white tracking-tight">
+                    Olá, {getFirstName()}! 👋
+                </h1>
+                <p class="text-lg text-surface-600 dark:text-surface-400">
+                    Como deseja utilizar o KaniMente hoje?
+                </p>
             </div>
-            <!-- Botão que abre o modal de registo de aluno -->
-            <button class="btn variant-filled-primary shadow-lg flex items-center gap-2">
-                <UserPlus size={20} />
-                <span>Registar Novo Aluno</span>
-            </button>
-        </header>
 
-        <!-- Aqui entraria a lista de alunos do Encarregado -->
-        <div class="alert variant-ghost-surface">
-            <div class="alert-message">
-                <p>Você ainda não registou nenhum aluno. Clique no botão acima para começar.</p>
-            </div>
-        </div>
-    </div>
+            <div class="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                
+                <button 
+                    on:click={() => goto('/onboarding/parent')}
+                    class="group relative bg-white dark:bg-surface-800 p-8 rounded-3xl border-2 border-surface-200 dark:border-surface-700 hover:border-primary-500 dark:hover:border-primary-500 transition-all hover:shadow-xl hover:shadow-primary-500/10 text-left"
+                >
+                    <div class="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <Users size={28} />
+                    </div>
+                    <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-2">Sou Encarregado</h3>
+                    <p class="text-sm text-surface-500 leading-relaxed mb-6">
+                        Quero registar os meus educandos, acompanhar o progresso escolar e receber relatórios.
+                    </p>
+                    <div class="flex items-center text-primary-600 font-bold text-sm">
+                        Configurar Perfil <ArrowRight size={16} class="ml-2 group-hover:translate-x-1 transition-transform"/>
+                    </div>
+                </button>
 
-{:else if isProfessor}
-    <!-- TELA 4: DASHBOARD DO PROFESSOR (A que fizemos antes) -->
-    <div class="space-y-8 animate-fade-in">
-        <header class="flex justify-between items-center">
-            <div>
-                <h2 class="h2 font-bold">Painel do Professor</h2>
-                <p class="text-surface-500-400-token">Gerir turmas e acompanhar alunos.</p>
+                <button 
+                    on:click={() => goto('/onboarding/teacher')}
+                    class="group relative bg-white dark:bg-surface-800 p-8 rounded-3xl border-2 border-surface-200 dark:border-surface-700 hover:border-secondary-500 dark:hover:border-secondary-500 transition-all hover:shadow-xl hover:shadow-secondary-500/10 text-left"
+                >
+                    <div class="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <School size={28} />
+                    </div>
+                    <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-2">Sou Professor</h3>
+                    <p class="text-sm text-surface-500 leading-relaxed mb-6">
+                        Quero gerir as minhas turmas, criar atividades e acompanhar o desempenho dos alunos.
+                    </p>
+                    <div class="flex items-center text-secondary-600 font-bold text-sm">
+                        Configurar Perfil <ArrowRight size={16} class="ml-2 group-hover:translate-x-1 transition-transform"/>
+                    </div>
+                </button>
+
             </div>
-            <button class="btn variant-filled-primary shadow-lg flex items-center gap-2">
-                <BookOpen size={20} />
-                <span>Criar Nova Turma</span>
-            </button>
-        </header>
-        
-        <!-- Conteúdo do dashboard do professor -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Estatísticas podem ser adicionadas aqui -->
+            
+            <p class="text-sm text-surface-400">
+                Pode ter ambos os perfis associados à mesma conta.
+            </p>
         </div>
-    </div>
-{/if}
+    {/if}
+</div>
+
+<style>
+    .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>

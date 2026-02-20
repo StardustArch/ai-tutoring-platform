@@ -17,7 +17,7 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   @Matches(/^$|^(\+258\s?)?8[2-7][0-9]{7}$/, { 
-    message: 'Número de telefone moçambicano inválido. Formato: +258 8X XXX XXXX' 
+    message: 'Número de telefone inválido. Formato: +258 8X XXX XXXX' 
   })
   telefone?: string;
 }

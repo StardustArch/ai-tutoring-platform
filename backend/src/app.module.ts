@@ -5,6 +5,17 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProfileModule } from './profile/profile.module';
+import { MulterModule } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { TeacherModule } from './teacher/teacher.module';
+import { ClassModule } from './class/class.module';
+import { DisciplineModule } from './discipline/discipline.module';
+import { StudentModule } from './student/student.module';
+import { ChatModule } from './chat/chat.module';
+import { DiagnosticModule } from './diagnostic/diagnostic.module';
+import { SessionModule } from './session/session.module';
+import { PdfModule } from './pdf/pdf.module';
 
 @Module({
   imports: [AuthModule,
@@ -13,6 +24,14 @@ import { ProfileModule } from './profile/profile.module';
     }),
     PrismaModule,
     ProfileModule,
+    TeacherModule,
+    ClassModule,
+    DisciplineModule,
+    StudentModule,
+    ChatModule,
+    DiagnosticModule,
+    SessionModule,
+    PdfModule
     ],
   controllers: [AppController],
   providers: [AppService],

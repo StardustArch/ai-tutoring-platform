@@ -1,11 +1,10 @@
 # Requisitos para a V2.0 (FastAPI)
 fastapi
 uvicorn[standard] # O servidor que corre o FastAPI
-pydantic[email]   # Para validação de schemas (incluindo emails)
 python-dotenv     # Para gerir variáveis de ambiente (ex: API Keys)
-pydantic-settings
-sqlalchemy 
-psycopg2-binary
-passlib[bcrypt]  # Para fazer o hashing das passwords
-python-jose[cryptography] # Para criar e validar os Tokens JWT
 python-multipart
+google-genai
+google-generativeai
+openai
+edge-tts
+huggingface_hub

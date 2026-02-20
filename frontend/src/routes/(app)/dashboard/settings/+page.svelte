@@ -1,20 +1,26 @@
-<!-- src/routes/dashboard/settings/+page.svelte -->
+<svelte:head>
+    <title>Definições da Conta | KaniMente</title>
+</svelte:head>
+
 <script lang="ts">
     import { auth } from '$lib/store/auth';
     import { apiFetch } from '$lib/utils/api';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
-    import { User, Mail, Phone, Save, Loader } from 'lucide-svelte';
-    import '../../../../app.css'
-	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+    import { User, Mail, Phone, Save, Loader, ShieldCheck, Lock, KeyRound, ChevronLeft } from 'lucide-svelte';
+    import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
+    import { notifications } from '$lib/store/notifications';
 
-    let isLoading = false;
-    let successMessage = '';
-    let errorMessage = '';
-        let isUserLoaded = false;
+    let isLoadingProfile = false;
+    let isLoadingPassword = false;
+    let isUserLoaded = false;
+    
+    $: isOAuthUser = !!$auth.user?.oauthId;
 
+    // Estilo Enterprise Standard
+    const inputClass = "w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white dark:bg-surface-700 text-sm text-surface-900 dark:text-surface-100 placeholder-surface-400 transition-all disabled:opacity-60 disabled:bg-surface-50 dark:disabled:bg-surface-800 shadow-sm";
+    const labelClass = "block text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-400 mb-1.5 ml-0.5";
 
-    // Dados do formulário
     let formData = {
         nome: $auth.user?.nome || '',
         sobrenome: $auth.user?.sobrenome || '',
@@ -22,17 +28,19 @@
         telefone: $auth.user?.telefone || ''
     };
 
-    // Reset messages quando os dados mudam
-    $: if (formData.nome || formData.sobrenome || formData.email || formData.telefone) {
-        successMessage = '';
-        errorMessage = '';
-    }
+    let passwordData = {
+        currentPassword: '',
+        newPassword: '',
+        confirmNewPassword: ''
+    };
 
     async function updateProfile() {
-        isLoading = true;
-        errorMessage = '';
-        successMessage = '';
+        if (!formData.nome.trim() || !formData.sobrenome.trim()) {
+            notifications.send('Nome e Sobrenome são obrigatórios.', 'warning');
+            return;
+        }
 
+        isLoadingProfile = true;
         try {
             const response = await apiFetch(`${PUBLIC_API_URL_HOST}/api/profile`, {
                 method: 'PUT',
@@ -40,36 +48,54 @@
             });
 
             if (response.ok) {
-                successMessage = 'Perfil atualizado com sucesso!';
-                // Atualizar os dados no store
+                notifications.send('Perfil atualizado com sucesso.', 'success');
                 await auth.refreshUser();
             } else {
                 const error = await response.json();
-                errorMessage = error.message || 'Erro ao atualizar perfil';
+                throw new Error(error.message);
             }
-        } catch (error) {
-            console.error('Erro ao atualizar perfil:', error);
-            errorMessage = 'Erro de conexão. Tente novamente.';
+        } catch (error: any) {
+            notifications.send(error.message || 'Erro ao atualizar perfil.', 'error');
         } finally {
-            isLoading = false;
+            isLoadingProfile = false;
         }
     }
 
-    function resetForm() {
-        formData = {
-            nome: $auth.user?.nome || '',
-            sobrenome: $auth.user?.sobrenome || '',
-            email: $auth.user?.email || '',
-            telefone: $auth.user?.telefone || ''
-        };
-        successMessage = '';
-        errorMessage = '';
-        goto('/dashboard')
+    async function changePassword() {
+        if (passwordData.newPassword.length < 6) {
+            notifications.send('A nova senha deve ter pelo menos 6 caracteres.', 'warning');
+            return;
+        }
+        if (passwordData.newPassword !== passwordData.confirmNewPassword) {
+            notifications.send('A confirmação da senha não coincide.', 'warning');
+            return;
+        }
+
+        isLoadingPassword = true;
+        try {
+            const response = await apiFetch(`${PUBLIC_API_URL_HOST}/api/auth/change-password`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    currentPassword: passwordData.currentPassword,
+                    newPassword: passwordData.newPassword
+                })
+            });
+
+            if (response.ok) {
+                notifications.send('Senha alterada com sucesso.', 'success');
+                passwordData = { currentPassword: '', newPassword: '', confirmNewPassword: '' };
+            } else {
+                const error = await response.json();
+                throw new Error(error.message);
+            }
+        } catch (error: any) {
+            notifications.send(error.message || 'Falha na verificação da senha atual.', 'error');
+        } finally {
+            isLoadingPassword = false;
+        }
     }
 
-        // Carregar dados do utilizador quando a store estiver pronta
     onMount(() => {
-        // Usar uma reactive statement para atualizar quando o auth.user mudar
         const unsubscribe = auth.subscribe(($auth) => {
             if ($auth.user && !isUserLoaded) {
                 formData = {
@@ -81,208 +107,179 @@
                 isUserLoaded = true;
             }
         });
-
         return () => unsubscribe();
     });
 </script>
 
-<div class="max-w-2xl mx-auto space-y-8 animate-fade-in">
-    <!-- Cabeçalho -->
-    <div class="space-y-2">
-        <h1 class="text-3xl font-bold text-surface-900-50-token">Definições da Conta</h1>
-        <p class="text-lg text-surface-600-300-token">
-            Gerir as suas informações pessoais e preferências da conta.
-        </p>
-    </div>
+<div class="max-w-4xl container mx-auto space-y-8 animate-fade-in pb-20 p-4 md:p-8">
 
-    <!-- Alertas -->
-    {#if successMessage}
-        <div class="p-4 rounded-lg bg-green-50 border border-green-200 text-green-800 animate-fade-in">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium">{successMessage}</p>
-                </div>
-            </div>
+    <header class="border-b border-surface-200 dark:border-surface-700 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">Definições da Conta</h1>
+            <p class="text-sm text-surface-500 mt-1">Gestão de identidade, contactos e parâmetros de segurança.</p>
         </div>
-    {/if}
+        <button 
+            on:click={() => goto('/dashboard')}
+            class="flex items-center gap-2 text-xs font-bold text-surface-500 hover:text-primary-600 transition-colors uppercase tracking-wider"
+        >
+            <ChevronLeft size={16} /> Voltar ao Painel
+        </button>
+    </header>
 
-    {#if errorMessage}
-        <div class="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 animate-fade-in">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium">{errorMessage}</p>
-                </div>
-            </div>
+    <section class="bg-white dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-surface-100 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-900/20">
+            <h2 class="text-sm font-bold uppercase tracking-wide text-surface-700 dark:text-surface-200 flex items-center gap-2">
+                <User size={16} /> Informação de Perfil
+            </h2>
         </div>
-    {/if}
 
-    <!-- Formulário -->
-    <div class="bg-white dark:bg-surface-800 rounded-xl shadow-sm border border-surface-200 dark:border-surface-700 p-6 space-y-6">
-        <h2 class="text-xl font-semibold text-surface-900 dark:text-surface-50 flex items-center gap-3">
-            <User size={24} class="text-primary-500" />
-            Informações Pessoais
-        </h2>
-
-        <form on:submit|preventDefault={updateProfile} class="space-y-6">
-            <!-- Nome e Sobrenome -->
+        <form on:submit|preventDefault={updateProfile} class="p-6 md:p-8 space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="space-y-2">
-                    <label for="nome" class="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                        Nome *
-                    </label>
-                    <input
-                        id="nome"
-                        type="text"
-                        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
-                        bind:value={formData.nome}
-                        required
-                        placeholder="Seu nome"
-                    />
+                <div>
+                    <label for="nome" class={labelClass}>Nome próprio</label>
+                    <input id="nome" type="text" class={inputClass} bind:value={formData.nome} required />
                 </div>
-
-                <div class="space-y-2">
-                    <label for="sobrenome" class="block text-sm font-medium text-surface-700 dark:text-surface-300">
-                        Sobrenome *
-                    </label>
-                    <input
-                        id="sobrenome"
-                        type="text"
-                        class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
-                        bind:value={formData.sobrenome}
-                        required
-                        placeholder="Seu sobrenome"
-                    />
+                <div> 
+                    <label for="sobrenome" class={labelClass}>Sobrenome</label>
+                    <input id="sobrenome" type="text" class={inputClass} bind:value={formData.sobrenome} required />
                 </div>
             </div>
 
-            <!-- Email -->
-            <div class="space-y-2">
-                <label for="email" class="block text-sm font-medium text-surface-700 dark:text-surface-300 flex items-center gap-2">
-                    <Mail size={16} class="text-surface-500" />
-                    Email *
-                </label>
-                <input
-                    id="email"
-                    type="email"
-                    class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
-                    bind:value={formData.email}
-                    required
-                    placeholder="seu@email.com"
-                />
-                <p class="text-xs text-surface-500 dark:text-surface-400">
-                    O email é usado para iniciar sessão e receber notificações.
-                </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="email" class={labelClass}>Endereço de Email</label>
+                    <div class="relative">
+                        <input
+                            id="email"
+                            type="email"
+                            class="{inputClass} pl-10"
+                            bind:value={formData.email}
+                            required
+                            disabled={isOAuthUser} 
+                        />
+                        <Mail size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+                    </div>
+                    {#if isOAuthUser}
+                        <p class="text-[10px] text-primary-600 mt-2 flex items-center gap-1 font-medium">
+                            <ShieldCheck size={12}/> Autenticação via provedor externo. O email é gerido externamente.
+                        </p>
+                    {/if}
+                </div>
+
+                <div>
+                    <label for="telefone" class={labelClass}>Contacto Telefónico</label>
+                    <div class="relative">
+                        <input
+                            id="telefone"
+                            type="tel"
+                            class="{inputClass} pl-10"
+                            bind:value={formData.telefone}
+                            placeholder="+258 -- --- ----"
+                        />
+                        <Phone size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+                    </div>
+                </div>
             </div>
 
-            <!-- Telefone -->
-            <div class="space-y-2">
-                <label for="telefone" class="block text-sm font-medium text-surface-700 dark:text-surface-300 flex items-center gap-2">
-                    <Phone size={16} class="text-surface-500" />
-                    Telefone
-                </label>
-                <input
-                    id="telefone"
-                    type="tel"
-                    class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:focus:ring-primary-400 dark:focus:border-primary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
-                    bind:value={formData.telefone}
-                    placeholder="+258 8X XXX XXXX"
-                />
-                <p class="text-xs text-surface-500 dark:text-surface-400">
-                    Opcional - usado para contactos importantes.
-                </p>
-            </div>
-
-            <!-- Ações do Formulário -->
-            <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t border-surface-200 dark:border-surface-600">
+            <div class="pt-4 flex justify-end">
                 <button
                     type="submit"
-                    class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isLoading}
+                    class="btn bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md py-2 px-6 flex items-center gap-2 shadow-sm transition-all focus:ring-2 focus:ring-offset-1 focus:ring-primary-500 disabled:opacity-70 text-sm"
+                    disabled={isLoadingProfile}
                 >
-                    {#if isLoading}
-                        <Loader size={16} class="animate-spin mr-2" />
+                    {#if isLoadingProfile}
+                        <Loader size={16} class="animate-spin" />
                         <span>A Guardar...</span>
                     {:else}
-                        <Save size={16} class="mr-2" />
+                        <Save size={16} />
                         <span>Guardar Alterações</span>
                     {/if}
                 </button>
-
-                <button
-                    type="button"
-                    class="inline-flex items-center justify-center px-4 py-2 border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-700 focus:ring-2 focus:ring-surface-500 focus:ring-offset-2 text-surface-700 dark:text-surface-300 font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                    on:click={resetForm}
-                    disabled={isLoading}
-                >
-                    Cancelar
-                </button>
             </div>
         </form>
-    </div>
+    </section>
 
-    <!-- Informações Adicionais -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- ID do Utilizador -->
-        <div class="bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 p-4">
-            <h3 class="text-sm font-medium text-surface-600 dark:text-surface-400 mb-2">ID da Conta</h3>
-            <p class="font-mono text-sm text-surface-900 dark:text-surface-100">#{$auth.user?.id}</p>
-        </div>
+    {#if !isOAuthUser}
+        <section class="bg-white dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-surface-100 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-900/20">
+                <h2 class="text-sm font-bold uppercase tracking-wide text-surface-700 dark:text-surface-200 flex items-center gap-2">
+                    <Lock size={16} /> Segurança da Conta
+                </h2>
+            </div>
 
-        <!-- Tipo de Conta -->
-        <div class="bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 p-4">
-            <h3 class="text-sm font-medium text-surface-600 dark:text-surface-400 mb-2">Tipo de Conta</h3>
-            <p class="text-sm font-medium text-surface-900 dark:text-surface-100 capitalize">
-                {#if !$auth.user?.perfilEncarregado && !$auth.user?.perfilProfessor}
-                    Utilizador
-                {:else if $auth.user?.perfilEncarregado}
-                    Encarregado
-                {:else if $auth.user?.perfilProfessor}
-                    Professor
-                {/if}
-            </p>
-        </div>
-    </div>
+            <form on:submit|preventDefault={changePassword} class="p-6 md:p-8 space-y-6">
+                <div>
+                    <label for="currentPassword" class={labelClass}>Senha Atual</label>
+                    <div class="relative max-w-sm">
+                        <input 
+                            id="currentPassword"
+                            type="password" 
+                            class="{inputClass} pl-10" 
+                            bind:value={passwordData.currentPassword} 
+                            placeholder="••••••••" 
+                            required 
+                        />
+                        <KeyRound size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"/>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="newPassword" class={labelClass}>Nova Senha</label>
+                        <input 
+                            id="newPassword"
+                            type="password" 
+                            class={inputClass}
+                            bind:value={passwordData.newPassword} 
+                            placeholder="Mínimo 6 caracteres" 
+                            required 
+                        />
+                    </div>
+                    <div>
+                        <label for="confirmNewPassword" class={labelClass}>Confirmar Nova Senha</label>
+                        <input 
+                            id="confirmNewPassword"
+                            type="password" 
+                            class={inputClass}
+                            bind:value={passwordData.confirmNewPassword} 
+                            placeholder="Repita a nova senha" 
+                            required 
+                        />
+                    </div>
+                </div>
+
+                <div class="pt-4 flex justify-end">
+                    <button 
+                        type="submit" 
+                        class="btn bg-surface-900 dark:bg-surface-100 text-white dark:text-surface-900 font-medium rounded-md py-2 px-6 flex items-center gap-2 shadow-sm transition-all hover:bg-surface-800 dark:hover:bg-white disabled:opacity-70 text-sm" 
+                        disabled={isLoadingPassword}
+                    >
+                        {#if isLoadingPassword}
+                            <Loader size={16} class="animate-spin" /> 
+                            <span>A Atualizar...</span>
+                        {:else}
+                            <Lock size={16} /> 
+                            <span>Atualizar Credenciais</span>
+                        {/if}
+                    </button>
+                </div>
+            </form>
+        </section>
+    {/if}
 </div>
 
 <style>
-    @keyframes fadeIn {
-        from { 
-            opacity: 0; 
-            transform: translateY(10px); 
-        }
-        to { 
-            opacity: 1; 
-            transform: translateY(0); 
-        }
-    }
-    
     .animate-fade-in {
-        animation: fadeIn 0.3s ease-out forwards;
+        animation: fadeIn 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Melhorias para os inputs no dark mode */
-    input:-webkit-autofill,
-    input:-webkit-autofill:hover,
-    input:-webkit-autofill:focus {
-        -webkit-text-fill-color: #1f2937;
-        -webkit-box-shadow: 0 0 0px 1000px white inset;
-        transition: background-color 5000s ease-in-out 0s;
-    }
-
-    .dark input:-webkit-autofill,
-    .dark input:-webkit-autofill:hover,
-    .dark input:-webkit-autofill:focus {
-        -webkit-text-fill-color: #f9fafb;
-        -webkit-box-shadow: 0 0 0px 1000px #374151 inset;
+    /* Estilização para preenchimento automático em Dark Mode */
+    :global(.dark) input:-webkit-autofill {
+        -webkit-text-fill-color: #f9fafb !important;
+        -webkit-box-shadow: 0 0 0px 1000px #374151 inset !important;
     }
 </style>
