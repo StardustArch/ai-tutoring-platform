@@ -1,261 +1,298 @@
 <svelte:head>
-    <title>KaniMente</title>
+    <title>KaniMente | O Futuro da Educação em Moçambique</title>
+    <meta name="description" content="Plataforma de ensino inteligente para a 3ª e 4ª classe. Matemática e Português com IA." />
 </svelte:head>
+
 <script lang="ts">
-  import '../app.css'
+  import '../app.css';
   import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
   import { 
     Sparkles, BookOpen, Brain, Zap, Users, TrendingUp, 
-    MessageCircle, Award, Target, ChevronRight, Check, Star, 
-	Calculator
+    MessageCircle, Award, Target, ChevronRight, Calculator, 
+    CheckCircle2, Star, ArrowRight,
+
+	Play
 
   } from 'lucide-svelte';
 
-  // Dados das funcionalidades
+  // Funcionalidades (Organizadas para Bento Grid)
   const features = [
     {
       icon: Brain,
-      title: 'IA Personalizada',
-      description: 'Cada aluno recebe um plano adaptado ao seu nível e ritmo de aprendizagem.',
-      color: 'from-blue-500 to-blue-600'
-    },
-    {
-      icon: MessageCircle,
-      title: 'Tutor Virtual 24/7',
-      description: 'Tire dúvidas a qualquer momento com respostas claras e pedagógicas.',
-      color: 'from-purple-500 to-purple-600'
+      title: 'IA Adaptativa',
+      description: 'O sistema aprende com os erros do aluno e adapta a dificuldade em tempo real.',
+      color: 'text-purple-500',
+      bg: 'bg-purple-50 dark:bg-purple-900/10',
+      colSpan: 'md:col-span-2'
     },
     {
       icon: Zap,
       title: 'Modo Rush',
-      description: 'Exercícios rápidos e divertidos para treinar e ganhar pontos.',
-      color: 'from-yellow-500 to-orange-500'
-    },
-    {
-      icon: TrendingUp,
-      title: 'Relatórios Detalhados',
-      description: 'Acompanhe o progresso com gráficos e análises em tempo real.',
-      color: 'from-green-500 to-green-600'
+      description: 'Sessões cronometradas para treinar a agilidade mental e foco.',
+      color: 'text-amber-500',
+      bg: 'bg-amber-50 dark:bg-amber-900/10',
+      colSpan: 'md:col-span-1'
     },
     {
       icon: Users,
       title: 'Portal Família',
-      description: 'Encarregados podem acompanhar múltiplos educandos num só lugar.',
-      color: 'from-pink-500 to-pink-600'
+      description: 'Encarregados acompanham a evolução detalhada dos educandos.',
+      color: 'text-emerald-500',
+      bg: 'bg-emerald-50 dark:bg-emerald-900/10',
+      colSpan: 'md:col-span-1'
     },
     {
-      icon: Award,
-      title: 'Gamificação',
-      description: 'Sistema de XP, níveis e conquistas que motivam o aprendizado.',
-      color: 'from-indigo-500 to-indigo-600'
+      icon: TrendingUp,
+      title: 'Analytics Avançado',
+      description: 'Relatórios de desempenho comparativos e identificação de lacunas.',
+      color: 'text-blue-500',
+      bg: 'bg-blue-50 dark:bg-blue-900/10',
+      colSpan: 'md:col-span-2'
     }
   ];
 
-  // Matérias disponíveis
-const subjects = [
-  { 
-    id: 'matematica',
-    name: 'Matemática', 
-    description: 'Operações fundamentais e lógica',
-    topics: ['Aritmética', 'Geometria', 'Frações', 'Problemas'], 
-    icon: 'Calculator' // Referência ao componente Lucide
-  },
-  { 
-    id: 'portugues',
-    name: 'Português', 
-    description: 'Língua e comunicação',
-    topics: ['Gramática', 'Ortografia', 'Interpretação', 'Verbos'], 
-    icon: 'BookOpen'   // Referência ao componente Lucide
-  }
-];
-const iconMap: Record<string, any> = {
-  'Calculator': Calculator,
-  'BookOpen': BookOpen,
-  // Fallback
-  'default': Brain 
-};
+  const subjects = [
+    { 
+      id: 'matematica',
+      name: 'Matemática', 
+      topics: ['Aritmética', 'Geometria', 'Lógica', 'Problemas'], 
+      icon: Calculator,
+      color: 'text-blue-600 dark:text-blue-400',
+      bg: 'bg-blue-50 dark:bg-blue-900/20'
+    },
+    { 
+      id: 'portugues',
+      name: 'Português', 
+      topics: ['Gramática', 'Leitura', 'Ortografia', 'Verbos'], 
+      icon: BookOpen,
+      color: 'text-rose-600 dark:text-rose-400',
+      bg: 'bg-rose-50 dark:bg-rose-900/20'
+    }
+  ];
 
-  // Testemunhos
   const testimonials = [
     {
       name: 'Maria Silva',
       role: 'Encarregada de Educação',
-      text: 'Os meus filhos adoram o Modo Rush! Agora estudam sem eu ter que insistir.',
+      text: 'O meu filho via o estudo como uma obrigação chata. Com o KaniMente e o sistema de XP, ele agora pede para estudar.',
       rating: 5
     },
     {
-      name: 'João Macamo',
-      role: 'Professor da 5ª Classe',
-      text: 'Fantástico para acompanhar o progresso da turma. Os relatórios são muito úteis.',
+      name: 'Prof. João Macamo',
+      role: 'Escola Primária 3 de Fevereiro',
+      text: 'Consigo ver exatamente onde cada aluno tem dificuldades antes mesmo da prova. Uma ferramenta indispensável.',
       rating: 5
     },
     {
       name: 'Ana Costa',
       role: 'Mãe de 2 alunos',
-      text: 'Finalmente uma ferramenta que ajuda de verdade. As notas melhoraram muito!',
+      text: 'A interface é muito limpa e segura. Gosto de saber que eles estão a aprender num ambiente controlado.',
       rating: 5
     }
   ];
-
-  let currentTestimonial = 0;
-  
-  function nextTestimonial() {
-    currentTestimonial = (currentTestimonial + 1) % testimonials.length;
-  }
-  
-  function prevTestimonial() {
-    currentTestimonial = currentTestimonial === 0 ? testimonials.length - 1 : currentTestimonial - 1;
-  }
 </script>
 
-<div class="min-h-screen w-full bg-surface-50 dark:bg-surface-950 transition-colors duration-300 overflow-x-hidden">
+<div class="min-h-screen w-full bg-white dark:bg-surface-950 text-surface-900 dark:text-surface-50 font-sans selection:bg-primary-500/30">
   
-  <!-- NAVBAR -->
-  <nav class="fixed top-0 w-full bg-white/80 dark:bg-surface-900/80 backdrop-blur-lg border-b border-surface-200 dark:border-surface-800 z-50">
+  <nav class="fixed top-0 w-full z-50 border-b border-surface-200/50 dark:border-surface-800/50 bg-white/80 dark:bg-surface-950/80 backdrop-blur-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16">
-        <!-- Logo -->
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white font-bold shadow-lg">
+        <a href="/" class="flex items-center gap-2 group">
+          <div class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold shadow-sm group-hover:bg-primary-700 transition-colors">
             K
           </div>
-          <span class="text-xl font-black text-surface-900 dark:text-white">
-            Kani<span class="text-primary-500">Mente</span>
+          <span class="text-lg font-bold tracking-tight text-surface-900 dark:text-white">
+            Kani<span class="text-primary-600 dark:text-primary-400">Mente</span>
           </span>
-        </div>
+        </a>
 
-        <!-- Links + Theme -->
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3 md:gap-6">
+          <div class="hidden md:flex items-center gap-6 text-sm font-medium text-surface-600 dark:text-surface-300">
+            <a href="#funcionalidades" class="hover:text-primary-600 transition-colors">Funcionalidades</a>
+            <a href="#disciplinas" class="hover:text-primary-600 transition-colors">Disciplinas</a>
+            <!-- <a href="#depoimentos" class="hover:text-primary-600 transition-colors">Depoimentos</a> -->
+          </div>
+          
+          <div class="w-px h-6 bg-surface-200 dark:bg-surface-800 hidden md:block"></div>
+          
           <ThemeSwitch />
-          <a href="/login" class="hidden sm:block text-surface-600 dark:text-surface-300 hover:text-primary-500 font-medium transition-colors">
+          
+          <a href="/login" class="text-sm font-bold text-surface-700 dark:text-surface-200 hover:text-primary-600 px-3 py-2">
             Entrar
           </a>
-          <a href="/register" class="btn bg-gradient-to-r from-primary-600 to-primary-500 text-white px-6 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all">
-            Começar Grátis
+          <a href="/register" class="hidden sm:flex btn bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-900 hover:bg-surface-800 dark:hover:bg-surface-200 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm">
+            Começar Agora
           </a>
         </div>
       </div>
     </div>
   </nav>
 
-  <!-- HERO SECTION -->
-  <section class="relative pt-32 pb-20 px-4 overflow-hidden">
-    <!-- Background decorativo -->
-    <div class="absolute inset-0 pointer-events-none overflow-hidden">
-      <div class="absolute top-20 left-10 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl animate-blob"></div>
-      <div class="absolute top-40 right-10 w-96 h-96 bg-secondary-500/10 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
-      <div class="absolute bottom-20 left-1/3 w-80 h-80 bg-tertiary-500/10 rounded-full blur-3xl animate-blob animation-delay-4000"></div>
+  <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none">
+        <div class="absolute top-20 left-10 w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[100px] opacity-50 dark:opacity-20 animate-pulse-slow"></div>
+        <div class="absolute bottom-0 right-10 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[100px] opacity-50 dark:opacity-20"></div>
     </div>
 
-    <div class="relative max-w-6xl mx-auto text-center space-y-8">
-      <!-- Badge -->
-      <div class="inline-flex items-center gap-2 px-4 py-2 bg-primary-500/10 border border-primary-500/20 rounded-full text-primary-600 dark:text-primary-400 font-medium text-sm">
-        <Sparkles size={16} />
-        <span>Educação com Inteligência Artificial</span>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+      
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-300 text-xs font-bold uppercase tracking-wider mb-8 animate-fade-in-up">
+        <Sparkles size={14} class="text-primary-500" />
+        Nova Geração de Ensino
       </div>
 
-      <!-- Título Principal -->
-      <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-surface-900 dark:text-white leading-tight">
-        O tutor inteligente<br/>
-        <span class="bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 bg-clip-text text-transparent">
-          que cresce com o aluno
+      <h1 class="text-5xl sm:text-6xl lg:text-7xl font-black text-surface-900 dark:text-white tracking-tight leading-[1.1] mb-6 max-w-4xl mx-auto animate-fade-in-up delay-100">
+        Educação Inteligente para <br class="hidden md:block"/>
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-purple-600 dark:from-primary-400 dark:to-purple-400">
+          Mentes Brilhantes.
         </span>
       </h1>
 
-      <!-- Subtítulo -->
-      <p class="text-lg sm:text-xl md:text-2xl text-surface-600 dark:text-surface-400 max-w-3xl mx-auto leading-relaxed">
-        Apoio educacional personalizado para crianças da 3ª e 4ª classe em <strong>Português</strong> e <strong>Matemática</strong>.
-        Disponível 24/7, adaptado ao ritmo de cada criança.
+      <p class="text-lg sm:text-xl text-surface-600 dark:text-surface-400 max-w-2xl mx-auto leading-relaxed mb-10 animate-fade-in-up delay-200">
+        Apoio escolar personalizado para a 3ª e 4ª classe. Transformamos o estudo numa experiência motivadora com IA, gamificação e relatórios em tempo real.
       </p>
 
-      <!-- CTAs -->
-      <div class="flex flex-col sm:flex-row justify-center gap-4 pt-4">
+      <div class="flex flex-col sm:flex-row justify-center gap-4 animate-fade-in-up delay-300">
         <a
           href="/register"
-          class="group inline-flex items-center justify-center gap-2 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-primary-500/30 hover:shadow-xl hover:shadow-primary-500/40 transition-all transform hover:-translate-y-1"
+          class="inline-flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-primary-500/25 transition-all hover:scale-105"
         >
-          <span>Começar Agora</span>
-          <ChevronRight size={20} class="group-hover:translate-x-1 transition-transform" />
+          Criar Conta Grátis
+          <ArrowRight size={20} />
         </a>
-
         <a
-          href="/login"
-          class="inline-flex items-center justify-center gap-2 bg-white dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 hover:border-primary-500 dark:hover:border-primary-500 text-surface-900 dark:text-white px-8 py-4 rounded-xl font-bold text-lg transition-all transform hover:-translate-y-1"
+          href="#como-funciona"
+          class="inline-flex items-center justify-center gap-2 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 hover:border-surface-300 dark:hover:border-surface-600 text-surface-700 dark:text-surface-200 px-8 py-4 rounded-xl font-bold text-lg transition-all hover:scale-105"
         >
-          <span>Já tenho conta</span>
+          Como Funciona
         </a>
       </div>
 
-      <!-- Stats -->
-      <div class="grid grid-cols-3 gap-8 max-w-2xl mx-auto pt-12">
-        <div>
-          <div class="text-3xl sm:text-4xl font-black text-primary-500">24/7</div>
-          <div class="text-sm text-surface-600 dark:text-surface-400 font-medium mt-1">Disponível</div>
-        </div>
-        <div>
-          <div class="text-3xl sm:text-4xl font-black text-secondary-500">2</div>
-          <div class="text-sm text-surface-600 dark:text-surface-400 font-medium mt-1">Disciplinas</div>
-        </div>
-        <div>
-          <div class="text-3xl sm:text-4xl font-black text-tertiary-500">100%</div>
-          <div class="text-sm text-surface-600 dark:text-surface-400 font-medium mt-1">Personalizado</div>
-        </div>
-      </div>
-    </div>
-  </section>
+<div class="mt-20 relative mx-auto max-w-5xl animate-fade-in-up delay-500 px-4 sm:px-0">
+        <div class="relative bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-2xl overflow-hidden aspect-auto md:aspect-[21/9]">
+            
+            <div class="h-10 border-b border-surface-100 dark:border-surface-800 flex items-center px-4 justify-between bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-sm">
+                <div class="flex gap-1.5">
+                    <div class="w-3 h-3 rounded-full bg-red-400/80"></div>
+                    <div class="w-3 h-3 rounded-full bg-amber-400/80"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-400/80"></div>
+                </div>
+                <div class="hidden sm:flex text-[10px] text-surface-400 font-mono bg-white dark:bg-surface-800 px-3 py-1 rounded-md border border-surface-200 dark:border-surface-700">
+                    kanimente.co.mz/aluno/dashboard
+                </div>
+                <div class="w-10"></div> </div>
 
-  <!-- MATÉRIAS -->
-  <section class="py-20 px-4 bg-surface-100 dark:bg-surface-900">
-    <div class="max-w-6xl mx-auto">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl sm:text-4xl md:text-5xl font-black text-surface-900 dark:text-white mb-4">
-          Disciplinas Disponíveis
-        </h2>
-        <p class="text-lg text-surface-600 dark:text-surface-400">
-          Conteúdo completo alinhado com o currículo escolar
-        </p>
-      </div>
+            <div class="p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 h-full bg-surface-50/30 dark:bg-surface-950">
+                
+                <div class="md:col-span-2 space-y-4 flex flex-col justify-center">
+                    
+                    <div class="bg-white dark:bg-surface-800 rounded-xl p-5 border border-surface-200 dark:border-surface-700 shadow-sm flex items-center justify-between relative overflow-hidden group">
+                        <div class="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-primary-50 to-transparent dark:from-primary-900/20 opacity-50"></div>
+                        
+                        <div class="relative z-10">
+                            <h3 class="font-bold text-surface-900 dark:text-white text-lg">Olá, Campeão! 👋</h3>
+                            <p class="text-sm text-surface-500 mb-3">Vamos continuar a missão de Matemática?</p>
+                            <div class="flex items-center gap-2 text-xs font-bold text-primary-600 bg-primary-50 dark:bg-primary-900/30 dark:text-primary-400 px-3 py-1.5 rounded-lg w-fit">
+                                <Zap size={14} class="fill-current" /> Modo Rush: Frações
+                            </div>
+                        </div>
+                        <div class="relative z-10 hidden sm:flex items-center justify-center w-12 h-12 bg-primary-600 rounded-full text-white shadow-lg group-hover:scale-110 transition-transform">
+                            <Play size={20} class="ml-1" />
+                        </div>
+                    </div>
 
-      <div class="grid md:grid-cols-2 gap-8">
-        {#each subjects as subject}
-          <div class="bg-white dark:bg-surface-800 rounded-3xl p-8 shadow-xl border border-surface-200 dark:border-surface-700 hover:shadow-2xl transition-all group">
-         <div class="mb-6 inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300">
-        <svelte:component 
-            this={iconMap[subject.icon] || iconMap['default']} 
-            size={32} 
-            strokeWidth={2.5}
-        />
-    </div>
-            <h3 class="text-2xl font-bold text-surface-900 dark:text-white mb-4">{subject.name}</h3>
-            <div class="flex flex-wrap gap-2">
-              {#each subject.topics as topic}
-                <span class="px-3 py-1.5 bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-lg text-sm font-medium">
-                  {topic}
-                </span>
-              {/each}
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white dark:bg-surface-800 rounded-xl p-4 border border-surface-200 dark:border-surface-700 shadow-sm">
+                            <div class="flex items-center gap-2 mb-2 text-surface-500 text-xs font-bold uppercase tracking-wider">
+                                <Award size={14} class="text-amber-500" /> XP Total
+                            </div>
+                            <div class="text-2xl font-black text-surface-900 dark:text-white">1,250</div>
+                            <div class="text-[10px] text-green-600 font-bold flex items-center mt-1">
+                                <TrendingUp size={10} class="mr-1" /> +150 hoje
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-surface-800 rounded-xl p-4 border border-surface-200 dark:border-surface-700 shadow-sm">
+                            <div class="flex items-center gap-2 mb-2 text-surface-500 text-xs font-bold uppercase tracking-wider">
+                                <Target size={14} class="text-blue-500" /> Matemática
+                            </div>
+                            <div class="w-full bg-surface-100 dark:bg-surface-700 rounded-full h-2 mb-2">
+                                <div class="bg-blue-500 h-2 rounded-full" style="width: 75%"></div>
+                            </div>
+                            <div class="text-[10px] text-surface-500 flex justify-between">
+                                <span>Nível 4</span>
+                                <span class="font-bold text-surface-900 dark:text-white">75%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md:col-span-1 h-full rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 p-5 flex flex-col gap-4 relative">
+                    
+                    <div class="flex items-center gap-3 pb-4 border-b border-surface-100 dark:border-surface-700">
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold">
+                            J
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-surface-900 dark:text-white">João Silva</div>
+                            <div class="text-xs text-surface-500">3ª Classe</div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="text-xs font-bold text-surface-400 uppercase tracking-wider">Próximas Conquistas</div>
+                        
+                        <div class="flex items-center gap-3 opacity-100">
+                            <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/20 text-amber-600 flex items-center justify-center">
+                                <Zap size={14} />
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-xs font-bold text-surface-700 dark:text-surface-200">Velocista</div>
+                                <div class="w-full bg-surface-100 dark:bg-surface-700 rounded-full h-1 mt-1">
+                                    <div class="bg-amber-500 h-1 rounded-full" style="width: 80%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 opacity-60">
+                            <div class="w-8 h-8 rounded-full bg-surface-100 dark:bg-surface-700 text-surface-400 flex items-center justify-center">
+                                <BookOpen size={14} />
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-xs font-bold text-surface-500">Leitor Voraz</div>
+                                <div class="w-full bg-surface-100 dark:bg-surface-700 rounded-full h-1 mt-1">
+                                    <div class="bg-surface-400 h-1 rounded-full" style="width: 30%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-        {/each}
+            
+            <div class="absolute bottom-6 right-6 bg-surface-900 dark:bg-white text-white dark:text-surface-900 px-4 py-2 rounded-lg text-sm font-bold shadow-xl flex items-center gap-2 animate-bounce-slow">
+                <CheckCircle2 size={16} class="text-green-500" />
+                Desempenho: Excelente
+            </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- FUNCIONALIDADES -->
-  <section class="py-20 px-4">
+  <section id="funcionalidades" class="py-24 px-4 bg-surface-50 dark:bg-surface-900/50 border-y border-surface-200 dark:border-surface-800">
     <div class="max-w-6xl mx-auto">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl sm:text-4xl md:text-5xl font-black text-surface-900 dark:text-white mb-4">
-          Funcionalidades que Fazem a Diferença
+      <div class="text-center mb-16 max-w-2xl mx-auto">
+        <h2 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white mb-4 tracking-tight">
+          Tudo o que precisa para o sucesso escolar
         </h2>
         <p class="text-lg text-surface-600 dark:text-surface-400">
-          Tecnologia de ponta ao serviço da educação
+          Uma plataforma completa que conecta alunos, encarregados e professores.
         </p>
       </div>
 
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         {#each features as feature}
-          <div class="group bg-white dark:bg-surface-800 rounded-2xl p-6 shadow-lg border border-surface-200 dark:border-surface-700 hover:shadow-2xl hover:border-primary-500/50 transition-all">
-            <div class="w-14 h-14 rounded-xl bg-gradient-to-br {feature.color} flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform">
+          <div class="{feature.colSpan} bg-white dark:bg-surface-800 rounded-2xl p-8 border border-surface-200 dark:border-surface-700 shadow-sm hover:shadow-lg transition-all group">
+            <div class="w-12 h-12 rounded-xl {feature.bg} {feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
               <svelte:component this={feature.icon} size={24} />
             </div>
             <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-2">{feature.title}</h3>
@@ -266,31 +303,39 @@ const iconMap: Record<string, any> = {
     </div>
   </section>
 
-  <!-- COMO FUNCIONA -->
-  <section class="py-20 px-4 bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-surface-900 dark:to-surface-800">
+  <section id="disciplinas" class="py-24 px-4">
     <div class="max-w-5xl mx-auto">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl sm:text-4xl md:text-5xl font-black text-surface-900 dark:text-white mb-4">
-          Como Funciona?
-        </h2>
-        <p class="text-lg text-surface-600 dark:text-surface-400">
-          Simples, rápido e eficaz em 3 passos
-        </p>
+      <div class="flex flex-col md:flex-row justify-between items-end gap-6 mb-12">
+          <div>
+            <h2 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white mb-2 tracking-tight">
+              Currículo Nacional
+            </h2>
+            <p class="text-lg text-surface-600 dark:text-surface-400">
+              Conteúdos alinhados com o programa da 3ª e 4ª classe.
+            </p>
+          </div>
+          <a href="/register" class="text-primary-600 font-bold hover:underline flex items-center gap-1">
+            Ver plano curricular <ChevronRight size={16} />
+          </a>
       </div>
 
-      <div class="space-y-8">
-        {#each [
-          { number: '1', title: 'Crie a sua conta', description: 'Registo rápido para encarregados ou professores. Adicione os educandos.' },
-          { number: '2', title: 'O aluno começa a aprender', description: 'Chat interativo, exercícios personalizados e modo Rush para praticar.' },
-          { number: '3', title: 'Acompanhe o progresso', description: 'Relatórios detalhados mostram evolução, pontos fortes e áreas a melhorar.' }
-        ] as step, i}
-          <div class="flex gap-6 items-start">
-            <div class="flex-shrink-0 w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white text-2xl font-black shadow-lg">
-              {step.number}
-            </div>
-            <div class="flex-1 bg-white dark:bg-surface-800 rounded-2xl p-6 shadow-lg border border-surface-200 dark:border-surface-700">
-              <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-2">{step.title}</h3>
-              <p class="text-surface-600 dark:text-surface-400">{step.description}</p>
+      <div class="grid md:grid-cols-2 gap-6">
+        {#each subjects as subject}
+          <div class="group bg-white dark:bg-surface-800 rounded-2xl p-8 border border-surface-200 dark:border-surface-700 hover:border-primary-500/30 hover:shadow-xl transition-all relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 {subject.bg} rounded-bl-full opacity-50 transition-transform group-hover:scale-110"></div>
+            
+            <div class="relative z-10">
+                <div class="mb-6 inline-flex items-center justify-center w-14 h-14 rounded-xl {subject.bg} {subject.color}">
+                    <svelte:component this={subject.icon} size={28} />
+                </div>
+                <h3 class="text-2xl font-bold text-surface-900 dark:text-white mb-4">{subject.name}</h3>
+                <div class="flex flex-wrap gap-2">
+                {#each subject.topics as topic}
+                    <span class="px-3 py-1 bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 rounded-md text-sm font-medium border border-surface-200 dark:border-surface-600">
+                    {topic}
+                    </span>
+                {/each}
+                </div>
             </div>
           </div>
         {/each}
@@ -298,96 +343,140 @@ const iconMap: Record<string, any> = {
     </div>
   </section>
 
-  <!-- CTA FINAL -->
-  <section class="py-20 px-4 bg-gradient-to-br from-primary-600 via-primary-500 to-secondary-500 text-white">
-    <div class="max-w-4xl mx-auto text-center space-y-8">
-      <h2 class="text-3xl sm:text-4xl md:text-5xl font-black">
-        Pronto para Transformar a Educação?
+  <!-- <section id="depoimentos" class="py-24 px-4 bg-surface-50 dark:bg-surface-900/50 border-t border-surface-200 dark:border-surface-800">
+    <div class="max-w-6xl mx-auto">
+        <h2 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white mb-16 text-center tracking-tight">
+            Aprovado por Famílias e Escolas
+        </h2>
+
+        <div class="grid md:grid-cols-3 gap-6">
+            {#each testimonials as item}
+                <div class="bg-white dark:bg-surface-800 p-8 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-sm flex flex-col h-full">
+                    <div class="flex gap-1 mb-4">
+                        {#each Array(item.rating) as _}
+                            <Star size={16} class="fill-amber-400 text-amber-400" />
+                        {/each}
+                    </div>
+                    <p class="text-surface-700 dark:text-surface-300 leading-relaxed mb-6 flex-1">
+                        "{item.text}"
+                    </p>
+                    <div class="flex items-center gap-3 pt-6 border-t border-surface-100 dark:border-surface-700">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-surface-200 to-surface-300 dark:from-surface-700 dark:to-surface-600 flex items-center justify-center font-bold text-surface-600 dark:text-surface-300 text-sm">
+                            {item.name.charAt(0)}
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-surface-900 dark:text-white">{item.name}</p>
+                            <p class="text-xs text-surface-500">{item.role}</p>
+                        </div>
+                    </div>
+                </div>
+            {/each}
+        </div>
+    </div>
+  </section> -->
+
+  <section class="py-24 px-4 relative overflow-hidden">
+    <div class="absolute inset-0 bg-surface-900 dark:bg-surface-950"></div>
+    <div class="absolute inset-0 opacity-20">
+        <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary-900 via-surface-900 to-surface-900"></div>
+    </div>
+
+    <div class="max-w-4xl mx-auto text-center relative z-10 space-y-8">
+      <h2 class="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight">
+        Comece hoje a transformação.
       </h2>
-      <p class="text-lg sm:text-xl opacity-90 max-w-2xl mx-auto">
-        Junte-se a centenas de famílias que já estão a ver resultados incríveis com o KaniMente.
+      <p class="text-xl text-surface-300 max-w-2xl mx-auto">
+        Junte-se a professores e encarregados que estão a elevar o nível da educação em Moçambique.
       </p>
       
-      <div class="flex flex-col sm:flex-row justify-center gap-4">
+      <div class="flex flex-col sm:flex-row justify-center gap-4 pt-4">
         <a
           href="/register"
-          class="inline-flex items-center justify-center gap-2 bg-white text-primary-600 px-8 py-4 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1"
+          class="inline-flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-500 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl shadow-primary-900/50 transition-all transform hover:-translate-y-1"
         >
-          <span>Criar Conta Grátis</span>
+          Criar Conta Gratuita
           <ChevronRight size={20} />
         </a>
       </div>
-
-      <p class="text-sm opacity-75 pt-4">
-        Sem cartão de crédito • Configuração em 2 minutos • Suporte dedicado
+      
+      <p class="text-sm text-surface-500 pt-6">
+        Plataforma 100% segura • Suporte local
       </p>
     </div>
   </section>
 
-  <!-- FOOTER -->
-  <footer class="bg-surface-900 dark:bg-black text-surface-300 py-12 px-4">
-    <div class="max-w-6xl mx-auto">
-      <div class="grid md:grid-cols-4 gap-8 mb-8">
-        <!-- Logo e descrição -->
-        <div class="md:col-span-2">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white font-bold">
-              K
-            </div>
-            <span class="text-xl font-black text-white">
-              Kani<span class="text-primary-400">Mente</span>
-            </span>
+  <footer class="bg-white dark:bg-surface-950 border-t border-surface-200 dark:border-surface-800 pt-16 pb-8 px-4">
+    <div class="max-w-7xl mx-auto">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+        <div class="col-span-2 md:col-span-1">
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-6 h-6 rounded bg-primary-600 flex items-center justify-center text-white text-xs font-bold">K</div>
+            <span class="font-bold text-surface-900 dark:text-white">KaniMente</span>
           </div>
-          <p class="text-sm leading-relaxed max-w-md">
-            Plataforma de educação com inteligência artificial, dedicada a apoiar o desenvolvimento académico de crianças em Moçambique.
+          <p class="text-sm text-surface-500 leading-relaxed">
+            Desenvolvendo o futuro através da educação e tecnologia.
           </p>
         </div>
 
-        <!-- Links -->
         <div>
-          <h3 class="font-bold text-white mb-3">Produto</h3>
-          <ul class="space-y-2 text-sm">
-            <li><a href="/login" class="hover:text-primary-400 transition-colors">Entrar</a></li>
-            <li><a href="/register" class="hover:text-primary-400 transition-colors">Registar</a></li>
+          <h4 class="font-bold text-surface-900 dark:text-white mb-4">Plataforma</h4>
+          <ul class="space-y-2 text-sm text-surface-600 dark:text-surface-400">
+            <li><a href="/login" class="hover:text-primary-600 transition-colors">Entrar</a></li>
+            <li><a href="/register" class="hover:text-primary-600 transition-colors">Registar</a></li>
           </ul>
         </div>
 
         <div>
-          <h3 class="font-bold text-white mb-3">Suporte</h3>
-          <ul class="space-y-2 text-sm">
-            <li><a href="#" class="hover:text-primary-400 transition-colors">Ajuda</a></li>
-            <li><a href="#" class="hover:text-primary-400 transition-colors">Contacto</a></li>
+          <h4 class="font-bold text-surface-900 dark:text-white mb-4">Legal</h4>
+          <ul class="space-y-2 text-sm text-surface-600 dark:text-surface-400">
+            <li><a href="/privacy" class="hover:text-primary-600 transition-colors">Privacidade</a></li>
+            <li><a href="/terms" class="hover:text-primary-600 transition-colors">Termos</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="font-bold text-surface-900 dark:text-white mb-4">Contacto</h4>
+          <ul class="space-y-2 text-sm text-surface-600 dark:text-surface-400">
+            <li>suporte@kanimente.co.mz</li>
+            <li>Maputo, Moçambique</li>
           </ul>
         </div>
       </div>
 
-      <div class="border-t border-surface-800 pt-8 text-center text-sm">
-        <p>&copy; {new Date().getFullYear()} KaniMente. Todos os direitos reservados.</p>
+      <div class="border-t border-surface-200 dark:border-surface-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-surface-500">
+        <p>&copy; {new Date().getFullYear()} KaniMente Inc.</p>
+        <div class="flex gap-4">
+            </div>
       </div>
     </div>
   </footer>
 </div>
 
 <style>
-  @keyframes blob {
-    0%, 100% { transform: translate(0px, 0px) scale(1); }
-    33% { transform: translate(30px, -50px) scale(1.1); }
-    66% { transform: translate(-20px, 20px) scale(0.9); }
+  .animate-fade-in-up {
+    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+    transform: translateY(20px);
   }
-  
-  .animate-blob {
-    animation: blob 7s infinite;
+
+  .delay-100 { animation-delay: 0.1s; }
+  .delay-200 { animation-delay: 0.2s; }
+  .delay-300 { animation-delay: 0.3s; }
+  .delay-500 { animation-delay: 0.5s; }
+
+  @keyframes fadeInUp {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  
-  .animation-delay-2000 {
-    animation-delay: 2s;
+
+  .animate-pulse-slow {
+    animation: pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
-  
-  .animation-delay-4000 {
-    animation-delay: 4s;
-  }
-    :global(html), :global(body) {
-    height: auto !important;
-    overflow: visible !important;
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 0.3; }
   }
 </style>

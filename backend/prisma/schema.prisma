@@ -24,6 +24,7 @@ model Usuario {
   passwordHash  String?
   oauthProvider String?
   oauthId       String? @unique
+  hashedRt      String? // <--- Adiciona isto (Pode ser nulo se o user não estiver logado)
 
   // Relações 1-para-1 com os Perfis
   perfilProfessor   Professor?
@@ -214,6 +215,9 @@ model Exercicio {
   resposta    String // resposta correta
   dificuldade Int // 1-5
   criadoEm    DateTime @default(now())
+  
+  @@map("exercicios")
+
 }
 
 enum NivelProficiencia {

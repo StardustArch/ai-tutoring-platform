@@ -1,9 +1,10 @@
 <script lang="ts">
     import { page } from '$app/stores';
-    import { auth } from '$lib/store/auth';
+    // ATENÇÃO: Confirma se a pasta é 'store' ou 'stores' (usa a que tens no projeto)
+    import { auth } from '$lib/store/auth'; 
     import { goto } from '$app/navigation';
-    import { onMount } from 'svelte';
-    import '../../../app.css'
+    import { onDestroy, onMount } from 'svelte';
+    import '../../../app.css';
     
     // Componentes
     import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
@@ -13,7 +14,10 @@
     // Ícones Lucide
     import { 
         LayoutDashboard, GraduationCap, FileText, Settings, Menu, X,
-        Users, School, Key, AlertCircle, BookOpen, ChevronLeft, ChevronRight
+        Users, School, Key, AlertCircle, BookOpen, ChevronLeft, ChevronRight,
+
+		Loader2
+
     } from 'lucide-svelte';
     import { browser } from '$app/environment';
 
@@ -23,48 +27,43 @@
     $: isProfessor = !!user?.perfilProfessor;
     $: isProfessorAtivo = isProfessor && !!user?.perfilProfessor?.escolaNome;
 
-    let isUserLoaded = false;
-
     // ESTADO DA SIDEBAR
     let sidebarOpen = false; // Mobile: começa fechado
     let sidebarExpanded = true; // Desktop: começa expandido
-    
-    // Detectar se é mobile
     let isMobile = false;
-    
-    onMount(() => {
-        // svelte-ignore reactive_declaration_invalid_placement
-        $: if (browser && !$auth.isAuthenticated) {
-            goto('/login');
-        }
-        // Detectar tamanho de tela
-        const checkMobile = () => {
-            isMobile = window.innerWidth < 768;
-            if (!isMobile) {
-                sidebarOpen = false; // No desktop, não usamos overlay
-            }
-        };
-        
+
+    // --- 1. PROTEÇÃO DE ROTA (CORRIGIDA) ---
+    // Apenas redireciona se tivermos a certeza absoluta que o processo de load terminou
+    // e o utilizador NÃO está autenticado.
+    $: if (browser && !$auth.isLoading && !$auth.isAuthenticated) {
+        goto('/login');
+    }
+
+    onMount(async () => {
+        // Inicializa a autenticação. 
+        // Se já foi inicializado noutro lado, o store evita trabalho duplicado internamente.
+        await auth.initializeAuth();
+
+        // Configura responsividade
         checkMobile();
         window.addEventListener('resize', checkMobile);
-        
-        const unsubscribe = auth.subscribe(($auth) => {
-            if ($auth.user && !isUserLoaded) {
-                auth.refreshUser().then(() => {
-                    isUserLoaded = true;
-                });
-            } else if (!$auth.isLoading && !$auth.user) {
-                goto('/login');
-            }
-        });
-        
-        return () => {
-            unsubscribe();
-            window.removeEventListener('resize', checkMobile);
-        };
     });
 
-    // Toggle sidebar
+    onDestroy(() => {
+        if (browser) {
+            window.removeEventListener('resize', checkMobile);
+        }
+    });
+
+    // --- 2. Lógica de UI ---
+    const checkMobile = () => {
+        if (!browser) return;
+        isMobile = window.innerWidth < 768;
+        if (!isMobile) {
+            sidebarOpen = false; // Fecha sidebar se a tela aumentar
+        }
+    };
+
     function toggleSidebar() {
         if (isMobile) {
             sidebarOpen = !sidebarOpen;
@@ -144,6 +143,7 @@
             }
         }
 
+        // Itens comuns
         items.push(
             { type: 'divider' },
             { label: 'Definições', href: '/dashboard/settings', icon: Settings }
@@ -154,21 +154,26 @@
 
     function isActive(itemHref: string, currentPath: string) {
         if (!itemHref) return false;
+        // Correspondência exata para a raiz do dashboard para não iluminar tudo
         if (itemHref === '/dashboard') {
             return currentPath === '/dashboard';
         }
         return currentPath.startsWith(itemHref);
     }
 
-    // Helper para pegar o item ativo com segurança
+    // Helper para pegar o item ativo com segurança para o título
     $: activeItem = menuItems.find(i => i.href && isActive(i.href, $page.url.pathname));
 
-    function formatarNome(user: any): string {
-        const fullName = `${user.nome} ${user.sobrenome}`.trim();
+    function formatarNome(u: any): string {
+        if (!u || !u.nome) return 'Utilizador';
+        const fullName = `${u.nome} ${u.sobrenome || ''}`.trim();
         const parts = fullName.split(/\s+/);
         if (parts.length === 0) return '';
         const firstName = parts[0];
         const lastName = parts.length > 1 ? parts[parts.length - 1] : '';
+        // Evita erro se o nome for curto
+        if (parts.length <= 2) return fullName;
+        
         const middleInitials = parts.slice(1, -1).map(n => n[0].toUpperCase() + '.');
         return [firstName, ...middleInitials, lastName].filter(Boolean).join(' ');
     }
@@ -176,11 +181,28 @@
 
 <Notification/>
 
-{#if $auth.isLoading || !isUserLoaded}
-    <div class="h-screen w-full bg-surface-50 dark:bg-surface-900 flex flex-col items-center justify-center gap-4 animate-pulse transition-colors duration-300">
-        <div class="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-surface-500 font-medium">A carregar o seu espaço...</p>
-    </div>
+{#if $auth.isLoading}
+<div class="min-h-screen w-full flex flex-col items-center justify-center bg-white dark:bg-surface-950 p-4">
+
+    <div class="text-center space-y-6 animate-fade-in">
+
+<div class="relative inline-flex items-center justify-center">
+            <div class="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 flex items-center justify-center shadow-lg shadow-primary-500/10">
+                <Loader2 size={32} class="animate-spin" />
+            </div>
+            <span class="absolute top-0 right-0 -mt-1 -mr-1 flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-primary-500"></span>
+            </span>
+        </div>
+
+                <div class="space-y-2">
+            <p class="text-sm text-surface-500 dark:text-surface-400">
+                A carregar o seu espaço...
+            </p>
+        </div>
+        </div>
+        </div>
 {:else}
     <div class="h-screen flex overflow-hidden bg-surface-50 dark:bg-surface-900 text-surface-900 dark:text-surface-100 transition-colors duration-300">
         
@@ -342,15 +364,15 @@
             <main class="flex-1 flex flex-col overflow-y-auto p-4 md:p-8 scroll-smooth">
                 <slot />
 
-                <div class="mt-auto pt-8">
-                    <div class="border-t border-surface-200 dark:border-surface-700 pt-6 text-center md:text-left text-sm text-surface-500 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <span>&copy; {new Date().getFullYear()} KaniMente - Plataforma Educativa.</span>
-                        <div class="flex gap-4">
-                        <button class="hover:text-primary-600 transition-colors">Ajuda</button>
-                        <button class="hover:text-primary-600 transition-colors">Termos</button>
+                    <div class="mt-auto pt-8">
+                        <div class="border-t border-surface-200 dark:border-surface-700 pt-6 text-center md:text-left text-sm text-surface-500 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <span>&copy; {new Date().getFullYear()} KaniMente - Plataforma Educativa.</span>
+                            <div class="flex gap-4">
+                            <button class="hover:text-primary-600 transition-colors">Ajuda</button>
+                            <button class="hover:text-primary-600 transition-colors"><a href="/terms">Termos</a></button>
+                            </div>
                         </div>
                     </div>
-                </div>
             </main>
         </div>
     </div>
