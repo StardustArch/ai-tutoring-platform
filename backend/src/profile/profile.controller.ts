@@ -59,4 +59,10 @@ export class ProfileController {
     // Só precisamos de devolver isso!
     return req.user;
   }
+
+  @Get('unified-dashboard')
+async getUnifiedDashboard(@Request() req) {
+  const userId = req.user.id;
+  return this.profileService.getUnifiedDashboardData(userId);
+}
 }

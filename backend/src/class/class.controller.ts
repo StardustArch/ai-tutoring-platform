@@ -11,12 +11,14 @@ import {
   Request,
   Query,
   BadRequestException,
+  Patch,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ClassService } from './class.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { JoinClassDto, AddStudentDto } from './dto/join-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
+import { ManageClassTopicsDto } from './dto/manage-topics.dto';
 
 @Controller('api/classes') // Mudei para 'classes' (plural é convenção REST)
 @UseGuards(AuthGuard('jwt')) // Aplica proteção a tudo por padrão
@@ -36,18 +38,19 @@ export class ClassController {
   async listarTurmasProfessor(@Request() req) {
     return this.classService.listarTurmasProfessor(req.user.id);
   }
-@Get('topics')
+  @Get('topics')
   async getTopics(
     @Query('classe') classe: number,
-    @Query('studentId') studentId: number // <--- NOVO: Obrigatório para ver o progresso
+    @Query('studentId') studentId: number, // <--- NOVO: Obrigatório para ver o progresso
+    @Query('classId') classId?: number
   ) {
     if (!classe) throw new BadRequestException('Classe é obrigatória');
-    
+
     // Se não houver studentId (ex: admin a ver), podes manter a lógica antiga ou exigir erro.
     // Aqui assumimos que para jogar, tem de ter ID.
     if (!studentId) throw new BadRequestException('ID do aluno é obrigatório para verificar progresso');
 
-    return this.classService.getTopicsForStudent(Number(classe), Number(studentId));
+    return this.classService.getTopicsForStudent(Number(classe), Number(studentId), Number(classId));
   }
 
   @Get(':id')
@@ -88,6 +91,22 @@ export class ClassController {
     @Request() req
   ) {
     return this.classService.removerAlunoTurma(turmaId, alunoId, req.user.id);
+  }
+
+  // 📋 GET: Listar tópicos para gerenciar (Checkbox List)
+  @Get(':id/topics/manage')
+  async getTopicsForManagement(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.classService.listarTopicosGerenciamento(id, req.user.id);
+  }
+
+  // 💾 PATCH: Salvar a seleção do professor
+  @Patch(':id/topics')
+  async updateClassTopics(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ManageClassTopicsDto
+  ) {
+    return this.classService.atualizarTopicosTurma(id, req.user.id, dto.topicosIds);
   }
 
   // ==========================================

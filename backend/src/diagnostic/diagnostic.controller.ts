@@ -25,12 +25,13 @@ export class DiagnosticController {
    */
   @Post('generate')
   async generateQuestions(
-    @Body() body: { alunoId: number; disciplina: string; classe: number }
+    @Body() body: { alunoId: number; disciplina: string; classe: number, topico?: string; }
   ) {
     return await this.diagnosticService.generateDiagnosticQuestions(
       body.alunoId,
       body.disciplina,
-      body.classe
+      body.classe,
+      body.topico
     );
   }
 

@@ -1,4 +1,4 @@
-import { IsString, IsInt, IsNotEmpty, Length } from 'class-validator';
+import { IsString, IsInt, IsNotEmpty, Length, Min, Max } from 'class-validator';
 
 export class CreateClassDto {
   @IsNotEmpty()
@@ -9,4 +9,9 @@ export class CreateClassDto {
   @IsNotEmpty()
   @IsInt()
   disciplinaId: number; // O ID da disciplina (Matemática, Português, etc.)
+
+  @IsInt()
+  @Min(3)
+  @Max(4) // Assumindo que o sistema vai até à 12ª
+  classe: number;
 }
