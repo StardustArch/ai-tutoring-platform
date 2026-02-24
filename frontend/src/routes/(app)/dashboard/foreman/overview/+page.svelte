@@ -51,6 +51,9 @@
         const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-rose-500'];
         return colors[(name?.charCodeAt(0) || 0) % colors.length];
     }
+        function getInitials(name: string) {
+        return name ? name.substring(0, 2).toUpperCase() : '--';
+    }
 
     // Estilos Enterprise
     const btnPrimary = "btn bg-emerald-600 hover:bg-emerald-700 text-white rounded-md py-2 px-4 flex items-center justify-center gap-2 font-medium text-sm transition-all shadow-sm";
@@ -92,9 +95,10 @@
                     
                     <div class="p-6 flex-1">
                         <div class="flex items-center gap-4 mb-6">
-                            <div class={`w-12 h-12 rounded-lg flex items-center justify-center text-white text-lg font-bold shadow-sm ${getAvatarColor(student.nome)}`}>
-                                {student.nome.charAt(0)}
-                            </div>
+
+                                                            <div class="w-10 h-10 rounded bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-bold text-sm border border-emerald-100 dark:border-emerald-800/30 shadow-sm">
+                                    {getInitials(student.nome)}
+                                </div>
                             <div class="min-w-0">
                                 <h3 class="text-base font-bold text-surface-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
                                     {student.nome}

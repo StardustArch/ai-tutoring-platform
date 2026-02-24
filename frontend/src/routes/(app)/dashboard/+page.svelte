@@ -89,33 +89,33 @@
             <div class="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
                 
                 <button 
-                    on:click={() => goto('/onboarding/parent')}
-                    class="group relative bg-white dark:bg-surface-800 p-8 rounded-3xl border-2 border-surface-200 dark:border-surface-700 hover:border-primary-500 dark:hover:border-primary-500 transition-all hover:shadow-xl hover:shadow-primary-500/10 text-left"
+                    on:click={() => goto('/dashboard/foreman/become-foreman')}
+                    class="group relative bg-white dark:bg-surface-800 p-8 rounded-3xl border-2 border-surface-200 dark:border-surface-700 hover:border-emerald-500 dark:hover:border-emerald-500 transition-all hover:shadow-xl hover:shadow-emerald-500/10 text-left"
                 >
-                    <div class="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <div class="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                         <Users size={28} />
                     </div>
                     <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-2">Sou Encarregado</h3>
                     <p class="text-sm text-surface-500 leading-relaxed mb-6">
                         Quero registar os meus educandos, acompanhar o progresso escolar e receber relatórios.
                     </p>
-                    <div class="flex items-center text-primary-600 font-bold text-sm">
+                    <div class="flex items-center text-emerald-600 font-bold text-sm">
                         Configurar Perfil <ArrowRight size={16} class="ml-2 group-hover:translate-x-1 transition-transform"/>
                     </div>
                 </button>
 
                 <button 
-                    on:click={() => goto('/onboarding/teacher')}
-                    class="group relative bg-white dark:bg-surface-800 p-8 rounded-3xl border-2 border-surface-200 dark:border-surface-700 hover:border-secondary-500 dark:hover:border-secondary-500 transition-all hover:shadow-xl hover:shadow-secondary-500/10 text-left"
+                    on:click={() => goto('/dashboard/teacher/become-teacher')}
+                    class="group relative bg-white dark:bg-surface-800 p-8 rounded-3xl border-2 border-surface-200 dark:border-surface-700 hover:border-primary-500 dark:hover:border-primary-500 transition-all hover:shadow-xl hover:shadow-primary-500/10 text-left"
                 >
-                    <div class="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <div class="w-14 h-14 rounded-2xl bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                         <School size={28} />
                     </div>
                     <h3 class="text-xl font-bold text-surface-900 dark:text-white mb-2">Sou Professor</h3>
                     <p class="text-sm text-surface-500 leading-relaxed mb-6">
                         Quero gerir as minhas turmas, criar atividades e acompanhar o desempenho dos alunos.
                     </p>
-                    <div class="flex items-center text-secondary-600 font-bold text-sm">
+                    <div class="flex items-center text-primary-600 font-bold text-sm">
                         Configurar Perfil <ArrowRight size={16} class="ml-2 group-hover:translate-x-1 transition-transform"/>
                     </div>
                 </button>

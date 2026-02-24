@@ -194,9 +194,10 @@
         >
             <div class="p-6 flex items-center justify-between gap-3 bg-surface-50 md:bg-transparent dark:bg-surface-800/50 md:dark:bg-transparent">
                 <div class="flex items-center gap-3 min-w-0 {sidebarExpanded || isMobile ? '' : 'justify-center w-full'}">
-                    <div class="w-8 h-8 bg-gradient-to-tr from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+                    <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0 ">
                         K
                     </div>
+
                     {#if sidebarExpanded || isMobile}
                         <span class="text-xl font-bold tracking-tight text-surface-900 dark:text-surface-50 truncate transition-opacity duration-300">
                             Kani<span class="text-primary-500">Mente</span>

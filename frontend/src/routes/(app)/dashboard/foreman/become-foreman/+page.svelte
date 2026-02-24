@@ -47,7 +47,7 @@
     if (ref === 'homet' || ref === 'homer') {
         goto('/dashboard/teacher/overview'); 
     } else {
-        goto('/dashboard/unified/overview');
+        goto('/dashboard');
     }
   }
 </script>

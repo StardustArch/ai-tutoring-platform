@@ -26,7 +26,6 @@
       const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/${turmaId}/topics/manage`);
       if (res.ok) {
         topics = await res.json();
-        console.log(topics)
       } else {
         notifications.send('Erro ao carregar tópicos.', 'error');
         close();
@@ -80,7 +79,7 @@
 
 {#if isOpen}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-    <div class="bg-white dark:bg-surface-800 w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
+    <div class="bg-white dark:bg-surface-800 w-full max-w-lg rounded-lg shadow-2xl flex flex-col max-h-[85vh]">
       
       <div class="p-5 border-b border-surface-200 dark:border-surface-700 flex justify-between items-center">
         <div>
@@ -143,7 +142,7 @@
         <button 
           on:click={save}
           disabled={isSaving || isLoading}
-          class="flex items-center gap-2 px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="flex items-center gap-2 px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {#if isSaving}
             <Loader2 size={18} class="animate-spin" />
