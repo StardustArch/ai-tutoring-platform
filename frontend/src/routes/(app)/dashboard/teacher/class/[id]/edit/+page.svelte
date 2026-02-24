@@ -196,7 +196,8 @@ if (!aceitou) return; // Se disser não, para aqui.
                     aria-checked={formData.ativa}
                 >
                     <span class="sr-only">Ativar turma</span>
-                    <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {formData.ativa ? 'translate-x-6' : 'translate-x-1'}" />
+                    
+                    <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {formData.ativa ? 'translate-x-6' : 'translate-x-1'}"></span>
                 </button>
             </div>
 
