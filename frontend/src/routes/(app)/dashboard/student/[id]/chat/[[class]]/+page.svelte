@@ -9,6 +9,7 @@
   } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import confetti from 'canvas-confetti';
+  import SessionTimer from '$lib/components/SessionTimer.svelte';
 
   // --- PARÂMETROS ---
   let studentId = $page.params.id || '';
@@ -16,7 +17,7 @@
   $: turmaId =  $page.params.class ? parseInt($page.params.class!) : null;
 
   let allowedTopicIds: number[] = []; 
-  let viewState: 'TOPICS' | 'CHAT' = 'TOPICS';
+  let viewState: 'TOPICS' | 'CHAT' | 'GAMEOVER' = 'TOPICS';
   
   let sessionContext = { subject: '', topic: '' };
   let lastAudio: HTMLAudioElement | null = null;
@@ -25,6 +26,7 @@ let availableTopics: { [key: string]: any[] } = {
     portugues: [] 
 };
   let loadingTopics = true;
+  let isTimeUp = false; // <--- NOVA VARIÁVEL DE ESTADO
   let availableVoices: SpeechSynthesisVoice[] = [];
 
   // --- ESTADO DO CHAT ---
@@ -62,6 +64,12 @@ let availableTopics: { [key: string]: any[] } = {
     }
   });
 
+  // --- FUNÇÃO DE TEMPO ESGOTADO ---
+  function handleTimeUp() {
+      isTimeUp = true;
+      viewState = 'GAMEOVER';
+      if (typeof window !== 'undefined' && lastAudio) lastAudio.pause();
+  }
   // --- CARREGAMENTO (MANTIDO IGUAL) ---
   async function loadStudentAndTopics() {
       loadingTopics = true;
@@ -271,9 +279,29 @@ let availableTopics: { [key: string]: any[] } = {
                 </div>
             </div>
         </div>
+        {#if viewState !== 'GAMEOVER'}
+             <div class="scale-90 sm:scale-100">
+                <SessionTimer on:timeup={handleTimeUp} />
+             </div>
+        {/if}
     </div>
 
-    {#if viewState === 'TOPICS'}
+    {#if viewState === 'GAMEOVER'}
+        <div class="flex-1 flex flex-col items-center justify-center p-6 text-center animate-zoom-in bg-white/50 backdrop-blur-sm">
+            <div class="mb-6 text-8xl animate-bounce">⏰</div>
+            <h1 class="text-4xl md:text-5xl font-black text-slate-800 mb-4">Tempo Esgotado!</h1>
+            <p class="text-slate-500 text-lg mb-8 max-w-md mx-auto leading-relaxed">
+                Uau, passou a voar! O teu cérebro trabalhou muito bem hoje. Vamos fazer uma pausa para recarregar energias?
+            </p>
+            
+            <button 
+                on:click={() => exitSession()} 
+                class="px-10 py-5 bg-blue-500 text-white rounded-2xl font-bold text-xl shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 hover:brightness-110 transition-all"
+            >
+                Terminar por Hoje
+            </button>
+        </div>
+{:else if viewState === 'TOPICS'}
         <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
             <div class="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
                 

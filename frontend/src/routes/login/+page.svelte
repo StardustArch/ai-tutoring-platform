@@ -6,15 +6,14 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { get } from 'svelte/store'; // <--- IMPORTANTE: Adiciona isto
+  import { get } from 'svelte/store'; 
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { auth } from '$lib/store/auth';
+  import { auth } from '$lib/store/auth'; 
   import { notifications } from '$lib/store/notifications';
   import Notification from '$lib/components/Notification.svelte'; 
   import { LogIn, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-svelte';
   import { browser } from '$app/environment';
-    import '../../app.css'
-
+  import '../../app.css'
   
   let email = '';
   let password = '';
@@ -22,10 +21,9 @@
   let error = '';
   let showPassword = false;
 
-  // --- 1. LÓGICA DE REDIRECIONAMENTO ---
-
+  // --- LÓGICA DE REDIRECIONAMENTO ---
   function getDashboardRoute(user: any) {
-    if (!user) return '/dashboard'; // Fallback seguro
+    if (!user) return '/dashboard';
     
     const isEncarregado = !!user.perfilEncarregado;
     const isProfessor = !!user.perfilProfessor;
@@ -39,20 +37,38 @@
     return '/dashboard';
   }
 
-  // Proteção contra loop no onMount:
-  // Só redireciona se tivermos USER e AUTHENTICATED
-  onMount(() => {
-    if (browser && $auth.isAuthenticated && $auth.user) {
+  // --- 1. REATIVIDADE (O Guarda de Trânsito) ---
+  // Assim que o Auth disser "Estou pronto e é válido", ele redireciona.
+  $: if (browser && !$auth.isLoading && $auth.isAuthenticated && $auth.user) {
+      console.log('🚀 [Login] Utilizador já autenticado. Redirecionando...');
       const target = getDashboardRoute($auth.user);
-      // Evita redirecionar para a própria página de login
+      goto(target, { replaceState: true });
+  }
+
+  // --- 2. INICIALIZAÇÃO FORÇADA ---
+  onMount(async () => {
+    console.log('🏁 [Login] Página montada. Estado atual:', $auth);
+    
+    // CORREÇÃO CRÍTICA: Removemos o 'if' que bloqueava.
+    // Forçamos a verificação sempre que entra no login para garantir que
+    // o estado está fresco (mesmo que o layout já o tenha feito).
+    try {
+        await auth.initializeAuth();
+        console.log('✅ [Login] Auth inicializado. Novo estado:', get(auth));
+    } catch (e) {
+        console.error('❌ [Login] Erro ao inicializar auth:', e);
     }
   });
     
+  // Tratamento de erros de URL
   $: {
     const errorParam = $page.url.searchParams.get('error');
     if (errorParam === "processing_failed") {
-        notifications.send("Falha ao processar o login. Tente novamente.", "error");
-        goto('/login', { replaceState: true });
+        notifications.send("Falha no login Google. Tente novamente.", "error");
+        // Limpa a URL sem recarregar
+        const newUrl = new URL($page.url);
+        newUrl.searchParams.delete('error');
+        goto(newUrl.toString(), { replaceState: true, noScroll: true });
     }
   }
 
@@ -61,25 +77,29 @@
     error = '';
     
     try {
-      // 1. Executa o login (o store atualiza internamente)
+      console.log('🔐 [Login] A tentar login com:', email);
       await auth.login({ email, password });
       
-      // 2. Lê o estado ATUALIZADO do store diretamente
+      // Pequeno delay para garantir que a store propagou
       const currentUser = get(auth).user;
-
-      // 3. Redireciona com base no utilizador que está agora no store
+      
       if (currentUser) {
         const target = getDashboardRoute(currentUser);
-        goto(target);
+        await goto(target);
       } else {
-        // Se por algum motivo o user for null mas o login não deu erro (raro)
-        // Forçamos um refresh do user ou vamos para a raiz
-        await auth.refresh();
-        goto('/dashboard'); 
+        // Fallback: Se o login diz OK mas user é null, tentamos forçar o fetch do user
+        console.warn('⚠️ [Login] Login OK mas user null. A buscar perfil...');
+        await auth.refreshUser(); // Usa refreshUser para buscar dados, não refresh de token
+        const updatedUser = get(auth).user;
+        if (updatedUser) {
+             goto(getDashboardRoute(updatedUser));
+        } else {
+             goto('/dashboard');
+        }
       }
 
     } catch (err: any) {
-      console.error(err);
+      console.error('❌ [Login] Erro:', err);
       error = err.message || 'Credenciais inválidas.';
     } finally {
       isLoading = false;
@@ -90,11 +110,9 @@
     window.location.href = `${PUBLIC_API_URL_HOST}/api/auth/google`;
   }
 
-  // --- 2. ESTILOS ---
   const inputClass = "w-full px-4 py-3 bg-surface-50 dark:bg-surface-900/50 border border-surface-200 dark:border-surface-700 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-sm font-medium text-surface-900 dark:text-white placeholder:text-surface-400";
   const labelClass = "block text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-400 mb-1.5 ml-0.5";
 </script>
-
 <Notification />
 
 <div class="min-h-screen flex items-center justify-center bg-white dark:bg-surface-950 relative overflow-hidden p-4">

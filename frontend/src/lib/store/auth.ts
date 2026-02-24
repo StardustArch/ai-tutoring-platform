@@ -75,7 +75,6 @@ function setCookie(name: string, value: string, days = 7) {
   if (!browser) return;
   const date = new Date();
   date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-  // Adicionado 'Secure' para produção
   const secure = window.location.protocol === 'https:' ? '; Secure' : '';
   document.cookie = `${name}=${value}; expires=${date.toUTCString()}; path=/; SameSite=Lax${secure}`;
 }
@@ -91,7 +90,7 @@ const { subscribe, set, update } = writable<AuthState>({ ...initialState });
 // --- Funções Auxiliares Internas ---
 
 const onRefreshed = (token: string) => {
-  refreshSubscribers.map((cb) => cb(token));
+  refreshSubscribers.forEach((cb) => cb(token));
   refreshSubscribers = [];
 };
 
@@ -118,7 +117,6 @@ const getCurrentUser = async (token: string): Promise<User> => {
 const logout = async () => {
   const currentToken = localStorage.getItem(ACCESS_TOKEN_KEY);
 
-  // 1. Limpeza local imediata (UX First)
   if (browser) {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
@@ -128,7 +126,6 @@ const logout = async () => {
 
   set({ ...initialState, isLoading: false });
 
-  // 2. Tenta avisar o backend (fire and forget)
   if (currentToken) {
     try {
       await fetch(`${PUBLIC_API_URL_HOST}/api/auth/logout`, {
@@ -167,15 +164,13 @@ const refresh = async (): Promise<string> => {
 
     const tokens = await response.json();
 
-    // Atualiza Storage
     localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
-    setCookie(ACCESS_TOKEN_KEY, tokens.accessToken); // Importante para SSR
+    setCookie(ACCESS_TOKEN_KEY, tokens.accessToken);
     
     if (tokens.refreshToken) {
       localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
     }
 
-    // Atualiza Store (sem mudar loading, para ser transparente)
     update(s => ({
       ...s,
       accessToken: tokens.accessToken,
@@ -191,63 +186,34 @@ const refresh = async (): Promise<string> => {
   }
 };
 
-/**
- * 🔥 SUPER IMPORTANTE: Wrapper para fetch que lida com 401
- * Usa isto em vez de 'fetch' ou 'apiFetch' nas tuas páginas
- */
-const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  let token = get({ subscribe }).accessToken;
-
-  // Se não temos token no estado, tenta ler do storage (caso de F5)
-  if (!token && browser) {
-    token = localStorage.getItem(ACCESS_TOKEN_KEY);
-  }
-
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-    'Authorization': `Bearer ${token}`
-  } as HeadersInit;
-
-  let response = await fetch(url, { ...options, headers });
-
-  // Se der 401 (Unauthorized), tenta fazer refresh
-  if (response.status === 401) {
-    if (!isRefreshing) {
-      isRefreshing = true;
-      try {
-        const newToken = await refresh();
-        isRefreshing = false;
-        onRefreshed(newToken);
-      } catch (e) {
-        isRefreshing = false;
-        return response; // Retorna o erro original (logout já foi chamado no refresh)
-      }
-    }
-
-    // Se já estava a fazer refresh, espera que acabe
-    return new Promise((resolve) => {
-      addRefreshSubscriber((newToken) => {
-        // Tenta novamente o pedido original com o novo token
-        const newHeaders = {
-          ...options.headers,
-          'Authorization': `Bearer ${newToken}`
-        } as HeadersInit;
-        resolve(fetch(url, { ...options, headers: newHeaders }));
-      });
-    });
-  }
-
-  return response;
-};
-
 // --- Factory ---
 
 function createAuthStore() {
+  
+  // --- NOVA FUNÇÃO QUE FALTAVA ---
+  // Atualiza apenas os dados do utilizador (Profile) sem mudar o token
+  const refreshUser = async () => {
+    if (!browser) return;
+    
+    // Tenta pegar o token do estado ou do localStorage
+    const token = get({ subscribe }).accessToken || localStorage.getItem(ACCESS_TOKEN_KEY);
+    
+    if (!token) return;
+
+    try {
+        const user = await getCurrentUser(token);
+        // Atualiza persistência e estado
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+        update(s => ({ ...s, user }));
+        return user;
+    } catch (e) {
+        console.error('[AUTH] Failed to refresh user profile:', e);
+    }
+  };
+
   async function initializeAuth() {
     if (!browser) return;
     
-    // Evita loop infinito se já estiver carregado
     const current = get({ subscribe });
     if(current.user && current.isAuthenticated) return;
 
@@ -257,7 +223,6 @@ function createAuthStore() {
     const storedRefresh = localStorage.getItem(REFRESH_TOKEN_KEY);
     const storedUserRaw = localStorage.getItem(USER_KEY);
 
-    // 1. Hidratação Otimista (Mostra dados velhos enquanto valida)
     if (storedUserRaw && storedAccess) {
       update(s => ({
         ...s,
@@ -268,11 +233,9 @@ function createAuthStore() {
       }));
     }
 
-    // 2. Validação Real
     if (storedAccess) {
       try {
         const user = await getCurrentUser(storedAccess);
-        // Atualiza cookie para garantir sincronia
         setCookie(ACCESS_TOKEN_KEY, storedAccess);
         localStorage.setItem(USER_KEY, JSON.stringify(user));
         
@@ -285,7 +248,6 @@ function createAuthStore() {
           isLoading: false 
         }));
       } catch (e) {
-        // Token invalido, tenta refresh
         if (storedRefresh) {
             try {
                 await refresh();
@@ -295,7 +257,6 @@ function createAuthStore() {
                     update(s => ({ ...s, user, isLoading: false }));
                 }
             } catch {
-                // Refresh falhou
                 logout();
             }
         } else {
@@ -307,37 +268,83 @@ function createAuthStore() {
     }
   }
 
+  // Wrapper para fetch que lida com 401
+  const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
+    let token = get({ subscribe }).accessToken;
+
+    if (!token && browser) {
+      token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+      'Authorization': `Bearer ${token}`
+    } as HeadersInit;
+
+    let response = await fetch(url, { ...options, headers });
+
+    if (response.status === 401) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const newToken = await refresh();
+          isRefreshing = false;
+          onRefreshed(newToken);
+        } catch (e) {
+          isRefreshing = false;
+          return response;
+        }
+      }
+
+      return new Promise((resolve) => {
+        addRefreshSubscriber((newToken) => {
+          const newHeaders = {
+            ...options.headers,
+            'Authorization': `Bearer ${newToken}`
+          } as HeadersInit;
+          resolve(fetch(url, { ...options, headers: newHeaders }));
+        });
+      });
+    }
+
+    return response;
+  };
+
   return {
     subscribe,
     set,
-    initializeAuth, // Agora deve ser chamado no onMount do +layout.svelte
-    fetchWithAuth,  // Usa isto nas tuas chamadas de API
+    initializeAuth,
+    fetchWithAuth,
     refresh,
     logout,
+    refreshUser, // <--- EXPORTADA AQUI
     
     login: async (credentials: any) => {
       update(s => ({ ...s, isLoading: true }));
       try {
         let tokens;
         
+        // Suporta login normal (email/pass) ou login direto (tokens oauth)
         if (credentials.email) {
             const res = await fetch(`${PUBLIC_API_URL_HOST}/api/auth/token`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(credentials)
             });
-            if (!res.ok) throw new Error('Login failed');
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'Login falhou');
+            }
             tokens = await res.json();
         } else {
             tokens = credentials;
         }
 
-        // Guarda
         localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
         setCookie(ACCESS_TOKEN_KEY, tokens.accessToken);
         if (tokens.refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
 
-        // Busca User
         const user = await getCurrentUser(tokens.accessToken);
         localStorage.setItem(USER_KEY, JSON.stringify(user));
 

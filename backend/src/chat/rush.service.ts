@@ -16,28 +16,52 @@ export class RushService {
   ) { }
 
   // --- 1. LÓGICA DE DIFICULDADE ---
-  private async getDifficultyLevel(alunoId: number, disciplina: string): Promise<number> {
+// No rush.service.ts
+
+  // --- 1. LÓGICA DE DIFICULDADE DINÂMICA ---
+  private async getDifficultyLevel(alunoId: number, topicoId: number, disciplina: string): Promise<number> {
     if (!alunoId) return 3;
 
+    // 1. Tenta buscar a proficiência ATUAL (Real-time)
+    const proficiencia = await this.prisma.alunoProficienciaTopico.findUnique({
+        where: { alunoId_topicoId: { alunoId, topicoId } }
+    });
+
+    if (proficiencia) {
+        // Mapeia o Enum de Proficiência para Número (1-5)
+        const mapProf: Record<string, number> = {
+            'INICIANTE': 1,
+            'ABAIXO_MEDIA': 2,
+            'NA_MEDIA': 3,
+            'AVANCADO': 4,
+            'EXPERT': 5 // Caso tenhas este nível, senão 4 ou 5
+        };
+        // Se já temos histórico neste tópico, usamos isso!
+        if (proficiencia.nivel !== 'NAO_DIAGNOSTICADO') {
+            return mapProf[proficiencia.nivel] || 3;
+        }
+    }
+
+    // 2. Fallback: Se não tem proficiência no tópico, usa o Diagnóstico Inicial (Snapshot)
     const diagnostic = await this.prisma.diagnosticoInicial.findUnique({
       where: {
         alunoId_disciplina: { alunoId, disciplina }
       }
     });
 
-    if (!diagnostic || new Date() > diagnostic.validoAte) {
-      return 3;
+    if (diagnostic && new Date() < diagnostic.validoAte) {
+        const mapDiag: Record<string, number> = {
+            'MUITO_FACIL': 1,
+            'FACIL': 2,
+            'MEDIO': 3,
+            'DIFICIL': 4,
+            'MUITO_DIFICIL': 5
+        };
+        return mapDiag[diagnostic.nivelDiagnosticado] || 3;
     }
 
-    const map: Record<NivelDificuldade, number> = {
-      [NivelDificuldade.MUITO_FACIL]: 1,
-      [NivelDificuldade.FACIL]: 2,
-      [NivelDificuldade.MEDIO]: 3,
-      [NivelDificuldade.DIFICIL]: 4,
-      [NivelDificuldade.MUITO_DIFICIL]: 5
-    };
-
-    return map[diagnostic.nivelDiagnosticado] || 3;
+    // 3. Default absoluto
+    return 3;
   }
 
   // --- 2. GERAR PERGUNTA ---
@@ -98,7 +122,7 @@ export class RushService {
       : [];
 
     // F. Chamada IA
-    const dificuldade = await this.getDifficultyLevel(alunoId, subject);
+    const dificuldade = await this.getDifficultyLevel(alunoId,topicoId, subject);
 
     const payload = {
       student_class: classeInt,
@@ -182,6 +206,7 @@ export class RushService {
           data: { xp: { increment: 10 } }
         });
 
+        await this.updateProficiencyLevel(alunoId, topicoId, acertou, tx);
         // ✅ CORREÇÃO 1: Retornar objeto consistente
         return {
           ...resultado,
@@ -319,4 +344,61 @@ export class RushService {
     return topico.id;
   }
 
+  // --- LÓGICA DE ADAPTAÇÃO ESTÁVEL ---
+  private async updateProficiencyLevel(alunoId: number, topicoId: number, acertou: boolean, tx: any) {
+      
+      // 1. Amostra Maior: Busca as últimas 12 respostas (dá margem para deslizes)
+      const ultimos = await tx.exercicioResultado.findMany({
+          where: { alunoId, topicoId },
+          orderBy: { timestamp: 'desc' },
+          take: 12, 
+          select: { acertou: true }
+      });
+
+      // 2. REGRA DE OURO: "Fase de Estabilização"
+      // Se o aluno respondeu menos de 10 vezes, NÃO MEXEMOS NO NÍVEL.
+      // Deixa ele aquecer no nível que o Diagnóstico definiu.
+      if (ultimos.length < 10) return;
+
+      // 3. Analisa a Consistência (Janela Deslizante)
+      const acertos = ultimos.filter(r => r.acertou).length;
+      const total = ultimos.length;
+      const taxa = acertos / total; // Ex: 0.8 = 80%
+
+      // Busca nível atual
+      const atual = await tx.alunoProficienciaTopico.findUnique({
+          where: { alunoId_topicoId: { alunoId, topicoId } }
+      });
+      
+      if (!atual) return;
+
+      const niveis = ['INICIANTE', 'ABAIXO_MEDIA', 'NA_MEDIA', 'AVANCADO']; // Adicionei se quiseres
+        
+      let index = niveis.indexOf(atual.nivel);
+      if(index === -1) index = 0; // Default
+
+      let novoIndex = index;
+
+      // 4. Regras Conservadoras
+      
+      // PROMOÇÃO: Só sobe se for EXCELENTE (> 80%) e não estiver já no topo
+      if (taxa >= 0.8 && index < (niveis.length - 1)) {
+          novoIndex++;
+      } 
+      // DESPROMOÇÃO: Só desce se estiver CRÍTICO (< 30%) e não for iniciante
+      // Se ele estiver a acertar 40% ou 50%, mantém o nível. É o "Struggle" saudável.
+      else if (taxa <= 0.3 && index > 0) {
+          novoIndex--;
+      }
+
+      // 5. Só atualiza a BD se o nível realmente mudou
+      if (novoIndex !== index) {
+             await tx.alunoProficienciaTopico.update({
+                 where: { id: atual.id },
+                 data: { nivel: niveis[novoIndex] as any }
+             });
+             
+             console.log(`📈 [ADAPTATIVO] Mudança Estável: Aluno ${alunoId} passou de ${niveis[index]} para ${niveis[novoIndex]} (Taxa: ${(taxa*100).toFixed(1)}%)`);
+      }
+  }
 }

@@ -10,13 +10,16 @@
         UserCheck, MapPin, GitBranch, Calendar, BookOpen, Mail, Box,
         CheckCircle2, Play, Trophy, Star,
 
-		BrainCircuit
+		BrainCircuit,
+
+		Flame
+
 
     } from 'lucide-svelte';
     import { goto } from '$app/navigation';
     import confetti from 'canvas-confetti';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
-
+    import SessionTimer from '$lib/components/SessionTimer.svelte'; // <--- ADICIONA ISTO
     // --- PARÂMETROS ---
     let studentId = $page.params.id || '';
     let turmaId = Number($page.params.class) || 0; 
@@ -26,6 +29,7 @@
     let studentClass: any = 3; 
     let studentData: any = null;
     let allowedTopicIds: number[] = []; 
+    let isTimeUp = false; // <--- NOVA VARIÁVEL
 
     type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER' | 'BLOCKED' | 'DIAGNOSTIC';
     let currentState: GameState = 'MENU';
@@ -44,7 +48,8 @@
     let isCorrect: boolean | null = null;
     let lives = 3;
     let score = 0;
-    let blockTimeRemaining = '';
+    let streak = 0; // <--- NOVA VARIÁVEL
+    let blockTimeRemaining: any;
     let blockedUntil: Date | null = null;
 
     // Estatísticas
@@ -103,6 +108,11 @@
         return subject === 'matematica' ? 'bg-blue-500' : 'bg-green-500';
     }
 
+    function handleTimeUp() {
+    isTimeUp = true;
+    currentState = 'GAMEOVER';
+    // Opcional: Som de apito ou confettis cinzentos
+}
 // 1. O GATILHO: Quando o aluno clica num tópico
 async function checkAndStartGame(subject: string, subtopic: string) {
     // Guarda o que o aluno queria jogar
@@ -211,6 +221,27 @@ async function handleDiagnosticAnswer(option: string) {
     }, 1000); // Reduzi para 1s para ser mais fluido
 }
 
+function startBlockCountdown() {
+        if (blockTimeRemaining) clearInterval(blockTimeRemaining);
+        
+        blockTimeRemaining = setInterval(() => {
+            if (!blockedUntil) return;
+            
+            const now = new Date();
+            const diff = new Date(blockedUntil).getTime() - now.getTime();
+            
+            if (diff <= 0) {
+                clearInterval(blockTimeRemaining);
+                currentState = 'MENU';
+                blockedUntil = null;
+                // Opcional: Atualizar a lista de tópicos para desbloquear visualmente
+            } else {
+                const m = Math.floor(diff / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                blockTimeRemaining = `${m}:${s < 10 ? '0' : ''}${s}`;
+            }
+        }, 1000);
+    }
 // 4. FINALIZAR DIAGNÓSTICO
 async function submitDiagnosticResults() {
     loading = true;
@@ -266,7 +297,8 @@ async function submitDiagnosticResults() {
             
             if (res.status === 403) {
                 const error = await res.json();
-                blockedUntil = new Date(error.blockedUntil);
+                blockedUntil = error.blockedUntil; // Garante que é string ou date
+                startBlockCountdown(); // <--- INICIA O TIMER VISUAL
                 currentState = 'BLOCKED';
                 return;
             }
@@ -281,19 +313,32 @@ async function submitDiagnosticResults() {
         const correctAnswer = questionData.correct_answer; 
         isCorrect = option === correctAnswer;
 
-        if (isCorrect) {
-            confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 }, colors: ['#4ade80', '#22c55e', '#ffffff'] });
-            score += 10; stats.xp += 10; stats.acertos += 1;
+if (isCorrect) {
+            streak++; // <--- AUMENTA O COMBO
+            
+            // Efeito visual extra se tiver um combo alto
+            if (streak >= 3) {
+                 confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 }, colors: ['#f59e0b', '#ef4444'] });
+            } else {
+                 confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 }, colors: ['#4ade80', '#22c55e', '#ffffff'] });
+            }
+
+            score += 10 + (streak * 2); // Bónus por combo!
+            stats.xp += 10 + (streak * 2);
+            stats.acertos += 1;
         } else {
-            stats.erros += 1; lives--;
+            streak = 0; // <--- ZERA O COMBO
+            stats.erros += 1; 
+            lives--;
         }
 
         const total = stats.acertos + stats.erros;
         stats.taxaAcerto = total > 0 ? Math.round((stats.acertos / total) * 100) : 0;
         stats.totalExercicios = total;
 
-        try {
+try {
             const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/answer`, {
+                // ... (mantém o body igual) ...
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -307,8 +352,11 @@ async function submitDiagnosticResults() {
             });
             
             const result = await res.json();
+            
+            // SE FOR BLOQUEADO:
             if (result.blocked && result.blockedUntil) {
-                blockedUntil = new Date(result.blockedUntil);
+                blockedUntil = result.blockedUntil;
+                startBlockCountdown(); // <--- INICIA O TIMER VISUAL
                 setTimeout(() => { currentState = 'BLOCKED'; }, 1500);
             }
         } catch (error) { console.error(error); }
@@ -331,49 +379,57 @@ async function submitDiagnosticResults() {
 
 <div class="flex flex-col h-screen bg-gradient-to-b from-amber-100 via-orange-50 to-white font-['Fredoka'] overflow-hidden">
     
-    <div class="flex justify-between items-center p-4 bg-white/90 backdrop-blur-sm border-b-4 border-amber-200 z-10 shadow-sm">
-        <button on:click={() => currentState === 'MENU' ? exitSession() : currentState = 'MENU'} 
-                class="p-2 rounded-xl bg-white border-2 border-slate-200 text-slate-400 hover:border-amber-400 hover:text-amber-500 hover:scale-105 transition-all shadow-sm active:translate-y-1 active:border-b-2">
-            <ArrowLeft size={28} strokeWidth={3} />
-        </button>
-        
-        {#if currentState === 'PLAYING'}
-            <div class="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border-2 border-red-100 shadow-sm animate-pop-in">
-                {#each Array(3) as _, i}
-                    <Heart 
-                        size={28} 
-                        class={`transition-all duration-500 ${i < lives ? 'text-red-500 fill-red-500 animate-pulse-slow' : 'text-slate-200 fill-slate-100'}`} 
-                    />
-                {/each}
-            </div>
-        {:else}
-            <div class="flex flex-col items-center">
-                <h1 class="font-black text-2xl text-amber-500 flex items-center gap-2 drop-shadow-sm tracking-wide">
-                    <Zap class="fill-current animate-bounce-slow" /> MODO RUSH
-                </h1>
-            </div>
-        {/if}
-        
-        <div class="bg-amber-100 border-2 border-amber-200 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
-            <Star class="text-amber-500 fill-amber-500" size={18} />
-            <span class="text-lg font-black text-amber-600">{stats.xp} XP</span>
+<div class="flex justify-between items-center p-4 bg-white/90 backdrop-blur-sm border-b-4 border-amber-200 z-10 shadow-sm gap-2">
+    <button on:click={() => currentState === 'MENU' ? exitSession() : currentState = 'MENU'} 
+            class="p-2 rounded-xl bg-white border-2 border-slate-200 text-slate-400 hover:border-amber-400 hover:text-amber-500 hover:scale-105 transition-all shadow-sm active:translate-y-1 active:border-b-2">
+        <ArrowLeft size={28} strokeWidth={3} />
+    </button>
+    
+    {#if currentState === 'PLAYING'}
+        <div class="hidden sm:flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border-2 border-red-100 shadow-sm animate-pop-in">
+            {#each Array(3) as _, i}
+                <Heart 
+                    size={24} 
+                    class={`transition-all duration-500 ${i < lives ? 'text-red-500 fill-red-500 animate-pulse-slow' : 'text-slate-200 fill-slate-100'}`} 
+                />
+            {/each}
         </div>
+    {:else}
+        <div class="hidden sm:flex flex-col items-center">
+            <h1 class="font-black text-xl text-amber-500 flex items-center gap-2 drop-shadow-sm tracking-wide">
+                <Zap class="fill-current animate-bounce-slow" size={20} /> RUSH
+            </h1>
+        </div>
+    {/if}
+    
+    <div class="scale-90 sm:scale-100 {currentState === 'GAMEOVER' || currentState === 'BLOCKED' ? 'invisible' : ''}">
+        <SessionTimer on:timeup={handleTimeUp} />
     </div>
 
-    {#if currentState === 'BLOCKED'}
-        <div class="flex-1 flex flex-col items-center justify-center text-center p-6 animate-zoom-in">
-            <div class="bg-rose-100 p-8 rounded-full mb-6 border-4 border-rose-200 animate-shake">
-                <Lock size={64} class="text-rose-500" />
-            </div>
-            <h2 class="text-3xl font-black text-slate-800 mb-2">Pausa para Café! ☕</h2>
-            <p class="text-slate-500 text-lg max-w-xs mx-auto">Já treinaste muito este tópico. Vamos dar descanso ao cérebro.</p>
-            <div class="my-8 bg-white px-8 py-4 rounded-2xl shadow-lg border-b-4 border-slate-200">
-                <p class="font-black text-rose-500 text-4xl font-mono tracking-widest">{blockTimeRemaining}</p>
-            </div>
-            <button on:click={() => currentState = 'MENU'} class="px-10 py-5 bg-blue-500 text-white rounded-2xl font-bold shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 hover:brightness-110 transition-all">
-                Escolher Outra Missão
-            </button>
+    <div class="bg-amber-100 border-2 border-amber-200 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
+        <Star class="text-amber-500 fill-amber-500" size={18} />
+        <span class="text-lg font-black text-amber-600">{stats.xp}</span>
+    </div>
+</div>
+{#if currentState === 'BLOCKED'}
+    <div class="flex-1 flex flex-col items-center justify-center text-center p-6 animate-zoom-in">
+        <div class="bg-rose-100 p-8 rounded-full mb-6 border-4 border-rose-200 animate-shake">
+            <Lock size={64} class="text-rose-500" />
         </div>
+        <h2 class="text-3xl font-black text-slate-800 mb-2">Pausa para Café! ☕</h2>
+        <p class="text-slate-500 text-lg max-w-xs mx-auto mb-6">Já treinaste muito este tópico. Vamos dar descanso ao cérebro.</p>
+        
+        <div class="my-4 bg-slate-900 text-white px-10 py-6 rounded-3xl shadow-xl border-b-8 border-slate-700 w-full max-w-xs mx-auto">
+            <div class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Volta em</div>
+            <p class="font-black text-5xl font-mono tracking-widest tabular-nums animate-pulse">
+                {blockTimeRemaining || "--:--"}
+            </p>
+        </div>
+
+        <button on:click={() => currentState = 'MENU'} class="mt-8 px-10 py-5 bg-blue-500 text-white rounded-2xl font-bold shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 hover:brightness-110 transition-all">
+            Escolher Outra Missão
+        </button>
+    </div>
 
     {:else if currentState === 'MENU'}
         <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
@@ -521,11 +577,25 @@ async function submitDiagnosticResults() {
             </div>
         {:else if questionData}
              <div class="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full p-6 animate-pop-in pb-32">
-                <div class="text-center mb-6">
-                    <span class="bg-white border-2 border-slate-100 text-slate-400 text-sm font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-sm">
-                        {selectedSubtopic}
-                    </span>
-                </div>
+<div class="flex items-center justify-center gap-4 mb-8">
+    
+    <span class="bg-white border-2 border-slate-100 text-slate-500 text-sm font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-2">
+        <Hash size={14} /> {selectedSubtopic}
+    </span>
+
+    {#if streak > 1}
+        <div class="flex items-center gap-1.5 bg-orange-100 text-orange-600 px-3 py-1.5 rounded-full border-2 border-orange-200 shadow-sm animate-pop-in">
+            <div class="relative">
+                <Flame size={18} class="fill-orange-500 animate-pulse" />
+                <span class="absolute -top-1 -right-1 flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                </span>
+            </div>
+            <span class="font-black text-sm">COMBO x{streak}</span>
+        </div>
+    {/if}
+</div>
                 
                 <div class="bg-white p-8 rounded-3xl shadow-xl border-b-8 border-slate-100 mb-8 relative">
                     <div class="absolute -top-4 -left-4 bg-yellow-400 text-white p-2 rounded-xl rotate-12 shadow-lg">
@@ -574,12 +644,22 @@ async function submitDiagnosticResults() {
                         
                         <div class="flex-1 w-full text-center sm:text-left">
                             {#if isCorrect}
-                                <div class="text-green-700 font-black text-2xl flex items-center justify-center sm:justify-start gap-2 mb-2">
-                                    <CheckCircle2 class="fill-current" size={32} /> ACERTASTE!
-                                </div>
-                                <p class="text-green-800 text-lg font-medium leading-relaxed">
-                                    {questionData.explanation || "Muito bem! Ganhaste 10 XP."}
-                                </p>
+<div class="text-green-700 font-black text-2xl flex items-center justify-center sm:justify-start gap-2 mb-2">
+            <CheckCircle2 class="fill-current" size={32} /> 
+            {#if streak > 2} 
+                IMPARÁVEL! 🔥 
+            {:else} 
+                ACERTASTE! 
+            {/if}
+        </div>
+        <p class="text-green-800 text-lg font-medium leading-relaxed">
+            {questionData.explanation || "Muito bem! Ganhaste XP."}
+            {#if streak > 1}
+                <span class="block text-sm font-bold mt-1 text-green-600 uppercase tracking-wide">
+                    + {streak * 2} XP de Bónus de Combo!
+                </span>
+            {/if}
+        </p>
                             {:else}
                                 <div class="text-rose-600 font-black text-2xl flex items-center justify-center sm:justify-start gap-2 mb-2">
                                     <X class="fill-current" size={32} /> ERRADO
@@ -603,17 +683,40 @@ async function submitDiagnosticResults() {
 
         {/if}
 
-    {:else if currentState === 'GAMEOVER'}
+{:else if currentState === 'GAMEOVER'}
         <div class="flex-1 flex flex-col items-center justify-center p-6 text-center animate-zoom-in">
-            <div class="mb-6 text-8xl animate-bounce">💔</div>
-            <h1 class="text-5xl font-black text-slate-800 mb-4">Acabaram as vidas!</h1>
+            
+            <div class="mb-6 text-8xl animate-bounce">
+                {#if isTimeUp} ⏰ {:else} 💔 {/if}
+            </div>
+
+            <h1 class="text-4xl md:text-5xl font-black text-slate-800 mb-4">
+                {#if isTimeUp}
+                    Tempo Esgotado!
+                {:else}
+                    Acabaram as vidas!
+                {/if}
+            </h1>
+
+            <p class="text-slate-500 text-lg mb-6 max-w-xs mx-auto">
+                {#if isTimeUp}
+                    O teu cérebro precisa de recarregar energias. Bom trabalho hoje!
+                {:else}
+                    Não desistas! Tenta novamente para melhorares a pontuação.
+                {/if}
+            </p>
+
             <div class="bg-white p-6 rounded-3xl shadow-lg border-2 border-slate-100 mb-8 w-full max-w-sm">
                 <p class="text-slate-500 font-bold uppercase tracking-widest text-sm mb-2">Total da Sessão</p>
                 <p class="text-6xl font-black text-amber-500">{score} <span class="text-2xl text-amber-300">XP</span></p>
             </div>
             
-            <button on:click={() => currentState = 'MENU'} class="w-full max-w-xs px-8 py-5 bg-blue-500 text-white rounded-2xl font-bold shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 hover:brightness-110 transition-all text-xl">
-                Voltar ao Mapa
+            <button on:click={() => { 
+                    if(isTimeUp) { exitSession(); } // Se acabou o tempo, sai mesmo
+                    else { currentState = 'MENU'; isTimeUp = false; lives = 3; } // Se morreu, pode tentar outra
+                }} 
+                class="w-full max-w-xs px-8 py-5 bg-blue-500 text-white rounded-2xl font-bold shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 hover:brightness-110 transition-all text-xl">
+                {#if isTimeUp} Terminar por Hoje {:else} Voltar ao Mapa {/if}
             </button>
         </div>
     {/if}

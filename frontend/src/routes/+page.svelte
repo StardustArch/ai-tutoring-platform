@@ -11,7 +11,25 @@
     MessageCircle, Award, Target, ChevronRight, Calculator, 
     CheckCircle2, Star, ArrowRight,
 
-	Play
+	Play,
+
+	Battery
+,
+
+	Flame
+,
+
+	Home
+,
+
+	MessageSquare
+,
+
+	Signal
+,
+
+	User
+
 
   } from 'lucide-svelte';
 
@@ -167,9 +185,10 @@
           Como Funciona
         </a>
       </div>
-
-<div class="mt-20 relative mx-auto max-w-5xl animate-fade-in-up delay-500 px-4 sm:px-0">
-        <div class="relative bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-2xl overflow-hidden aspect-auto md:aspect-[21/9]">
+<div class="relative w-full max-w-7xl mx-auto px-4 py-12 flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12">
+    
+    <div class="w-full lg:flex-1 animate-fade-in-up delay-200">
+        <div class="relative bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-700 shadow-2xl overflow-hidden aspect-[16/10] md:aspect-[21/9]">
             
             <div class="h-10 border-b border-surface-100 dark:border-surface-800 flex items-center px-4 justify-between bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-sm">
                 <div class="flex gap-1.5">
@@ -178,20 +197,18 @@
                     <div class="w-3 h-3 rounded-full bg-green-400/80"></div>
                 </div>
                 <div class="hidden sm:flex text-[10px] text-surface-400 font-mono bg-white dark:bg-surface-800 px-3 py-1 rounded-md border border-surface-200 dark:border-surface-700">
-                    kanimente.co.mz/aluno/dashboard
+                    kanimente.co.mz/aluno
                 </div>
-                <div class="w-10"></div> </div>
+                <div class="w-10"></div> 
+            </div>
 
             <div class="p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 h-full bg-surface-50/30 dark:bg-surface-950">
-                
                 <div class="md:col-span-2 space-y-4 flex flex-col justify-center">
-                    
                     <div class="bg-white dark:bg-surface-800 rounded-xl p-5 border border-surface-200 dark:border-surface-700 shadow-sm flex items-center justify-between relative overflow-hidden group">
                         <div class="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-primary-50 to-transparent dark:from-primary-900/20 opacity-50"></div>
-                        
                         <div class="relative z-10">
                             <h3 class="font-bold text-surface-900 dark:text-white text-lg">Olá, Campeão! 👋</h3>
-                            <p class="text-sm text-surface-500 mb-3">Vamos continuar a missão de Matemática?</p>
+                            <p class="text-sm text-surface-500 mb-3">Vamos continuar a missão?</p>
                             <div class="flex items-center gap-2 text-xs font-bold text-primary-600 bg-primary-50 dark:bg-primary-900/30 dark:text-primary-400 px-3 py-1.5 rounded-lg w-fit">
                                 <Zap size={14} class="fill-current" /> Modo Rush: Frações
                             </div>
@@ -207,11 +224,7 @@
                                 <Award size={14} class="text-amber-500" /> XP Total
                             </div>
                             <div class="text-2xl font-black text-surface-900 dark:text-white">1,250</div>
-                            <div class="text-[10px] text-green-600 font-bold flex items-center mt-1">
-                                <TrendingUp size={10} class="mr-1" /> +150 hoje
-                            </div>
                         </div>
-
                         <div class="bg-white dark:bg-surface-800 rounded-xl p-4 border border-surface-200 dark:border-surface-700 shadow-sm">
                             <div class="flex items-center gap-2 mb-2 text-surface-500 text-xs font-bold uppercase tracking-wider">
                                 <Target size={14} class="text-blue-500" /> Matemática
@@ -219,62 +232,130 @@
                             <div class="w-full bg-surface-100 dark:bg-surface-700 rounded-full h-2 mb-2">
                                 <div class="bg-blue-500 h-2 rounded-full" style="width: 75%"></div>
                             </div>
-                            <div class="text-[10px] text-surface-500 flex justify-between">
-                                <span>Nível 4</span>
-                                <span class="font-bold text-surface-900 dark:text-white">75%</span>
-                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="md:col-span-1 h-full rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 p-5 flex flex-col gap-4 relative">
-                    
+                <div class="hidden md:flex md:col-span-1 h-full rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 p-5 flex-col gap-4">
                     <div class="flex items-center gap-3 pb-4 border-b border-surface-100 dark:border-surface-700">
-                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold">
-                            J
-                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold">J</div>
                         <div>
                             <div class="text-sm font-bold text-surface-900 dark:text-white">João Silva</div>
                             <div class="text-xs text-surface-500">3ª Classe</div>
                         </div>
                     </div>
-
                     <div class="space-y-3">
-                        <div class="text-xs font-bold text-surface-400 uppercase tracking-wider">Próximas Conquistas</div>
-                        
-                        <div class="flex items-center gap-3 opacity-100">
-                            <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/20 text-amber-600 flex items-center justify-center">
-                                <Zap size={14} />
-                            </div>
+                         <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><Zap size={14}/></div>
                             <div class="flex-1">
-                                <div class="text-xs font-bold text-surface-700 dark:text-surface-200">Velocista</div>
-                                <div class="w-full bg-surface-100 dark:bg-surface-700 rounded-full h-1 mt-1">
-                                    <div class="bg-amber-500 h-1 rounded-full" style="width: 80%"></div>
-                                </div>
+                                <div class="text-xs font-bold">Velocista</div>
+                                <div class="w-full bg-surface-100 h-1 mt-1 rounded-full"><div class="bg-amber-500 w-4/5 h-1 rounded-full"></div></div>
                             </div>
-                        </div>
-
-                        <div class="flex items-center gap-3 opacity-60">
-                            <div class="w-8 h-8 rounded-full bg-surface-100 dark:bg-surface-700 text-surface-400 flex items-center justify-center">
-                                <BookOpen size={14} />
-                            </div>
-                            <div class="flex-1">
-                                <div class="text-xs font-bold text-surface-500">Leitor Voraz</div>
-                                <div class="w-full bg-surface-100 dark:bg-surface-700 rounded-full h-1 mt-1">
-                                    <div class="bg-surface-400 h-1 rounded-full" style="width: 30%"></div>
-                                </div>
-                            </div>
-                        </div>
+                         </div>
                     </div>
                 </div>
             </div>
-            
-            <div class="absolute bottom-6 right-6 bg-surface-900 dark:bg-white text-white dark:text-surface-900 px-4 py-2 rounded-lg text-sm font-bold shadow-xl flex items-center gap-2 animate-bounce-slow">
-                <CheckCircle2 size={16} class="text-green-500" />
-                Desempenho: Excelente
-            </div>
         </div>
-      </div>
+    </div>
+
+    <div class="relative flex-shrink-0 w-[280px] h-[580px] bg-surface-900 rounded-[3rem] border-[8px] border-surface-900 shadow-2xl animate-fade-in-up delay-500 transform lg:translate-y-12 ring-1 ring-white/10">
+        
+        <div class="absolute top-24 -right-3 w-1 h-16 bg-surface-800 rounded-r-md"></div>
+        <div class="absolute top-24 -left-3 w-1 h-8 bg-surface-800 rounded-l-md"></div>
+        <div class="absolute top-36 -left-3 w-1 h-16 bg-surface-800 rounded-l-md"></div>
+
+        <div class="w-full h-full bg-surface-50 dark:bg-surface-950 rounded-[2.5rem] overflow-hidden flex flex-col relative">
+            
+            <div class="h-8 flex justify-between items-center px-6 text-[10px] font-bold text-surface-900 dark:text-white pt-2">
+                <span>9:41</span>
+                <div class="flex gap-1">
+                    <div class="w-3 h-3"><Signal size={10} /></div>
+                    <div class="w-3 h-3"><Battery size={10} /></div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between px-5 py-4">
+                <div class="flex flex-col">
+                    <span class="text-xs text-surface-500">Bom dia,</span>
+                    <span class="text-lg font-bold text-surface-900 dark:text-white">João 👋</span>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 p-0.5 shadow-md">
+                    <div class="w-full h-full rounded-full border-2 border-white dark:border-surface-900 flex items-center justify-center text-white font-bold text-sm">
+                        J
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-5 pb-20 space-y-4 no-scrollbar">
+                
+                <div class="bg-primary-600 rounded-2xl p-5 text-white shadow-lg shadow-primary-500/30 relative overflow-hidden">
+                    <div class="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8 blur-xl"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-2 text-primary-100 text-xs font-bold uppercase tracking-wider mb-1">
+                            <Zap size={12} class="fill-current" /> Modo Rush
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">Frações</h3>
+                        <button class="bg-white text-primary-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform flex items-center gap-2">
+                            <Play size={12} class="fill-current" /> Jogar Agora
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-white dark:bg-surface-800 p-3 rounded-xl border border-surface-200 dark:border-surface-700 shadow-sm flex flex-col items-center justify-center text-center gap-1">
+                        <div class="bg-amber-100 dark:bg-amber-900/30 p-2 rounded-full text-amber-500 mb-1">
+                            <Award size={16} />
+                        </div>
+                        <span class="text-lg font-black text-surface-900 dark:text-white">1,250</span>
+                        <span class="text-[10px] text-surface-400 font-bold uppercase">XP Total</span>
+                    </div>
+                    <div class="bg-white dark:bg-surface-800 p-3 rounded-xl border border-surface-200 dark:border-surface-700 shadow-sm flex flex-col items-center justify-center text-center gap-1">
+                        <div class="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-500 mb-1">
+                            <Flame size={16} />
+                        </div>
+                        <span class="text-lg font-black text-surface-900 dark:text-white">5</span>
+                        <span class="text-[10px] text-surface-400 font-bold uppercase">Dias Seq.</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-bold text-surface-900 dark:text-white mb-3">Continuar</h4>
+                    <div class="bg-white dark:bg-surface-800 p-3 rounded-xl border border-surface-200 dark:border-surface-700 shadow-sm flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                            <Calculator size={18} />
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-xs font-bold text-surface-900 dark:text-white">Geometria</div>
+                            <div class="w-full bg-surface-100 dark:bg-surface-700 h-1 mt-1 rounded-full">
+                                <div class="bg-blue-500 w-1/2 h-1 rounded-full"></div>
+                            </div>
+                        </div>
+                        <ChevronRight size={16} class="text-surface-400" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="absolute bottom-0 w-full bg-white dark:bg-surface-800 border-t border-surface-200 dark:border-surface-700 px-6 py-4 flex justify-between items-center text-surface-400">
+                <button class="flex flex-col items-center gap-1 text-primary-600 dark:text-primary-400">
+                    <Home size={20} />
+                    <span class="text-[10px] font-bold">Início</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 hover:text-surface-600 dark:hover:text-surface-200 transition-colors">
+                    <BookOpen size={20} />
+                </button>
+                <button class="flex flex-col items-center gap-1 hover:text-surface-600 dark:hover:text-surface-200 transition-colors">
+                    <MessageSquare size={20} />
+                </button>
+                <button class="flex flex-col items-center gap-1 hover:text-surface-600 dark:hover:text-surface-200 transition-colors">
+                    <User size={20} />
+                </button>
+            </div>
+
+            <div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1/3 h-1 bg-surface-900/20 dark:bg-white/20 rounded-full"></div>
+
+        </div>
+    </div>
+</div>
     </div>
   </section>
 
