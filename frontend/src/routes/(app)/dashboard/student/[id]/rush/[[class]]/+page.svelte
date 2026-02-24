@@ -20,6 +20,8 @@
     import confetti from 'canvas-confetti';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
     import SessionTimer from '$lib/components/SessionTimer.svelte'; // <--- ADICIONA ISTO
+      import { notifications } from '$lib/store/notifications'; 
+
     // --- PARÂMETROS ---
     let studentId = $page.params.id || '';
     let turmaId = Number($page.params.class) || 0; 
@@ -260,7 +262,7 @@ async function submitDiagnosticResults() {
         // Sucesso! Agora o aluno pode jogar o que queria originalmente
         // Mostra um alerta de sucesso ou vai direto
         confetti({ particleCount: 200, spread: 100 });
-        alert("Diagnóstico completo! Agora estás pronto para jogar.");
+        notifications.send("Diagnóstico completo! Agora estás pronto para jogar.", "info");
         
         // Redireciona para o jogo normal
         startGame(selectedSubject, selectedSubtopic);

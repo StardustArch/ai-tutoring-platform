@@ -5,7 +5,7 @@
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import { notifications } from '$lib/store/notifications';
-  
+  import { confirm } from '$lib/store/confirm';
   import { 
     ArrowLeft, Users, Settings, Copy, BookOpen, 
     Calendar, UserX, Search, School, CheckCircle,
@@ -63,7 +63,13 @@
   }
 
   async function renovarCodigo() {
-    if (!confirm('Tem a certeza? O código antigo deixará de funcionar imediatamente.')) return;
+    const aceitou = await confirm({
+        title: 'Tem a certeza que deseja gerar um novo código?',
+        message: 'O código antigo deixará de funcionar imediatamente.',
+        type: "info", // Fica Laranja/Amarelo
+        cancelText: 'Cancelar'
+    });
+if (!aceitou) return; // Se disser não, para aqui.
 
     isRenewing = true;
     try {
@@ -87,7 +93,14 @@
 
   async function removerAluno(alunoId: number, nome: string, event: Event) {
     event.stopPropagation();
-    if (!confirm(`Tem a certeza que deseja remover ${nome} desta turma?`)) return;
+        const aceitou = await confirm({
+        title: 'Tem a certeza?',
+        message: `Deseja remover ${nome} desta turma?`,
+        type: 'warning', // Fica Laranja/Amarelo
+        confirmText: 'Sim, remover',
+        cancelText: 'Cancelar'
+    });
+if (!aceitou) return; // Se disser não, para aqui.
 
     try {
       const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/${classId}/alunos/${alunoId}`, {

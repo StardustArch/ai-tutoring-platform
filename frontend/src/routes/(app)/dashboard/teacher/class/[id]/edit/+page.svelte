@@ -5,7 +5,7 @@
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import { notifications } from '$lib/store/notifications';
-  
+  import { confirm } from '$lib/store/confirm';
   import { 
     ArrowLeft, Save, Trash2, AlertTriangle, 
     School, Loader, Ban, CheckCircle2, Archive
@@ -79,9 +79,14 @@
   }
 
   async function arquivarTurma() {
-    if (!confirm(`Tem a certeza que deseja arquivar a turma "${formData.nome}"?\n\nIsto irá remover o acesso dos alunos, mas manterá o histórico.`)) {
-        return;
-    }
+        const aceitou = await confirm({
+        title: `Tem a certeza que deseja arquivar a turma "${formData.nome}"?`,
+        message: 'Isto irá remover o acesso dos alunos, mas manterá o histórico.',
+        type: "danger", // Fica Laranja/Amarelo
+        cancelText: 'Cancelar'
+    });
+if (!aceitou) return; // Se disser não, para aqui.
+
 
     isDeleting = true;
     try {

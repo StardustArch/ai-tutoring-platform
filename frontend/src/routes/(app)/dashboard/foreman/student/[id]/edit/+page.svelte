@@ -9,7 +9,7 @@
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import { notifications } from '$lib/store/notifications';
-  
+  import { confirm } from '$lib/store/confirm';
   import { 
     ArrowLeft, Save, Trash2, AlertTriangle, User, 
     Loader, Calendar, GraduationCap, X, User2
@@ -89,7 +89,13 @@
   }
 
   async function deleteStudent() {
-    if (!confirm('Tem a certeza que deseja remover este perfil? Todos os dados e o histórico escolar serão apagados permanentemente.')) return;
+        const aceitou = await confirm({
+        title: 'Tem a certeza que deseja remover este perfil?',
+        message: 'Todos os dados e o histórico escolar serão apagados permanentemente.',
+        type: "warning", // Fica Laranja/Amarelo
+        cancelText: 'Cancelar'
+    });
+if (!aceitou) return; // Se disser não, para aqui.
 
     isDeleting = true;
     try {
