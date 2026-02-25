@@ -16,6 +16,7 @@ import { ChatModule } from './chat/chat.module';
 import { DiagnosticModule } from './diagnostic/diagnostic.module';
 import { SessionModule } from './session/session.module';
 import { PdfModule } from './pdf/pdf.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [AuthModule,
@@ -31,7 +32,8 @@ import { PdfModule } from './pdf/pdf.module';
     ChatModule,
     DiagnosticModule,
     SessionModule,
-    PdfModule
+    PdfModule,
+    AdminModule
     ],
   controllers: [AppController],
   providers: [AppService],

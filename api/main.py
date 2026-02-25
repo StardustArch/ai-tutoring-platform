@@ -20,5 +20,9 @@ async def generate_rush_question(request: RushRequest):
 async def generate_chat_response(request: ChatRequest):
     return await generate_chat_response_logic(request)
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "kanimente-ai"}
+
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), reload=True)
