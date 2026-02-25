@@ -1,5 +1,4 @@
-// src/admin/dto/pagination.dto.ts
-import { IsInt, IsOptional, Min, Max } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PaginationDto {
@@ -13,6 +12,10 @@ export class PaginationDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100) // Limite de segurança para não pedir 1 milhão de users
+  @Max(100)
   limit?: number = 20;
+
+  @IsOptional()
+  @IsString()
+  search?: string; // <--- Adicionado para pesquisar por nome/email
 }

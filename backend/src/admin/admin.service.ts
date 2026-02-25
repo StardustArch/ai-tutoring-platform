@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTopicDto } from './dto/create-topic.dto';
 import { PaginationDto } from './dto/pagination.dto';
 import { ListTopicsDto } from './dto/list-topics.dto';
 import { firstValueFrom } from 'rxjs';
+import * as bcrypt from 'bcrypt';
 import { HttpService } from '@nestjs/axios';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class AdminService {
@@ -92,24 +95,122 @@ export class AdminService {
   }
 
   // --- GESTÃO DE UTILIZADORES ---
-  // Agora recebe o DTO de paginação
-  async getAllUsers(pagination: PaginationDto) {
-    const page = pagination.page || 1;
-    const limit = pagination.limit || 20;
+// 1. LISTAR COM PESQUISA E PAGINAÇÃO
+  async getAllUsers(params: PaginationDto) {
+    const page = params.page || 1;
+    const limit = params.limit || 20;
     const skip = (page - 1) * limit;
 
-    return this.prisma.usuario.findMany({
-      skip,
-      take: limit,
-      orderBy: { id: 'desc' },
-      select: {
-        id: true,
-        nome: true,
-        email: true,
-        role: true,
-        perfilProfessor: { select: { id: true } },
-        perfilEncarregado: { select: { id: true } },
-      },
+    const whereClause = params.search ? {
+      OR: [
+        { nome: { contains: params.search, mode: 'insensitive' as const } },
+        { email: { contains: params.search, mode: 'insensitive' as const } }
+      ]
+    } : {};
+
+    const [users, total] = await Promise.all([
+      this.prisma.usuario.findMany({
+        skip,
+        take: limit,
+        where: whereClause,
+        orderBy: { id: 'desc' },
+        select: { // NÃO RETORNAR PASSWORD HASH
+          id: true, 
+          nome: true, 
+          sobrenome: true,
+          email: true, 
+          role: true,
+          ativo: true, // <--- Novo campo
+          telefone: true,
+          perfilProfessor: { select: { id: true, escolaNome: true } },
+          perfilEncarregado: { select: { id: true } }
+        }
+      }),
+      this.prisma.usuario.count({ where: whereClause })
+    ]);
+
+    return {
+      data: users,
+      meta: { total, page, lastPage: Math.ceil(total / limit) }
+    };
+  }
+// 2. OBTER UM UTILIZADOR (Detalhes) - CORRIGIDO
+  async getUserById(id: number) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id },
+      include: {
+        perfilProfessor: { include: { turmas: true } }, 
+        perfilEncarregado: { include: { alunos: true } }
+      }
+    });
+
+    if (!user) throw new NotFoundException('Utilizador não encontrado');
+
+    // SOLUÇÃO PARA O ERRO DO DELETE:
+    // Em vez de "delete user.passwordHash", usamos desestruturação para tirar os campos sensíveis
+    const { passwordHash, hashedRt, ...userWithoutSecrets } = user;
+    
+    return userWithoutSecrets;
+  }
+
+  // 3. CRIAR UTILIZADOR (Manual) - CORRIGIDO (O erro do 'ativo' some após o npx prisma generate)
+  async createUser(dto: CreateUserDto) {
+    const exists = await this.prisma.usuario.findUnique({ where: { email: dto.email } });
+    if (exists) throw new BadRequestException('Email já registado');
+
+    const hash = await bcrypt.hash(dto.password, 10);
+
+    return this.prisma.usuario.create({
+      data: {
+        nome: dto.nome,
+        sobrenome: dto.sobrenome,
+        email: dto.email,
+        telefone: dto.telefone,
+        passwordHash: hash,
+        role: dto.role,
+        ativo: true // Este erro desaparece depois de correres o comando no terminal
+      }
+    });
+  }
+
+  // 4. ATUALIZAR DADOS BÁSICOS
+  async updateUser(id: number, dto: UpdateUserDto) {
+    return this.prisma.usuario.update({
+      where: { id },
+      data: { ...dto }
+    });
+  }
+
+  // 5. BLOQUEAR / DESBLOQUEAR (Toggle) - CORRIGIDO
+  async toggleBlockStatus(id: number) {
+    const user = await this.prisma.usuario.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Utilizador não encontrado');
+
+    return this.prisma.usuario.update({
+      where: { id },
+      data: { ativo: !user.ativo }, // O TS agora vai reconhecer o campo 'ativo'
+      select: { id: true, ativo: true, email: true }
+    });
+  }
+  // 6. RESET DE SENHA (Manual pelo Admin)
+  async resetPassword(id: number) {
+    const defaultPass = 'Mudar123!'; // Senha temporária
+    const hash = await bcrypt.hash(defaultPass, 10);
+
+    await this.prisma.usuario.update({
+      where: { id },
+      data: { passwordHash: hash }
+    });
+
+    return { message: `Senha resetada para: ${defaultPass}` };
+  }
+
+  // 7. PROMOVER/DESPROMOVER ROLE
+  async changeRole(id: number, role: 'ADMIN' | 'USER') {
+    return this.prisma.usuario.update({
+      where: { id },
+      data: { role },
+      select: { id: true, role: true }
     });
   }
 }
