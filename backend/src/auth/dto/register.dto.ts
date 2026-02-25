@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional } from 'class-validator';
 
 export class RegisterDto {
   @IsString()
@@ -10,8 +10,8 @@ export class RegisterDto {
   sobrenome: string; // <-- NOVO
 
   @IsString()
-  @IsNotEmpty()
-  telefone: string; // <-- NOVO
+  @IsOptional()
+  telefone?: string; // <-- NOVO
 
   @IsEmail()
   email: string;

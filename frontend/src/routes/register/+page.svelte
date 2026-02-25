@@ -54,6 +54,7 @@
       goto('/login');
     } catch (err: any) {
       error = err.response?.data?.message || 'Erro ao criar conta. Tente novamente.';
+      console.log(error)
     } finally {
       isLoading = false;
     }

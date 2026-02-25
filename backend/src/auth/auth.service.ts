@@ -58,7 +58,7 @@ export class AuthService {
                 email: dto.email,
                 nome: dto.nome, // <-- CORRIGIDO
                 sobrenome: dto.sobrenome, // <-- NOVO
-                telefone: dto.telefone, // <-- NOVO
+                telefone: dto?.telefone || '', // <-- NOVO
                 passwordHash: passwordHash, 
             },
             // Pedir ao Prisma para incluir o perfil na resposta

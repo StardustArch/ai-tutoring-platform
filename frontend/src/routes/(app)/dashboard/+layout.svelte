@@ -10,23 +10,27 @@
     import LogoutButton from '$lib/components/LogoutButton.svelte';
     import Notification from '$lib/components/Notification.svelte'; 
     import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+
     // Ícones Lucide
     import { 
         LayoutDashboard, GraduationCap, FileText, Settings, Menu, X,
-        Users, School, Key, AlertCircle, BookOpen, ChevronLeft, ChevronRight,
-        Loader2, Home 
+        Users, School, AlertCircle, BookOpen, ChevronLeft, ChevronRight,
+        Loader2, Shield, Layers, Lock
     } from 'lucide-svelte';
     import { browser } from '$app/environment';
 
     // --- ESTADO REATIVO ---
     $: user = $auth.user;
+    
+    // Verificação de Perfis
+    $: isAdmin = user?.role === 'ADMIN';
     $: isEncarregado = !!user?.perfilEncarregado;
     $: isProfessor = !!user?.perfilProfessor;
     $: isProfessorAtivo = isProfessor && !!user?.perfilProfessor?.escolaNome;
 
     // ESTADO DA SIDEBAR
-    let sidebarOpen = false; // Mobile: começa fechado (Drawer)
-    let sidebarExpanded = true; // Desktop: começa expandido
+    let sidebarOpen = false; 
+    let sidebarExpanded = true;
     let isMobile = false;
 
     // --- 1. PROTEÇÃO DE ROTA ---
@@ -51,7 +55,7 @@
         if (!browser) return;
         isMobile = window.innerWidth < 768;
         if (!isMobile) {
-            sidebarOpen = false; // Garante consistência ao redimensionar
+            sidebarOpen = false; 
         }
     };
 
@@ -70,56 +74,71 @@
     }
 
    // --- GERAÇÃO DINÂMICA DO MENU ---
-    $: menuItems = getMenuItems(isEncarregado, isProfessor, isProfessorAtivo);
+    $: menuItems = getMenuItems(isAdmin, isEncarregado, isProfessor, isProfessorAtivo);
     
     // Filtra os 3 primeiros itens reais para a barra mobile
     $: mobileBottomItems = menuItems.filter(i => i.href).slice(0, 3);
 
-    function getMenuItems(isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
+    function getMenuItems(isAdmin: boolean, isEnc: boolean, isProf: boolean, isProfAtivo: boolean) {
         const items: any[] = [];
-        const userHasBothProfiles = isEnc && isProf;
 
-        if (userHasBothProfiles) {
-            if (isProfAtivo) {
-                items.push({ label: 'Visão Geral', href: '/dashboard/unified/overview', icon: LayoutDashboard, badge: 'ambos' });
-            }
-            items.push({ type: 'header', label: 'Docência' });
-            if (!isProfAtivo) {
-                items.push({ label: 'Concluir Perfil Professor', href: '/dashboard/teacher/become-teacher', icon: AlertCircle, highlight: true, badge: 'professor' });
-            } else {
-                items.push(
-                    { label: 'Minhas Turmas', href: '/dashboard/teacher/class', icon: BookOpen, badge: 'professor' },
-                    { label: 'Relatórios Turma', href: '/dashboard/teacher/reports', icon: FileText, badge: 'professor' }
-                );
-            }
-            items.push({ type: 'header', label: 'Família' });
+        // --- MENU DE ADMIN ---
+        if (isAdmin) {
             items.push(
-                { label: 'Meus Educandos', href: '/dashboard/foreman/student', icon: GraduationCap, badge: 'família' },
-                { label: 'Relatórios Família', href: '/dashboard/foreman/reports', icon: FileText, badge: 'família' }
+                { label: 'Visão Geral', href: '/dashboard/admin/overview', icon: LayoutDashboard, badge: 'admin' },
+                { type: 'header', label: 'Gestão' },
+                { label: 'Utilizadores', href: '/dashboard/admin/users', icon: Users },
+                { label: 'Conteúdos', href: '/dashboard/admin/topics', icon: Layers },
+                { label: 'Sistema', href: '/dashboard/admin/system', icon: Shield }
             );
-        } else {
-            if (isEnc) {
-                items.push({ type: 'header', label: 'Família' });
-                items.push(
-                    { label: 'Visão Geral', href: '/dashboard/foreman/overview', icon: LayoutDashboard },
-                    { label: 'Meus Educandos', href: '/dashboard/foreman/student', icon: GraduationCap },
-                    { label: 'Relatórios', href: '/dashboard/foreman/reports', icon: FileText }
-                );
-            }
-            if (isProf) {
+        } 
+        // --- MENUS NORMAIS (Professor/Encarregado) ---
+        else {
+            const userHasBothProfiles = isEnc && isProf;
+
+            if (userHasBothProfiles) {
+                if (isProfAtivo) {
+                    items.push({ label: 'Visão Geral', href: '/dashboard/unified/overview', icon: LayoutDashboard, badge: 'ambos' });
+                }
                 items.push({ type: 'header', label: 'Docência' });
                 if (!isProfAtivo) {
-                    items.push({ label: 'Concluir Perfil', href: '/dashboard/teacher/become-teacher', icon: AlertCircle, highlight: true });
+                    items.push({ label: 'Concluir Perfil', href: '/dashboard/teacher/become-teacher', icon: AlertCircle, highlight: true, badge: 'professor' });
                 } else {
                     items.push(
-                        { label: 'Visão Geral', href: '/dashboard/teacher/overview', icon: LayoutDashboard },
-                        { label: 'Minhas Turmas', href: '/dashboard/teacher/class', icon: BookOpen },
-                        { label: 'Relatórios Turma', href: '/dashboard/teacher/reports', icon: FileText }
+                        { label: 'Minhas Turmas', href: '/dashboard/teacher/class', icon: BookOpen, badge: 'professor' },
+                        { label: 'Relatórios', href: '/dashboard/teacher/reports', icon: FileText, badge: 'professor' }
                     );
+                }
+                items.push({ type: 'header', label: 'Família' });
+                items.push(
+                    { label: 'Meus Educandos', href: '/dashboard/foreman/student', icon: GraduationCap, badge: 'família' },
+                    { label: 'Relatórios', href: '/dashboard/foreman/reports', icon: FileText, badge: 'família' }
+                );
+            } else {
+                if (isEnc) {
+                    items.push({ type: 'header', label: 'Família' });
+                    items.push(
+                        { label: 'Visão Geral', href: '/dashboard/foreman/overview', icon: LayoutDashboard },
+                        { label: 'Meus Educandos', href: '/dashboard/foreman/student', icon: GraduationCap },
+                        { label: 'Relatórios', href: '/dashboard/foreman/reports', icon: FileText }
+                    );
+                }
+                if (isProf) {
+                    items.push({ type: 'header', label: 'Docência' });
+                    if (!isProfAtivo) {
+                        items.push({ label: 'Concluir Perfil', href: '/dashboard/teacher/become-teacher', icon: AlertCircle, highlight: true });
+                    } else {
+                        items.push(
+                            { label: 'Visão Geral', href: '/dashboard/teacher/overview', icon: LayoutDashboard },
+                            { label: 'Minhas Turmas', href: '/dashboard/teacher/class', icon: BookOpen },
+                            { label: 'Relatórios', href: '/dashboard/teacher/reports', icon: FileText }
+                        );
+                    }
                 }
             }
         }
 
+        // Itens comuns (Definições)
         items.push(
             { type: 'divider' },
             { label: 'Definições', href: '/dashboard/settings', icon: Settings }
@@ -143,27 +162,18 @@
         const fullName = `${u.nome} ${u.sobrenome || ''}`.trim();
         const parts = fullName.split(/\s+/);
         if (parts.length === 0) return '';
-        const firstName = parts[0];
-        const lastName = parts.length > 1 ? parts[parts.length - 1] : '';
-        if (parts.length <= 2) return fullName;
-        const middleInitials = parts.slice(1, -1).map(n => n[0].toUpperCase() + '.');
-        return [firstName, ...middleInitials, lastName].filter(Boolean).join(' ');
+        return parts[0];
     }
 </script>
 
 <Notification/>
-<ConfirmDialog />
-{#if $auth.isLoading}
+<ConfirmDialog /> {#if $auth.isLoading}
     <div class="min-h-screen w-full flex flex-col items-center justify-center bg-white dark:bg-surface-950 p-4">
         <div class="text-center space-y-6 animate-fade-in">
             <div class="relative inline-flex items-center justify-center">
                 <div class="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 flex items-center justify-center shadow-lg shadow-primary-500/10">
                     <Loader2 size={32} class="animate-spin" />
                 </div>
-                <span class="absolute top-0 right-0 -mt-1 -mr-1 flex h-3 w-3">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-3 w-3 bg-primary-500"></span>
-                </span>
             </div>
             <div class="space-y-2">
                 <p class="text-sm text-surface-500 dark:text-surface-400">
@@ -194,13 +204,17 @@
         >
             <div class="p-6 flex items-center justify-between gap-3 bg-surface-50 md:bg-transparent dark:bg-surface-800/50 md:dark:bg-transparent">
                 <div class="flex items-center gap-3 min-w-0 {sidebarExpanded || isMobile ? '' : 'justify-center w-full'}">
-                    <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0 ">
-                        K
+                    <div class="w-8 h-8 bg-gradient-to-tr from-primary-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-sm flex-shrink-0">
+                        {isAdmin ? 'A' : 'K'}
                     </div>
 
                     {#if sidebarExpanded || isMobile}
                         <span class="text-xl font-bold tracking-tight text-surface-900 dark:text-surface-50 truncate transition-opacity duration-300">
-                            Kani<span class="text-primary-500">Mente</span>
+                            {#if isAdmin}
+                                Admin<span class="text-primary-500">Panel</span>
+                            {:else}
+                                Kani<span class="text-primary-500">Mente</span>
+                            {/if}
                         </span>
                     {/if}
                 </div>
@@ -253,7 +267,7 @@
                 {/each}
             </nav>
 
-<div class="p-4 border-t border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800">
+            <div class="p-4 border-t border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800">
                 <div class="flex items-center gap-3 {sidebarExpanded || isMobile ? '' : 'justify-center'}">
                     
                     <div class="w-10 h-10 rounded-full bg-surface-200 dark:bg-surface-700 flex items-center justify-center text-surface-700 dark:text-surface-200 font-bold text-lg ring-2 ring-white dark:ring-surface-700 shadow-sm flex-shrink-0">
@@ -266,15 +280,17 @@
                                 {formatarNome(user)}
                             </p>
                             <p class="text-xs text-surface-500 dark:text-surface-400 truncate flex items-center gap-1">
-                               {#if isProfessor && isEncarregado}
-                                    <span class="badge variant-soft-primary text-[10px] px-1 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Pro</span>
-                                    <span class="badge variant-soft-secondary text-[10px] px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Enc</span>
+                               {#if isAdmin}
+                                    <span class="badge bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200 px-1.5 py-0.5 rounded text-[10px] font-bold">ADMIN</span>
+                               {:else if isProfessor && isEncarregado}
+                                    <span class="badge bg-blue-100 text-blue-800 px-1 py-0.5 rounded text-[10px]">Pro</span>
+                                    <span class="badge bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded text-[10px]">Enc</span>
                                {:else if isProfessor}
                                     <span>Professor</span>
                                {:else if isEncarregado}
                                     <span>Encarregado</span>
                                {:else}
-                                    Novo Utilizador
+                                    <span>Utilizador</span>
                                {/if}
                             </p>
                         </div>
@@ -303,22 +319,22 @@
             
             <header class="h-16 bg-white/80 dark:bg-surface-900/80 backdrop-blur-md border-b border-surface-200 dark:border-surface-700 flex items-center justify-between px-4 md:px-8 z-10 sticky top-0">
                {#if isMobile }
-                    <div class="w-2"></div> {/if}
+                    <div class="w-2"></div> 
+               {/if}
 
                 <h2 class="flex items-center gap-2 text-sm font-medium text-surface-500 dark:text-surface-400">
                     {#if !isMobile}
-                        <span class="opacity-50">Dashboard</span>
+                        <span class="opacity-50">{isAdmin ? 'Admin' : 'Dashboard'}</span>
                         <span>/</span>
                     {/if}
                     
                     {#if activeItem}
                         {#if activeItem.badge && !isMobile}
                             <span class="text-[10px] px-1.5 py-0.5 rounded-full 
-                                {activeItem.badge === 'professor' 
-                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
-                                    : activeItem.badge === 'família' 
-                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
-                                        : 'bg-surface-200 text-surface-800 dark:bg-surface-700 dark:text-surface-200'
+                                {activeItem.badge === 'admin' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                                activeItem.badge === 'professor' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : 
+                                activeItem.badge === 'família' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' :
+                                'bg-surface-200 text-surface-800 dark:bg-surface-700 dark:text-surface-200'
                                 } mr-1 uppercase font-bold tracking-wide">
                                 {activeItem.badge}
                             </span>
@@ -341,7 +357,7 @@
             <main class="flex-1 flex flex-col overflow-y-auto p-4 md:p-8 scroll-smooth pb-24 md:pb-8">
                 <slot />
 
-<div class="mt-auto pt-8 hidden md:block">
+                <div class="mt-auto pt-8 hidden md:block">
                      <p class="text-xs text-center text-surface-400">© 2026 KaniMente</p>
                 </div>
             </main>
