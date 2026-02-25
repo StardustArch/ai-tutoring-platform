@@ -25,6 +25,7 @@
   function getDashboardRoute(user: any) {
     if (!user) return '/dashboard';
     
+    const isAdmin= user?.role === 'ADMIN';
     const isEncarregado = !!user.perfilEncarregado;
     const isProfessor = !!user.perfilProfessor;
     const isProfessorAtivo = isProfessor && !!user.perfilProfessor?.escolaNome;
@@ -33,6 +34,7 @@
     if (userHasBothProfiles) return '/dashboard/unified/overview';
     if (isProfessorAtivo) return '/dashboard/teacher/overview';
     if (isEncarregado) return '/dashboard/foreman/overview';
+    if(isAdmin) return '/dashboard/admin/overview'
     
     return '/dashboard';
   }

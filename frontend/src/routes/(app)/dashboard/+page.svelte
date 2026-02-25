@@ -23,6 +23,7 @@
             return;
         }
 
+        const isAdmin = user?.role === 'ADMIN';
         const isEncarregado = !!user.perfilEncarregado;
         const isProfessor = !!user.perfilProfessor;
         const isProfessorAtivo = isProfessor && !!user.perfilProfessor?.escolaNome;
@@ -30,7 +31,11 @@
 
         console.log('👤 [Dashboard] Perfis:', { isEncarregado, isProfessorAtivo, userHasBothProfiles });
 
-        if (userHasBothProfiles) {
+        if(isAdmin){
+                        await goto('/dashboard/admin/overview', { replaceState: true });
+
+        }
+        else if (userHasBothProfiles) {
             await goto('/dashboard/unified/overview', { replaceState: true });
         } else if (isProfessorAtivo) {
             await goto('/dashboard/teacher/overview', { replaceState: true });
