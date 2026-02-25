@@ -108,6 +108,7 @@ model Aluno {
   classe         Int
   encarregadoId  Int
   xp             Int       @default(0)
+  ativo          Boolean   @default(true) // <--- ADICIONA ISTO (Default true = desbloqueado)
 
   encarregado         Encarregado               @relation(fields: [encarregadoId], references: [id], onDelete: Cascade)
   professores         Professor[]               @relation("ProfessorAlunos")
@@ -215,9 +216,8 @@ model Exercicio {
   resposta    String // resposta correta
   dificuldade Int // 1-5
   criadoEm    DateTime @default(now())
-  
-  @@map("exercicios")
 
+  @@map("exercicios")
 }
 
 enum NivelProficiencia {

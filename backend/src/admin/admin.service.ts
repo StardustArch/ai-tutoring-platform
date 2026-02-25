@@ -8,10 +8,14 @@ import { HttpService } from '@nestjs/axios';
 
 @Injectable()
 export class AdminService {
+    private readonly aiUrl: string;
   constructor(
     private prisma: PrismaService,
     private httpService: HttpService,
-  ) {}
+  ) {
+        const baseUrl = process.env.IA_API_URL || 'http://localhost:8000'; // Default seguro
+    this.aiUrl = `${baseUrl}/health`;
+  }
 
   async getDashboardStats() {
     // 1. Executar verificação da IA e Queries da BD em paralelo
@@ -39,13 +43,11 @@ export class AdminService {
   // --- Função Privada para testar a IA ---
   private async checkAiHealth() {
     const start = Date.now();
-    // URL do teu serviço Python (põe no .env depois!)
-    const aiUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
     try {
       // Tenta bater na rota /health com timeout de 3s
       await firstValueFrom(
-        this.httpService.get(`${aiUrl}/health`, { timeout: 3000 }),
+        this.httpService.get(this.aiUrl, { timeout: 3000 }),
       );
 
       const latency = Date.now() - start;
