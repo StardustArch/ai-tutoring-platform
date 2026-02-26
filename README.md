@@ -69,6 +69,11 @@ PUBLIC_IA_HOST_API_URL="http://localhost:8000" # Used for serving Audio/Assets d
 IA_API_URL="http://api:8000"
 GEMINI_API_KEY="your_gemini_api_key"
 GROQ_API_KEY="your_groq_api_key"
+
+# Email Config (Gmail SMTP)
+EMAIL_USER="your_email"
+EMAIL_PASS="your_google_app_password"
+EMAIL_FROM="KaniMente Admin <your_emai_here(again)>"
 ```
 
 ### 2. Run Application
