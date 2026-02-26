@@ -1,10 +1,13 @@
+<svelte:head>
+    <title>Recuperar Senha | KaniMente</title>
+</svelte:head>
+
 <script lang="ts">
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { notifications } from '$lib/store/notifications'; // Caminho da sua store
+  import { notifications } from '$lib/store/notifications';
   import Notification from '$lib/components/Notification.svelte';
-  import { ArrowLeft, Mail, Send } from 'lucide-svelte';
-  import { goto } from '$app/navigation';
+  import { ArrowLeft, Mail, Send, Loader2, KeyRound, CheckCircle } from 'lucide-svelte';
   import '../../app.css'
 
   let email = '';
@@ -13,7 +16,7 @@
 
   async function handleForgot() {
     if (!email) {
-        notifications.send('Insira o seu email.', 'warning');
+        notifications.send('Por favor, insira o seu email.', 'warning');
         return;
     }
 
@@ -23,74 +26,134 @@
             method: 'POST',
             body: JSON.stringify({ email })
         });
-
-        // Independente do resultado (segurança), mostramos sucesso
+        const r = await res.json();
+        
+        // Sucesso visual
         isSent = true;
-        notifications.send('Se a conta existir, o email foi enviado.', 'success');
+        notifications.send(r.message, 'success');
     } catch (err) {
-        notifications.send('Erro de conexão.', 'error');
+        notifications.send('Erro ao conectar ao servidor.', 'error');
     } finally {
         isLoading = false;
     }
   }
+
+  // Estilos partilhados com o Login para consistência total
+  const inputClass = "w-full px-4 py-3 bg-surface-50 dark:bg-surface-900/50 border border-surface-200 dark:border-surface-700 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-sm font-medium text-surface-900 dark:text-white placeholder:text-surface-400 disabled:opacity-50";
+  const labelClass = "block text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-400 mb-1.5 ml-0.5";
 </script>
 
 <Notification />
 
-<div class="min-h-screen w-full flex items-center justify-center p-4 transition-colors duration-300">
+<div class="min-h-screen flex items-center justify-center bg-white dark:bg-surface-950 relative overflow-hidden p-4">
   
-  <div class="w-full max-w-md space-y-6">
-    
-    <!-- Botão Voltar -->
-    <button on:click={() => goto('/login')} class="flex items-center gap-2 text-surface-600 dark:text-surface-400 hover:text-primary-500 transition-colors">
-        <ArrowLeft size={20} /> Voltar ao Login
-    </button>
+  <div class="absolute inset-0 w-full h-full bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-50 pointer-events-none"></div>
 
-        <div class="bg-white dark:bg-surface-800 rounded-xl shadow-sm border border-surface-200 dark:border-surface-700 p-6 space-y-6">
-        
-        <div class="text-center space-y-2">
-            <h1 class="h2 font-bold text-surface-900 dark:text-surface-50">Recuperar Conta</h1>
-            <p class="text-surface-500">Insira o seu email para receber um link de redefinição.</p>
+  <div class="w-full max-w-md relative z-10 animate-fade-in-up">
+    
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary-600 text-white font-bold text-xl shadow-lg shadow-primary-500/30 mb-6">
+        K
+      </div>
+      <h1 class="text-2xl font-bold text-surface-900 dark:text-white tracking-tight">Recuperar Conta</h1>
+      <p class="text-sm text-surface-500 mt-2">Não se preocupe, acontece aos melhores.</p>
+    </div>
+
+    <div class="bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-800 shadow-xl p-6 md:p-8 relative overflow-hidden">
+      
+      {#if isSent}
+        <div class="text-center space-y-6 animate-scale-in">
+            <div class="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle size={32} />
+            </div>
+            
+            <div class="space-y-2">
+                <h3 class="text-lg font-bold text-surface-900 dark:text-white">Verifique o seu email</h3>
+                <p class="text-sm text-surface-500 leading-relaxed">
+                    Enviámos um link de recuperação para <br>
+                    <span class="font-bold text-surface-900 dark:text-white">{email}</span>
+                </p>
+            </div>
+
+            <div class="p-4 bg-surface-50 dark:bg-surface-800/50 rounded-lg border border-surface-100 dark:border-surface-700 text-xs text-surface-500">
+                <p>Não recebeu? Verifique a pasta de Spam ou tente novamente em alguns minutos.</p>
+            </div>
+
+            <a href="/login" class="inline-flex items-center justify-center gap-2 w-full px-4 py-3 bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-900 dark:text-white font-bold rounded-lg transition-colors">
+                <ArrowLeft size={18} />
+                Voltar ao Login
+            </a>
         </div>
 
-        {#if isSent}
-            <div class="p-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-center space-y-3 animate-fade-in">
-                <div class="mx-auto w-12 h-12 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center text-green-600 dark:text-green-300">
-                    <Send size={24} />
-                </div>
-                <h3 class="font-bold text-green-800 dark:text-green-200">Verifique o seu Email</h3>
-                <p class="text-sm text-green-700 dark:text-green-300">
-                    Enviámos um link de recuperação para <strong>{email}</strong>.
+      {:else}
+        <div class="space-y-6">
+            <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg flex gap-3">
+                <KeyRound class="text-blue-600 dark:text-blue-400 shrink-0" size={20} />
+                <p class="text-xs text-blue-800 dark:text-blue-200 leading-relaxed">
+                    Insira o email associado à sua conta e enviaremos instruções para redefinir a sua palavra-passe.
                 </p>
-                <p class="text-xs opacity-70">(Nota: Como é um TCC, verifique a consola do Backend para ver o link simulado)</p>
             </div>
-        {:else}
-            <form on:submit|preventDefault={handleForgot} class="space-y-6">
-                <label class="label">
-                    <span class="font-medium text-sm ml-1">Email</span>
-                    <div class="input-group input-group-divider grid-cols-1">
-                        <!-- <div class="input-group-shim"></div> -->
+
+            <form on:submit|preventDefault={handleForgot} class="space-y-5">
+                <div>
+                    <label for="email" class={labelClass}>Email Registado</label>
+                    <div class="relative">
                         <input 
+                            id="email"
                             type="email" 
                             bind:value={email} 
-                            placeholder="seu@email.com" 
- class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 dark:focus:ring-secondary-400 dark:focus:border-secondary-400 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-500 dark:placeholder-surface-400 transition-colors"
+                            placeholder="nome@exemplo.com"
                             required
                             disabled={isLoading}
+                            class="{inputClass} pl-10"
                         />
+                        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400">
+                            <Mail size={18} />
+                        </div>
                     </div>
-                </label>
+                </div>
 
-                <button type="submit" class="inline-flex items-center justify-center w-full px-4 py-2 bg-secondary-600 hover:bg-secondary-700 focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-offset-white dark:focus:ring-offset-surface-800 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
+                <button 
+                    type="submit" 
+                    class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-primary-500/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                    disabled={isLoading}
+                >
                     {#if isLoading}
-                        <span class="loading loading-spinner loading-sm"></span>
+                        <Loader2 size={18} class="animate-spin" />
+                        <span>A enviar...</span>
                     {:else}
-                        Enviar Link
+                        <span>Enviar Link de Reset</span>
+                        <Send size={18} />
                     {/if}
                 </button>
             </form>
-        {/if}
+
+            <div class="text-center pt-2">
+                <a href="/login" class="inline-flex items-center gap-2 text-sm font-bold text-surface-500 hover:text-surface-800 dark:hover:text-white transition-colors">
+                    <ArrowLeft size={16} />
+                    Voltar ao Login
+                </a>
+            </div>
+        </div>
+      {/if}
 
     </div>
   </div>
 </div>
+
+<style>
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+  @keyframes scaleIn { 
+      from { opacity: 0; transform: scale(0.95); } 
+      to { opacity: 1; transform: scale(1); } 
+  }
+</style>

@@ -5,13 +5,12 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { Usuario } from '@prisma/client'; // Importar o tipo 'Usuario'
+import { Usuario } from '@prisma/client';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { MailService } from '../mail/mail.service'; // <--- IMPORTANTE
 
-
-// Definir a forma da resposta do Token
 export interface TokenResponse {
     accessToken: string;
     refreshToken: string;
@@ -24,326 +23,282 @@ type OAuthPayload = {
   oauthId: string;
   oauthProvider: string;
 };
+
 @Injectable()
 export class AuthService {
-    // Injectar as nossas ferramentas (Prisma, JWT, Config)
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
         private configService: ConfigService,
+        private mailService: MailService, // <--- INJETAR AQUI
     ) { }
 
-    /**
-     * Lógica de Registo (o "Cérebro")
-     */
+    // --- REGISTO NORMAL ---
+// 1. REGISTAR (ALTERADO)
     async register(dto: RegisterDto) {
-        console.log('[AuthService] A processar registo de Encarregado para:', dto.email);
+        // Verificar se existe
+        const userExists = await this.prisma.usuario.findUnique({ where: { email: dto.email } });
+        if (userExists) throw new ConflictException('Este email já está registado.');
 
-        // 1. Verificar se o utilizador já existe
-        const userExists = await this.prisma.usuario.findUnique({
-            where: { email: dto.email },
-        });
-
-        if (userExists) {
-            // Se o email já existe, falhar
-            throw new ConflictException('Este email já está registado.');
-        }
-
-        // 2. Fazer o Hash da password
         const passwordHash = await bcrypt.hash(dto.password, 10);
 
-        // 3. Criar o Utilizador e o Perfil de Encarregado (numa só transacção)
+        // Gerar Token de Verificação (Pode ser um JWT ou um UUID)
+        const verificationToken = this.jwtService.sign(
+            { email: dto.email }, 
+            { secret: this.configService.get('JWT_SECRET_KEY'), expiresIn: '1d' }
+        );
+
         const novoUsuario = await this.prisma.usuario.create({
             data: {
                 email: dto.email,
-                nome: dto.nome, // <-- CORRIGIDO
-                sobrenome: dto.sobrenome, // <-- NOVO
-                telefone: dto?.telefone || '', // <-- NOVO
-                passwordHash: passwordHash, 
+                nome: dto.nome,
+                sobrenome: dto.sobrenome,
+                telefone: dto?.telefone || '',
+                passwordHash: passwordHash,
+                ativo: false, // <--- CONTA NASCE INATIVA
+                verificationToken: verificationToken, // <--- GUARDAR TOKEN
             },
-            // Pedir ao Prisma para incluir o perfil na resposta
-            include: {
-                perfilEncarregado: true,
-            },
+            include: { perfilEncarregado: true },
         });
 
-        // Remover a password antes de devolver a resposta
-        novoUsuario.passwordHash;
-        return novoUsuario;
+        // ENVIAR EMAIL DE VERIFICAÇÃO (Em vez de boas-vindas)
+        this.mailService.sendVerificationEmail(novoUsuario.email, novoUsuario.nome, verificationToken)
+            .catch(e => console.error(e));
+
+        return { message: 'Registo efetuado. Verifique o seu email para ativar a conta.' };
     }
 
-    /**
-     * Lógica de Login (o "Cérebro")
-     */
+    // 2. CONFIRMAR EMAIL (NOVO MÉTODO)
+    async confirmEmail(token: string) {
+        try {
+            // Verificar se o token é válido
+            const payload = this.jwtService.verify(token, { 
+                secret: this.configService.get('JWT_SECRET_KEY') 
+            });
+
+            const user = await this.prisma.usuario.findUnique({ where: { email: payload.email } });
+            
+            if (!user) throw new BadRequestException('Utilizador inválido.');
+            if (user.ativo) return { message: 'Conta já verificada.' };
+            
+            // Verificar se o token da BD bate com o recebido (segurança extra)
+            if (user.verificationToken !== token) throw new BadRequestException('Token inválido.');
+
+            // ATIVAR CONTA
+            await this.prisma.usuario.update({
+                where: { id: user.id },
+                data: { 
+                    ativo: true, 
+                    verificationToken: null // Limpar token
+                }
+            });
+
+            // Agora sim, enviamos as boas-vindas
+            this.mailService.sendWelcome(user.email, user.nome).catch(e => console.error(e));
+
+            return { message: 'Conta ativada com sucesso! Pode fazer login.' };
+
+        } catch (e) {
+            throw new BadRequestException('Link de verificação inválido ou expirado.');
+        }
+    }
+
+    // --- LOGIN NORMAL ---
     async login(dto: LoginDto): Promise<TokenResponse> {
         console.log('[AuthService] A processar login para:', dto.email);
 
-        // 1. Validar o utilizador
-        const usuario = await this.validateUser(dto.email, dto.password);
+        // 1. Validar utilizador
+        const usuario = await this.validateUserInternal(dto.email, dto.password);
         if (!usuario) {
             throw new UnauthorizedException('Email ou password inválidos.');
         }
+        
+        // Verificar se está bloqueado
+        if (!usuario.ativo) {
+             throw new UnauthorizedException('A sua conta foi desativada. Contacte o suporte.');
+        }
 
-        // 2. Criar o Payload do Token (o que guardamos lá dentro)
-        const payload = { sub: usuario.email, userId: usuario.id };
+        // 2. Gerar Tokens
+        const payload = { sub: usuario.email, userId: usuario.id, role: usuario.role };
+        
+        const [accessToken, refreshToken] = await this.generateTokens(payload);
+        await this.updateRtHash(usuario.id, refreshToken);
 
-        // 3. Gerar os dois tokens (Access e Refresh)
-        const [accessToken, refreshToken] = await Promise.all([
-            // Access Token (Curto - 15m)
+        return { accessToken, refreshToken };
+    }
+
+    // Função interna auxiliar para validar password (substitui a tua validateUser antiga)
+    async validateUserInternal(email: string, pass: string): Promise<Usuario | null> {
+        const usuario = await this.prisma.usuario.findUnique({ where: { email } });
+        
+        if (usuario && usuario.passwordHash && (await bcrypt.compare(pass, usuario.passwordHash))) {
+            return usuario;
+        }
+        return null;
+    }
+
+    // --- OAUTH (GOOGLE) ---
+    async validateOAuthUser(payload: OAuthPayload): Promise<Usuario> {
+        console.log(`[AuthService] Validando utilizador OAuth: ${payload.email}`);
+        
+        let user = await this.prisma.usuario.findUnique({ where: { oauthId: payload.oauthId } });
+        if (user) return user; 
+
+        user = await this.prisma.usuario.findUnique({ where: { email: payload.email } });
+
+        if (user) {
+            console.log('A ligar conta Google a utilizador existente...');
+            return this.prisma.usuario.update({
+                where: { email: payload.email },
+                data: { oauthId: payload.oauthId, oauthProvider: payload.oauthProvider },
+            });
+        }
+
+        console.log('A criar novo utilizador OAuth...');
+        const newUser = await this.prisma.usuario.create({
+            data: {
+                email: payload.email,
+                nome: payload.nome,
+                sobrenome: payload.sobrenome,
+                telefone: '', 
+                oauthId: payload.oauthId,
+                oauthProvider: payload.oauthProvider,
+                ativo: true
+            },
+        });
+
+        // 📧 ENVIAR BOAS-VINDAS (Apenas para novos registos OAuth)
+        this.mailService.sendWelcome(newUser.email, newUser.nome).catch(e => console.error(e));
+
+        return newUser;
+    }
+  
+    async loginOAuth(user: Usuario): Promise<TokenResponse> {
+        if (!user.ativo) throw new UnauthorizedException('Conta desativada.');
+
+        const payload = { sub: user.email, userId: user.id, role: user.role };
+        const [accessToken, refreshToken] = await this.generateTokens(payload);
+        await this.updateRtHash(user.id, refreshToken);
+        return { accessToken, refreshToken };
+    }
+
+    // --- RECUPERAÇÃO DE SENHA ---
+    
+    // 1. Pedir Reset
+    async forgotPassword(dto: ForgotPasswordDto) {
+        const user = await this.prisma.usuario.findUnique({ where: { email: dto.email } });
+
+        if (!user) {
+            // Segurança: Fingir que deu certo
+            return { message: 'Se o email existir, receberá um link de recuperação4.' };
+        }
+        
+        if (!user.ativo) throw new UnauthorizedException('Conta desativada.');
+        if (!user.passwordHash) {
+             // Caso raro: User OAuth tenta recuperar senha. 
+             // O ideal seria mandar email a dizer "Usa o Google Login".
+             return { message: 'Use o login com Google.' };
+        }
+
+        // Gerar Token de Reset (JWT curto - 1 hora)
+        // Usamos o segredo + passwordHash para que, se o user mudar a senha, o link morra logo.
+        const secret = this.configService.get('JWT_SECRET_KEY') + user.passwordHash;
+        const payload = { email: user.email, id: user.id };
+        const token = this.jwtService.sign(payload, { secret, expiresIn: '1h' });
+
+        // 📧 ENVIAR EMAIL REAL
+        await this.mailService.sendPasswordReset(user.email, token, user.nome);
+
+        return { message: 'Email de recuperação enviado.' };
+    }
+
+    // 2. Confirmar Reset (Link do Email)
+    async resetPassword(dto: ResetPasswordDto) {
+        // Primeiro precisamos saber QUEM é o user para recriar o segredo de validação
+        // O token JWT tem o ID lá dentro (decodificar sem verificar primeiro)
+        const decoded: any = this.jwtService.decode(dto.token);
+        if (!decoded || !decoded.id) throw new BadRequestException('Token inválido.');
+
+        const user = await this.prisma.usuario.findUnique({ where: { id: decoded.id } });
+        if (!user) throw new BadRequestException('Utilizador inválido.');
+
+        // Recriar o segredo para verificar a assinatura
+        const secret = this.configService.get('JWT_SECRET_KEY') + user.passwordHash;
+
+        try {
+            this.jwtService.verify(dto.token, { secret });
+        } catch (e) {
+            throw new BadRequestException('Link expirado ou inválido.');
+        }
+
+        // Tudo OK, alterar senha
+        const salt = await bcrypt.genSalt();
+        const hash = await bcrypt.hash(dto.newPassword, salt);
+
+        await this.prisma.usuario.update({
+            where: { id: user.id },
+            data: { passwordHash: hash },
+        });
+
+        return { message: 'Senha alterada com sucesso!' };
+    }
+
+    // --- UTILS ---
+
+    async refreshTokens(userId: number, email: string): Promise<TokenResponse> {
+        const user = await this.prisma.usuario.findUnique({ where: { id: userId } });
+        if (!user || !user.ativo) throw new UnauthorizedException('Acesso negado.');
+
+        const payload = { sub: email, userId: userId, role: user.role };
+        const [at, rt] = await this.generateTokens(payload);
+        await this.updateRtHash(userId, rt);
+        return { accessToken: at, refreshToken: rt };
+    }
+
+    async updateRtHash(userId: number, rt: string) {
+        const hash = await bcrypt.hash(rt, 10);
+        await this.prisma.usuario.update({
+            where: { id: userId },
+            data: { hashedRt: hash },
+        });
+    }
+
+    async logout(userId: number) {
+        await this.prisma.usuario.updateMany({
+            where: { id: userId, hashedRt: { not: null } },
+            data: { hashedRt: null },
+        });
+    }
+
+    async changePassword(userId: number, dto: ChangePasswordDto) {
+        const user = await this.prisma.usuario.findUnique({ where: { id: userId } });
+        if (!user || !user.passwordHash) throw new NotFoundException('Utilizador inválido.');
+
+        const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+        if (!isMatch) throw new BadRequestException('A senha atual está incorreta.');
+
+        const salt = await bcrypt.genSalt();
+        const newHash = await bcrypt.hash(dto.newPassword, salt);
+
+        await this.prisma.usuario.update({
+            where: { id: userId },
+            data: { passwordHash: newHash },
+        });
+
+        return { message: 'Senha atualizada.' };
+    }
+
+    // Helper para não repetir código
+    private async generateTokens(payload: any): Promise<[string, string]> {
+        return Promise.all([
             this.jwtService.signAsync(payload, {
                 secret: this.configService.get<string>('JWT_SECRET_KEY'),
                 expiresIn: '15m',
             }),
-            // Refresh Token (Longo - 7d)
             this.jwtService.signAsync(payload, {
-                secret: this.configService.get<string>('JWT_REFRESH_SECRET_KEY'), // (Vamos adicionar isto ao .env)
+                secret: this.configService.get<string>('JWT_REFRESH_SECRET_KEY'),
                 expiresIn: '7d',
             }),
         ]);
-
-            await this.updateRtHash(usuario.id, refreshToken);
-
-        return {
-            accessToken,
-            refreshToken,
-        };
     }
-
-    /**
-     * Função auxiliar para validar a password
-     */
-    /**
-       * Função auxiliar para validar a password
-       * (COM A CORRECÇÃO DO BUG TS2345)
-       */
-    async validateUser(email: string, pass: string): Promise<any> {
-        const usuario = await this.prisma.usuario.findUnique({
-            where: { email },
-        });
-
-        // --- A CORRECÇÃO ESTÁ AQUI ---
-        // Verificamos se 'usuario' existe E
-        // se 'usuario.passwordHash' existe (não é null) ANTES
-        // de o passarmos ao bcrypt.
-        if (
-            usuario &&
-            usuario.passwordHash &&
-            (await bcrypt.compare(pass, usuario.passwordHash))
-        ) {
-            // Se tudo estiver OK, apagar o hash e devolver o utilizador
-            usuario.passwordHash;
-            return usuario;
-        }
-        // --- FIM DA CORRECÇÃO ---
-
-        return null; // Falhou
-    }
-
-      async refreshTokens(userId: number, email: string): Promise<TokenResponse> {
-    console.log(`[AuthService] A refrescar tokens para: ${email}`);
-    
-    // A lógica é simples: apenas geramos um novo par de tokens
-    // para este utilizador que já foi validado pelo "Guarda".
-    
-    const payload = { sub: email, userId: userId };
-
-    const [newAccessToken, newRefreshToken] = await Promise.all([
-      // Novo Access Token (Curto - 15m)
-      this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_SECRET_KEY'),
-        expiresIn: '15m',
-      }),
-      // Novo Refresh Token (Longo - 7d)
-      this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET_KEY'),
-        expiresIn: '7d',
-      }),
-    ]);
-    await this.updateRtHash(userId, newRefreshToken);
-
-    return {
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
-    };
-  }
-
-    // --- NOVO: Lógica "Procurar ou Criar" para o Google ---
-  async validateOAuthUser(payload: OAuthPayload): Promise<Usuario> {
-    console.log(`[AuthService] Validando utilizador OAuth: ${payload.email}`);
-    
-    // 1. Tentar encontrar o utilizador pelo seu ID do Google
-    let user = await this.prisma.usuario.findUnique({
-      where: { oauthId: payload.oauthId },
-    });
-    if (user) {
-      console.log('Utilizador encontrado pelo oauthId');
-      return user; // Login bem-sucedido
-    }
-
-    // 2. Não encontrou pelo ID. Tentar encontrar pelo email
-    user = await this.prisma.usuario.findUnique({
-      where: { email: payload.email },
-    });
-
-    if (user) {
-      // 3. Utilizador existe mas (provavelmente) registou-se com password.
-      // Vamos *ligar* a conta Google a este utilizador.
-      console.log('Utilizador encontrado pelo email. A ligar conta Google...');
-      user = await this.prisma.usuario.update({
-        where: { email: payload.email },
-        data: {
-          oauthId: payload.oauthId,
-          oauthProvider: payload.oauthProvider,
-        },
-      });
-      return user;
-    }
-
-    // 4. Utilizador não existe de todo. Criar um novo.
-    console.log('Utilizador não encontrado. A criar novo utilizador OAuth...');
-    user = await this.prisma.usuario.create({
-      data: {
-        email: payload.email,
-        nome: payload.nome,
-        sobrenome: payload.sobrenome,
-        telefone: '', // (Pode ser preenchido mais tarde)
-        oauthId: payload.oauthId,
-        oauthProvider: payload.oauthProvider,
-        // (passwordHash fica 'null', como planeado)
-      },
-    });
-
-    return user;
-  }
-  
-  // --- NOVO: Gerador de Tokens para OAuth ---
-  // (O 'login' normal não serve porque exige password)
-  async loginOAuth(user: Usuario): Promise<TokenResponse> {
-    console.log(`[AuthService] Gerando tokens para utilizador OAuth: ${user.email}`);
-    
-    const payload = { sub: user.email, userId: user.id };
-
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_SECRET_KEY'),
-        expiresIn: '15m',
-      }),
-      this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET_KEY'),
-        expiresIn: '7d',
-      }),
-    ]);
-
-    await this.updateRtHash(user.id, refreshToken);
-
-    return {
-      accessToken,
-      refreshToken,
-    };
-  }
-
-
-    // 1. PEDIR RECUPERAÇÃO
-  async forgotPassword(dto: ForgotPasswordDto) {
-    const user = await this.prisma.usuario.findUnique({
-      where: { email: dto.email },
-    });
-
-    if (!user) {
-      // Por segurança, não dizemos se o email existe ou não, mas retornamos sucesso.
-      // Mas para debug, vamos logar.
-      console.log(`[Auth] Tentativa de reset para email inexistente: ${dto.email}`);
-      return { message: 'Se o email existir, receberá um link de recuperação.' };
-    }
-
-    // Gerar um token temporário assinado com o segredo da app + hash da senha atual (para invalidar se a senha mudar entretanto)
-    const payload = { sub: user.id, email: user.email, type: 'reset' };
-    const token = this.jwtService.sign(payload, { expiresIn: '1h' });
-
-    // LINK PARA O FRONTEND (Ajuste a porta se o seu frontend rodar noutra porta, ex: 5173)
-    const resetLink = `http://localhost:5173/reset-password/confirm?token=${token}`;
-
-    // --- SIMULAÇÃO DE EMAIL ---
-    console.log('=========================================================');
-    console.log('📧 EMAIL DE RECUPERAÇÃO (SIMULADO)');
-    console.log(`Para: ${user.email}`);
-    console.log(`Link: ${resetLink}`);
-    console.log('=========================================================');
-
-    return { message: 'Email de recuperação enviado (verifique a consola do servidor).' };
-  }
-
-  // 2. CONFIRMAR NOVA SENHA
-  async resetPassword(dto: ResetPasswordDto) {
-    try {
-      // Verificar o token
-      const payload = this.jwtService.verify(dto.token);
-
-      if (payload.type !== 'reset') {
-        throw new BadRequestException('Token inválido.');
-      }
-
-      const user = await this.prisma.usuario.findUnique({
-        where: { id: payload.sub },
-      });
-
-      if (!user) throw new NotFoundException('Utilizador não encontrado.');
-
-      // Hash da nova senha
-      const salt = await bcrypt.genSalt();
-      const hash = await bcrypt.hash(dto.newPassword, salt);
-
-      // Atualizar na BD
-      await this.prisma.usuario.update({
-        where: { id: user.id },
-        data: { passwordHash: hash },
-      });
-
-      return { message: 'Senha alterada com sucesso! Pode fazer login agora.' };
-
-    } catch (error) {
-      throw new BadRequestException('Link de recuperação inválido ou expirado.');
-    }
-  }
-
-   async changePassword(userId: number, dto: ChangePasswordDto) {
-    const user = await this.prisma.usuario.findUnique({ where: { id: userId } });
-    if (!user || !user.passwordHash) throw new NotFoundException('Utilizador inválido.');
-
-    // Verificar senha atual
-    const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
-    if (!isMatch) throw new BadRequestException('A senha atual está incorreta.');
-
-    // Hash da nova senha
-    const salt = await bcrypt.genSalt();
-    const newHash = await bcrypt.hash(dto.newPassword, salt);
-
-    // Atualizar
-    await this.prisma.usuario.update({
-      where: { id: userId },
-      data: { passwordHash: newHash },
-    });
-
-    return { message: 'Senha atualizada com sucesso.' };
-  }
-
-  async updateRtHash(userId: number, rt: string) {
-  const hash = await bcrypt.hash(rt, 10);
-  await this.prisma.usuario.update({
-    where: { id: userId },
-    data: { hashedRt: hash },
-  });
-}
-
-async logout(userId: number) {
-  // Ao definir como NULL, o token que está no browser deixa de valer
-  // porque a comparação vai falhar.
-  await this.prisma.usuario.updateMany({
-    where: {
-      id: userId,
-      hashedRt: { not: null }, // Só atualiza se tiver hash
-    },
-    data: { hashedRt: null },
-  });
-}
 }

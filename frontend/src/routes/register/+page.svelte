@@ -5,7 +5,7 @@
 <script lang="ts">
   import axios from 'axios';
   import { goto } from '$app/navigation';
-  import { Check, X, AlertCircle, Loader2, ArrowRight } from 'lucide-svelte';
+  import { Check, X, AlertCircle, Loader2, ArrowRight, Mail } from 'lucide-svelte';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
 
   let nome = '';
@@ -16,7 +16,7 @@
   let confirmPassword = '';
   let isLoading = false;
   let error = '';
-  
+  let isSuccess = false; // NOVA VARIÁVEL DE ESTADO
   // Estilos Enterprise
   const inputClass = "w-full px-4 py-3 bg-surface-50 dark:bg-surface-900/50 border border-surface-200 dark:border-surface-700 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-sm font-medium text-surface-900 dark:text-white placeholder:text-surface-400";
   const labelClass = "block text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-400 mb-1.5";
@@ -51,7 +51,7 @@
       await axios.post(`${PUBLIC_API_URL_HOST}/api/auth/register`, {
         nome, sobrenome, telefone, email, password
       });
-      goto('/login');
+     isSuccess = true;
     } catch (err: any) {
       error = err.response?.data?.message || 'Erro ao criar conta. Tente novamente.';
       console.log(error)
@@ -66,6 +66,22 @@
 </script>
 
 <div class="min-h-screen flex items-center justify-center bg-white dark:bg-surface-950 relative overflow-hidden p-4">
+{#if isSuccess}
+        <div class="text-center py-8 space-y-4 animate-fade-in-up">
+            <div class="w-20 h-20 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-full flex items-center justify-center mx-auto">
+                <Mail size={40} />
+            </div>
+            <h2 class="text-xl font-bold text-surface-900 dark:text-white">Verifique o seu email</h2>
+            <p class="text-surface-500 text-sm">
+                Enviámos um link de ativação para <br>
+                <span class="font-bold text-surface-900 dark:text-white">{email}</span>
+            </p>
+            <div class="pt-4">
+                <a href="/login" class="btn variant-filled-primary w-full">Voltar ao Login</a>
+            </div>
+        </div>
+
+      {:else}
   
   <div class="absolute inset-0 w-full h-full bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-50 pointer-events-none"></div>
 
@@ -181,6 +197,7 @@
 
     </div>
   </div>
+  {/if}
 </div>
 
 <style>

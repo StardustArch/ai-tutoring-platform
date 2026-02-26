@@ -40,6 +40,13 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  // src/auth/auth.controller.ts
+
+@Post('confirm-email')
+async confirmEmail(@Body('token') token: string) {
+    return this.authService.confirmEmail(token);
+}
+
   /**
    * Rota para Login (Token)
    * POST /api/auth/token
