@@ -28,6 +28,13 @@ export class AdminController {
     return this.adminService.listTopics(query);
   }
 
+// --- GESTÃO DE SISTEMA ---
+
+  @Get('system')
+  getSystemHealth() {
+    return this.adminService.getSystemHealth();
+  }
+
 // --- GESTÃO DE UTILIZADORES (NOVO) ---
 
   @Get('users')

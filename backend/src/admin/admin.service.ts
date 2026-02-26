@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { HttpService } from '@nestjs/axios';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import * as os from 'os';
 
 @Injectable()
 export class AdminService {
@@ -16,7 +17,7 @@ export class AdminService {
     private prisma: PrismaService,
     private httpService: HttpService,
   ) {
-        const baseUrl = process.env.IA_API_URL || 'http://localhost:8000'; // Default seguro
+        const baseUrl = process.env.IA_API_URL;
     this.aiUrl = `${baseUrl}/health`;
   }
 
@@ -213,4 +214,60 @@ export class AdminService {
       select: { id: true, role: true }
     });
   }
+
+
+  // No topo do ficheiro
+
+// Dentro da classe AdminService
+async getSystemHealth() {
+    const memory = process.memoryUsage();
+    
+    // Teste de latência da BD
+    const dbStart = Date.now();
+    await this.prisma.$queryRaw`SELECT 1`; 
+    const dbLatency = Date.now() - dbStart;
+
+    // Teste de latência da IA
+    const aiHealth = await this.checkAiHealth();
+
+    const now = new Date();
+    
+    // Configurador de Data "Enterprise" (DD/MM/AAAA HH:mm:ss)
+    const dateFormatter = new Intl.DateTimeFormat('pt-PT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false, // <--- Força formato 24h (sem AM/PM)
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone // Garante que usa o fuso do servidor
+    });
+
+    return {
+        server: {
+            uptime: process.uptime(), // Segundos
+            nodeVersion: process.version,
+            platform: `${os.type()} ${os.release()} (${os.arch()})`,
+            memory: {
+                heapUsed: Math.round(memory.heapUsed / 1024 / 1024), // MB
+                rss: Math.round(memory.rss / 1024 / 1024), // MB
+                total: Math.round(os.totalmem() / 1024 / 1024) // MB Sistema
+            }
+        },
+        services: {
+            database: { status: 'ONLINE', latency: dbLatency },
+            ai: aiHealth
+        },
+        env: {
+            // MOSTRAR APENAS VARIÁVEIS SEGURAS
+            apiUrl: process.env.PUBLIC_API_URL_HOST || 'Não definido',
+            aiUrl: this.aiUrl || 'Não definido',
+            envMode: process.env.NODE_ENV || 'development',
+timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, 
+serverTime: dateFormatter.format(now)
+        },
+        timestamp: new Date().toISOString()
+    };
+}
 }
