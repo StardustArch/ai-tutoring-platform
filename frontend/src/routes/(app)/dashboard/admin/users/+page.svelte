@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Gestão de Utilizadores - KaniMente</title>
+    <title>Gestão de Utilizadores - Admin KaniMente</title>
 </svelte:head>
 
 <script lang="ts">

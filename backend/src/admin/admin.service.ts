@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateTopicDto } from './dto/create-topic.dto';
 import { PaginationDto } from './dto/pagination.dto';
 import { ListTopicsDto } from './dto/list-topics.dto';
 import { firstValueFrom } from 'rxjs';
@@ -8,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { HttpService } from '@nestjs/axios';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateDisciplinaDto, CreateTopicDto, FilterTopicDto, UpdateDisciplinaDto, UpdateTopicDto } from './dto/content.dto';
 import * as os from 'os';
 
 @Injectable()
@@ -62,27 +62,7 @@ export class AdminService {
     }
   }
   // --- GESTÃO DE TÓPICOS ---
-  // Agora recebe o DTO tipado
-  async createTopic(dto: CreateTopicDto) {
-    const disciplina = await this.prisma.disciplina.findUnique({
-      where: { id: dto.disciplinaId },
-    });
 
-    if (!disciplina) throw new NotFoundException('Disciplina não encontrada');
-
-    return this.prisma.topico.create({
-      data: {
-        nome: dto.nome,
-        nivelClasse: dto.classe,
-        disciplinaId: dto.disciplinaId,
-        ordem: dto.ordem || 1,
-        metadata: {
-          ai_context: dto.contextoIA,
-          difficulty_base: dto.dificuldadeBase || 1,
-        },
-      },
-    });
-  }
 
   // Agora recebe o DTO
   async listTopics(params: ListTopicsDto) {
@@ -94,6 +74,142 @@ export class AdminService {
       orderBy: { ordem: 'asc' },
     });
   }
+
+
+  // ==========================================================
+  // GESTÃO DE DISCIPLINAS
+  // ==========================================================
+  
+  async getDisciplinas() {
+    return this.prisma.disciplina.findMany({
+      include: { _count: { select: { topicos: true } } }, // Traz contagem de tópicos
+      orderBy: { nome: 'asc' }
+    });
+  }
+
+  async createDisciplina(dto: CreateDisciplinaDto) {
+    return this.prisma.disciplina.create({ data: dto });
+  }
+
+  async updateDisciplina(id: number, dto: UpdateDisciplinaDto) {
+    return this.prisma.disciplina.update({ where: { id }, data: dto });
+  }
+
+  async deleteDisciplina(id: number) {
+    // Verifica se tem tópicos antes de apagar para evitar desastres
+    const count = await this.prisma.topico.count({ where: { disciplinaId: id } });
+    if (count > 0) {
+      throw new BadRequestException(`Não é possível apagar. Esta disciplina tem ${count} tópicos associados.`);
+    }
+    return this.prisma.disciplina.delete({ where: { id } });
+  }
+
+  // ==========================================================
+  // GESTÃO DE TÓPICOS (CRUD Inteligente)
+  // ==========================================================
+
+  async getTopics(filters: FilterTopicDto) {
+    const whereClause: any = {};
+    if (filters.classe) whereClause.nivelClasse = filters.classe;
+    if (filters.disciplinaId) whereClause.disciplinaId = filters.disciplinaId;
+
+    return this.prisma.topico.findMany({
+      where: whereClause,
+      include: {
+        disciplina: true, // Saber de que matéria é
+        requisito: { select: { id: true, nome: true } } // Saber o pré-requisito
+      },
+      orderBy: [
+        { nivelClasse: 'asc' },
+        { ordem: 'asc' }
+      ]
+    });
+  }
+
+  async getTopicById(id: number) {
+    const topic = await this.prisma.topico.findUnique({
+        where: { id },
+        include: { requisito: true }
+    });
+    if (!topic) throw new NotFoundException("Tópico não encontrado");
+    return topic;
+  }
+
+  async createTopic(dto: CreateTopicDto) {
+    // 1. Lógica de Ordem Automática
+    // Se o admin não enviou a ordem, vamos descobrir qual é o último tópico dessa classe e somar 1.
+    let ordemFinal = dto.ordem;
+
+    if (!ordemFinal) {
+        const lastTopic = await this.prisma.topico.findFirst({
+            where: { 
+                disciplinaId: dto.disciplinaId,
+                nivelClasse: dto.classe 
+            },
+            orderBy: { ordem: 'desc' }
+        });
+        ordemFinal = lastTopic ? lastTopic.ordem + 1 : 1;
+    }
+
+    // 2. Criar
+    return this.prisma.topico.create({
+      data: {
+        nome: dto.nome,
+        nivelClasse: dto.classe,
+        disciplinaId: dto.disciplinaId,
+        ordem: ordemFinal,
+        requisitoId: dto.requisitoId,
+        metadata: dto.metadata || {} // Garante que nunca é null
+      }
+    });
+  }
+
+  async updateTopic(id: number, dto: UpdateTopicDto) {
+    return this.prisma.topico.update({
+      where: { id },
+      data: {
+          nome: dto.nome,
+          nivelClasse: dto.classe,
+          ordem: dto.ordem,
+          requisitoId: dto.requisitoId,
+          metadata: dto.metadata 
+      }
+    });
+  }
+
+  async deleteTopic(id: number) {
+    return this.prisma.topico.delete({ where: { id } });
+  }
+
+  // BÓNUS: Endpoint para "Árvore de Conteúdos"
+  // Útil para o frontend montar menus do tipo: Matemática -> 10ª Classe -> Tópicos
+  async getContentTree() {
+      const disciplinas = await this.prisma.disciplina.findMany({
+          orderBy: { nome: 'asc' }
+      });
+
+      const tree = await Promise.all(disciplinas.map(async (d) => {
+          // Agrupar tópicos por classe
+          const topics = await this.prisma.topico.groupBy({
+              by: ['nivelClasse'],
+              where: { disciplinaId: d.id },
+              _count: true
+          });
+          
+          return {
+              ...d,
+              classesDisponiveis: topics.map(t => ({
+                  classe: t.nivelClasse,
+                  totalTopicos: t._count
+              })).sort((a,b) => a.classe - b.classe)
+          };
+      }));
+
+      return tree;
+  }
+
+
+
 
   // --- GESTÃO DE UTILIZADORES ---
 // 1. LISTAR COM PESQUISA E PAGINAÇÃO

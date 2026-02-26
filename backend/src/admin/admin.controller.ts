@@ -1,12 +1,12 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Param, ParseIntPipe, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Param, ParseIntPipe, Patch, Delete } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { CreateTopicDto } from './dto/create-topic.dto';
 import { ListTopicsDto } from './dto/list-topics.dto';
 import { PaginationDto } from './dto/pagination.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateDisciplinaDto, UpdateDisciplinaDto, FilterTopicDto, CreateTopicDto, UpdateTopicDto } from './dto/content.dto';
 
 @Controller('api/admin')
 @UseGuards(AuthGuard('jwt'), AdminGuard)
@@ -18,11 +18,61 @@ export class AdminController {
     return this.adminService.getDashboardStats();
   }
 
-  @Post('topics')
+// --- GESTÃO DE CONTEÚDO ---
+
+  // 1. Disciplinas
+  @Get('content/disciplines')
+  getDisciplinas() {
+    return this.adminService.getDisciplinas();
+  }
+
+  @Post('content/disciplines')
+  createDisciplina(@Body() dto: CreateDisciplinaDto) {
+    return this.adminService.createDisciplina(dto);
+  }
+
+  @Patch('content/disciplines/:id')
+  updateDisciplina(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDisciplinaDto) {
+    return this.adminService.updateDisciplina(id, dto);
+  }
+
+  @Delete('content/disciplines/:id')
+  deleteDisciplina(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.deleteDisciplina(id);
+  }
+
+  // 2. Tópicos
+  @Get('content/topics')
+  getTopics(@Query() filters: FilterTopicDto) {
+    return this.adminService.getTopics(filters);
+  }
+
+  @Get('content/topics/:id')
+  getTopicDetails(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.getTopicById(id);
+  }
+
+  @Post('content/topics')
   createTopic(@Body() dto: CreateTopicDto) {
     return this.adminService.createTopic(dto);
   }
 
+  @Patch('content/topics/:id')
+  updateTopic(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTopicDto) {
+    return this.adminService.updateTopic(id, dto);
+  }
+
+  @Delete('content/topics/:id')
+  deleteTopic(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.deleteTopic(id);
+  }
+
+  // 3. Estrutura Global (Árvore)
+  @Get('content/tree')
+  getContentTree() {
+      return this.adminService.getContentTree();
+  }
+  
   @Get('topics')
   listTopics(@Query() query: ListTopicsDto) {
     return this.adminService.listTopics(query);
