@@ -4,7 +4,7 @@ import { CreateTopicDto } from './dto/create-topic.dto';
 import { ListTopicsDto } from './dto/list-topics.dto';
 import { PaginationDto } from './dto/pagination.dto';
 import { AuthGuard } from '@nestjs/passport';
-import { AdminGuard } from 'src/common/guards/admin.guard';
+import { AdminGuard } from '../common/guards/admin.guard';
 
 @Controller('api/admin')
 @UseGuards(AuthGuard('jwt'), AdminGuard)

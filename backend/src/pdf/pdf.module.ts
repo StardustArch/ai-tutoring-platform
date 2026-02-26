@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PdfService } from './pdf.service';
 import { PdfController } from './pdf.controller';
-import { PrismaModule } from 'src/prisma/prisma.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],
