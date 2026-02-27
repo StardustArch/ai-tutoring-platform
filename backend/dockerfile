@@ -38,4 +38,4 @@ EXPOSE 3000
 
 # 8. COMANDO FINAL: Usar o node diretamente no ficheiro compilado
 # Isso evita depender do nest-cli em produção
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
