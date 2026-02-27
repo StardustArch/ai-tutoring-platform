@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser'; // <-- 1. IMPORTAR
 import { ValidationPipe } from '@nestjs/common';
+import dns from 'node:dns';
+dns.setDefaultResultOrder('ipv4first');
 
 
 async function bootstrap() {
