@@ -1,6 +1,6 @@
 import json
 import re
-from app.services.llm_client import get_rush_client, generate_groq_response
+from app.services.llm_client import get_rush_client, generate_groq_response, generate_tutor_response
 from app.services.voice_service import generate_voice_audio
 from app.models.schemas import ChatRequest, ChatResponse
 from app.utils.text_helpers import safe_load_json_object, clean_json_text
@@ -160,7 +160,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
     # 2. Executar (CHAMADA GROQ DIRECTA)
     # Não precisamos de montar messages_payload aqui, o service faz isso.
     try:
-        json_obj = await generate_groq_response(
+        json_obj = await generate_tutor_response(
             system_prompt=system_text,
             user_query=request.user_query,
             history=request.history

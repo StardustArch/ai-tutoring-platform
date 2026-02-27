@@ -4,7 +4,7 @@ import json
 from openai import OpenAI
 from huggingface_hub import InferenceClient
 # Certifica-te que adicionas o HF_TOKEN no teu app/config.py também!
-from app.config import OPENROUTER_API_KEY, BASE_URL, GOOGLE_API_KEY, HF_TOKEN 
+from app.config import OPENROUTER_API_KEY, BASE_URL, GOOGLE_API_KEY, HF_TOKEN, GITHUB_TOKEN
 
 # ==========================================
 # 1. CLIENTE RUSH (Llama / OpenRouter)
@@ -20,34 +20,51 @@ def get_rush_client():
     """Retorna o cliente para o Modo Rush (Drill/Quiz)"""
     return rush_client
 
-
 # ==========================================
-# 2. CLIENTE TUTOR (Google Gemini)
+# 2. CLIENTE TUTOR (GitHub Models - GPT-4o)
 # ==========================================
-# if GOOGLE_API_KEY:
-#     # ✅ Configuração Global da Google
-#     genai.configure(api_key=GOOGLE_API_KEY)
-# else:
-#     print("⚠️ AVISO: API Key do Tutor (Google) em falta.")
+tutor_client = None
 
-# def get_tutor_model():
-#     """
-#     Retorna o OBJECTO do modelo Gemini (não faz a chamada ainda).
-#     Configurado para JSON Mode nativo.
-#     """
-#     if not GOOGLE_API_KEY:
-#         return None
+if GITHUB_TOKEN:
+    # Configuração para usar os modelos gratuitos do GitHub
+    tutor_client = OpenAI(
+        base_url="https://models.github.ai/inference",
+        api_key=GITHUB_TOKEN
+    )
+else:
+    print("⚠️ AVISO: GITHUB_TOKEN em falta.")
+
+def get_tutor_client():
+    """Retorna o cliente OpenAI apontando para o GitHub Models"""
+    return tutor_client
+
+async def generate_tutor_response(system_prompt, user_query, history=[]):
+    """
+    Usa o GPT-4o-mini do GitHub de forma gratuita.
+    """
+    if not tutor_client:
+        return {"error": "Serviço GitHub Models não configurado."}
+
+    messages = [{"role": "system", "content": system_prompt}]
     
-#     # ✅ Inicializa o Objeto do Modelo
-#     return genai.GenerativeModel(
-#         model_name="gemini-1.5-flash", # (Atenção: o 2.5 ainda não saiu publicamente, usa o 1.5-flash ou pro)
-#         generation_config={
-#             "temperature": 0.4,
-#             "response_mime_type": "application/json"
-#         }
-#     )
+    # Adicionamos o histórico para a IA ter memória
+    for msg in history[-6:]: # Últimas 6 para poupar tokens
+        role = "assistant" if msg.get("role") in ["assistant", "model", "ai"] else "user"
+        messages.append({"role": role, "content": str(msg.get("text", ""))})
 
+    messages.append({"role": "user", "content": user_query})
 
+    # Chamada ao modelo (Gratuito no GitHub)
+    response = tutor_client.chat.completions.create(
+        model="gpt-4o-mini", # Nome do modelo no GitHub Models
+        messages=messages,
+        temperature=0.7,
+        # Nota: GitHub Models às vezes é rígido com JSON Mode, 
+        # garantimos que o prompt pede JSON.
+    )
+
+    # Retorno
+    return json.loads(response.choices[0].message.content)
 # ==========================================
 # 3. CLIENTE SOCIAL (Hugging Face - Hermes)
 # ==========================================
