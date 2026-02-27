@@ -5,6 +5,7 @@ from openai import OpenAI
 from huggingface_hub import InferenceClient
 # Certifica-te que adicionas o HF_TOKEN no teu app/config.py também!
 from app.config import OPENROUTER_API_KEY, BASE_URL, GOOGLE_API_KEY, HF_TOKEN, GITHUB_TOKEN
+from app.utils.text_helpers import clean_json_text
 
 # ==========================================
 # 1. CLIENTE RUSH (Llama / OpenRouter)
@@ -53,18 +54,29 @@ async def generate_tutor_response(system_prompt, user_query, history=[]):
         messages.append({"role": role, "content": str(msg.get("text", ""))})
 
     messages.append({"role": "user", "content": user_query})
+    try:
+        # Chamada ao modelo (Gratuito no GitHub)
+        response = tutor_client.chat.completions.create(
+            model="gpt-4o-mini", # Nome do modelo no GitHub Models
+            messages=messages,
+            temperature=0.7,
+            # Nota: GitHub Models às vezes é rígido com JSON Mode, 
+            # garantimos que o prompt pede JSON.
+        )
 
-    # Chamada ao modelo (Gratuito no GitHub)
-    response = tutor_client.chat.completions.create(
-        model="gpt-4o-mini", # Nome do modelo no GitHub Models
-        messages=messages,
-        temperature=0.7,
-        # Nota: GitHub Models às vezes é rígido com JSON Mode, 
-        # garantimos que o prompt pede JSON.
-    )
-
-    # Retorno
-    return json.loads(response.choices[0].message.content)
+        raw_text = response.choices[0].message.content
+        cleaned_text = clean_json_text(raw_text)
+        # Retorno
+        return json.loads(cleaned_text)
+    except Exception as e:
+        print(f"❌ Erro GPT-4o/JSON: {e}")
+        # Se falhar o parse, retornamos um fallback seguro
+        return {
+            "messages": ["Eish, tive um problema ao processar o que disseste. 🤖"],
+            "emotion": "THOUGHTFUL",
+            "interaction_type": "EXPLANATION",
+            "interaction_data": {"options": ["Tentar novamente"]}
+        }
 # ==========================================
 # 3. CLIENTE SOCIAL (Hugging Face - Hermes)
 # ==========================================
