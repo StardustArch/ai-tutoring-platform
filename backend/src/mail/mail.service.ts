@@ -7,23 +7,27 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
 
   constructor() {
-this.transporter = nodemailer.createTransport({
+    this.transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
+      port: 587, // Mudamos de 465 para 587
+      secure: false, // Para a porta 587, o 'secure' deve ser false
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      // O 'as any' é para o TS não dar erro, mas o Nodemailer vai ler isto!
-      family: 4, 
+      family: 4,
+      tls: {
+        // Isto garante que o STARTTLS seja usado na porta 587
+        ciphers: 'SSLv3',
+        rejectUnauthorized: false,
+      },
     } as any);
   }
 
   async sendPasswordReset(email: string, token: string, nome: string) {
     // Link para o teu Frontend (Vercel ou Localhost)
     const resetLink = `${process.env.FRONTEND_URL}/reset-password/confirm?token=${token}`;
-    
+
     // HTML "Enterprise" Simples
     const htmlTemplate = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #ffffff;">
@@ -60,17 +64,16 @@ this.transporter = nodemailer.createTransport({
         html: htmlTemplate,
       });
       this.logger.log(`Email enviado para ${email}`);
-      console.log(`Email enviado para ${email}`)
+      console.log(`Email enviado para ${email}`);
       return true;
     } catch (error) {
       this.logger.error(`Erro ao enviar email para ${email}`, error);
-            console.log(`Erro ao enviar email para ${email}`, error)
-            this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
+      console.log(`Erro ao enviar email para ${email}`, error);
+      this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
 
       return false;
     }
   }
-
 
   async sendWelcome(email: string, nome: string) {
     const htmlTemplate = `
@@ -92,15 +95,14 @@ this.transporter = nodemailer.createTransport({
         subject: 'Bem-vindo ao KaniMente!',
         html: htmlTemplate,
       });
-      console.log("true")
+      console.log('true');
     } catch (error) {
       this.logger.error(`Erro ao enviar boas-vindas para ${email}`, error);
       this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
     }
   }
 
-
-async sendVerificationEmail(email: string, nome: string, token: string) {
+  async sendVerificationEmail(email: string, nome: string, token: string) {
     // Link aponta para uma página do frontend que vamos criar
     const url = `${process.env.FRONTEND_URL}/register/verify-email?token=${token}`;
 
@@ -117,16 +119,15 @@ async sendVerificationEmail(email: string, nome: string, token: string) {
         <p style="font-size: 12px; color: #666;">Se não criou esta conta, ignore este email.</p>
       </div>
     `;
-try {
-  
-  await this.transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to: email,
-      subject: 'Activar conta KaniMente',
-      html: html,
-  });
-} catch (error) {
-  this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
-}
-}
+    try {
+      await this.transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: email,
+        subject: 'Activar conta KaniMente',
+        html: html,
+      });
+    } catch (error) {
+      this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
+    }
+  }
 }
