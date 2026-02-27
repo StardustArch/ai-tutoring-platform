@@ -113,3 +113,9 @@ def clean_json_text(raw_text):
     if match:
         return match.group()
     return text
+
+
+def remove_emojis(text: str) -> str:
+    # Esta regex remove a maioria dos emojis e símbolos pictográficos do Unicode
+    # Mantém letras, acentos (essenciais para pt-MZ) e pontuação.
+    return re.sub(r'[^\x00-\x7F\u00C0-\u00FF\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF]', '', text)
