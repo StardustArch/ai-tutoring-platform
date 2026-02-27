@@ -145,8 +145,7 @@
   const labelStyle = "text-[10px] font-bold uppercase tracking-widest text-surface-500 mb-3 block";
 </script>
 
-<div class="container mx-auto max-w-7xl p-4 md:p-8 pb-32 animate-fade-in relative">
-  
+<div class="container mx-auto max-w-7xl p-4 md:p-8 pb-64 md:pb-32 animate-fade-in relative">  
   <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 border-b border-surface-200 dark:border-surface-700 pb-4">
     <div class="flex items-center gap-4">
       <button on:click={() => history.back()} class="p-2 -ml-2 rounded-md hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors shrink-0 border border-transparent hover:border-surface-200">
@@ -315,19 +314,19 @@
   {/if}
 </div>
 
-<div class="fixed bottom-0 left-0 right-0 z-40 bg-white/80 dark:bg-surface-900/80 backdrop-blur-md border-t border-surface-200 dark:border-surface-700 pb-safe">
-  <div class="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between gap-4">
+<div class="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-surface-900/90 backdrop-blur-md border-t border-surface-200 dark:border-surface-700 p-4 md:pb-safe transition-all">
+  <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
     
     <div class="hidden sm:block">
         <div class="flex items-center gap-4">
             <div>
                 <span class="text-[10px] font-bold text-surface-400 uppercase block">Modo</span>
-                <span class="text-xs font-bold text-surface-900 dark:text-white">{config.mode === 'TUTOR' ? 'Tutor Individual' : 'Revisão Rush'}</span>
+                <span class="text-xs font-bold text-surface-900 dark:text-surface-100">{config.mode === 'TUTOR' ? 'Tutor Individual' : 'Revisão Rush'}</span>
             </div>
-            <div class="w-px h-8 bg-surface-200 dark:border-surface-700"></div>
+            <div class="w-px h-8 bg-surface-200 dark:bg-surface-700"></div>
             <div>
                 <span class="text-[10px] font-bold text-surface-400 uppercase block">Tópicos</span>
-                <span class="text-xs font-bold text-surface-900 dark:text-white">{config.selectedTopics.length} selecionados</span>
+                <span class="text-xs font-bold text-surface-900 dark:text-surface-100">{config.selectedTopics.length} selecionados</span>
             </div>
         </div>
     </div>
@@ -335,14 +334,14 @@
     <button 
         on:click={startSession}
         disabled={isSubmitting || config.selectedTopics.length === 0}
-        class="w-full sm:w-auto min-w-[220px] btn bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-md shadow-sm flex items-center justify-center gap-3 transition-all disabled:opacity-50"
+        class="w-full sm:w-auto min-w-[220px] btn bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 md:py-3 rounded-md shadow-lg shadow-emerald-900/10 flex items-center justify-center gap-3 transition-all disabled:opacity-50 disabled:shadow-none active:scale-[0.98]"
     >
         {#if isSubmitting}
             <Loader size={18} class="animate-spin" />
             <span>A preparar...</span>
         {:else}
             <Play size={18} class="fill-current" />
-            <span class="uppercase tracking-widest text-xs">Iniciar Sessão de Estudo</span>
+            <span class="uppercase tracking-widest text-xs">Iniciar Sessão</span>
         {/if}
     </button>
   </div>
@@ -361,6 +360,7 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  /* Esconde scrollbar mas permite scroll */
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>

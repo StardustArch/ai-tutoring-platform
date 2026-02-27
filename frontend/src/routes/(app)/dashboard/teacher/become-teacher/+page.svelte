@@ -67,7 +67,7 @@
     }
 </script>
 
-<div class="min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
+<div class="md:min-h-[80vh] flex items-center justify-center p-4 animate-fade-in">
     <div class="max-w-md w-full bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg shadow-sm overflow-hidden">
         
         <div class="p-8 pb-6 text-center">
