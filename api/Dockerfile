@@ -3,13 +3,14 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+RUN mkdir -p static/audio_cache && chmod 777 static/audio_cache
+
 # Copiar o NOVO ficheiro de requisitos
 COPY requirements.txt .
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 # Instalar as dependências
-
 
 # Copiar todo o código da app
 COPY . .
