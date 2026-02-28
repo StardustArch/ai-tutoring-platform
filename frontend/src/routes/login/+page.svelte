@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Entrar | KaniMente</title>
+    <title>Entrar | KMind</title>
 </svelte:head>
 
 <script lang="ts">
@@ -128,7 +128,7 @@
         K
       </div>
       <h1 class="text-2xl font-bold text-surface-900 dark:text-white tracking-tight">Bem-vindo de volta</h1>
-      <p class="text-sm text-surface-500 mt-2">Aceda ao seu tutor inteligente KaniMente</p>
+      <p class="text-sm text-surface-500 mt-2">Aceda ao seu tutor inteligente KMind</p>
     </div>
 
     <div class="bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-800 shadow-xl p-6 md:p-8">

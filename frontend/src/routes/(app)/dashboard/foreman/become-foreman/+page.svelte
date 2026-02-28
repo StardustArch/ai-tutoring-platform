@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Ativar Perfil Familiar | KaniMente</title>
+    <title>Ativar Perfil Familiar | KMind</title>
 </svelte:head>
 
 <script lang="ts">

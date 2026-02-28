@@ -44,7 +44,7 @@
             Como queres aprender hoje?
         </h1>
         <p class="text-lg text-surface-500 max-w-md mx-auto">
-            Escolhe o teu ritmo. O KaniMente adapta-se a ti.
+            Escolhe o teu ritmo. O KMind adapta-se a ti.
         </p>
     </div>
 
@@ -64,7 +64,7 @@
                 </div>
                 <h3 class="text-2xl font-bold text-surface-900 dark:text-white mb-2">Modo Tutor</h3>
                 <p class="text-surface-500 dark:text-surface-400 font-medium leading-relaxed">
-                    Aprende com calma. O Kani explica passo-a-passo, dá exemplos e ensina a teoria.
+                    Aprende com calma. O K explica passo-a-passo, dá exemplos e ensina a teoria.
                 </p>
                 <div class="mt-6 inline-flex items-center text-blue-600 font-bold text-sm">
                     COMEÇAR AULA <span class="ml-2 group-hover:translate-x-1 transition-transform">→</span>

@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Configurar Sessão | KaniMente</title>
+    <title>Configurar Sessão | KMind</title>
 </svelte:head>
 
 <script lang="ts">

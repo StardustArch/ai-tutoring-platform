@@ -20,7 +20,7 @@ private async sendViaApi(to: string, subject: string, htmlContent: string) {
         } as any, // O "as any" aqui é o segredo para o TS ignorar o erro de overload
         body: JSON.stringify({
           sender: { 
-            name: 'KaniMente', 
+            name: 'KMind', 
             email: process.env.EMAIL_FROM 
           },
           to: [{ email: to }],
@@ -51,7 +51,7 @@ private async sendViaApi(to: string, subject: string, htmlContent: string) {
     const htmlTemplate = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #ffffff;">
         <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="color: #4F46E5; margin: 0;">KaniMente</h2>
+          <h2 style="color: #4F46E5; margin: 0;">KMind</h2>
           <p style="color: #64748b; font-size: 14px;">Educação Inteligente</p>
         </div>
         
@@ -70,13 +70,13 @@ private async sendViaApi(to: string, subject: string, htmlContent: string) {
         </div>
 
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8;">
-          <p>&copy; 2026 KaniMente. Enviado automaticamente pelo sistema.</p>
+          <p>&copy; 2026 KMind. Enviado automaticamente pelo sistema.</p>
         </div>
       </div>
     `;
 
     try {
-    return this.sendViaApi(email, 'Recuperação de Senha - KaniMente', htmlTemplate);
+    return this.sendViaApi(email, 'Recuperação de Senha - KMind', htmlTemplate);
 
     } catch (error) {
       this.logger.error(`Erro ao enviar email para ${email}`, error);
@@ -90,7 +90,7 @@ private async sendViaApi(to: string, subject: string, htmlContent: string) {
   async sendWelcome(email: string, nome: string) {
     const htmlTemplate = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; text-align: center;">
-        <h2 style="color: #4F46E5;">Bem-vindo ao KaniMente!</h2>
+        <h2 style="color: #4F46E5;">Bem-vindo ao KMind!</h2>
         <p>Olá <strong>${nome}</strong>, estamos muito felizes por te teres juntado a nós.</p>
         <p>Prepara-te para uma nova forma de aprender.</p>
         <br>
@@ -101,7 +101,7 @@ private async sendViaApi(to: string, subject: string, htmlContent: string) {
     `;
 
     try {
-         return this.sendViaApi(email, 'Bem-vindo ao KaniMente!', htmlTemplate);
+         return this.sendViaApi(email, 'Bem-vindo ao KMind!', htmlTemplate);
 
     } catch (error) {
       this.logger.error(`Erro ao enviar boas-vindas para ${email}`, error);
@@ -116,7 +116,7 @@ private async sendViaApi(to: string, subject: string, htmlContent: string) {
     const html = `
       <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
         <h2 style="color: #4F46E5;">Confirme o seu email 📧</h2>
-        <p>Olá ${nome}, falta pouco para entrares no KaniMente.</p>
+        <p>Olá ${nome}, falta pouco para entrares no KMind.</p>
         <p>Clica no botão abaixo para ativar a tua conta:</p>
         <br>
         <a href="${url}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
@@ -127,7 +127,7 @@ private async sendViaApi(to: string, subject: string, htmlContent: string) {
       </div>
     `;
     try {
-          return this.sendViaApi(email, 'Activar conta KaniMente', html);
+          return this.sendViaApi(email, 'Activar conta KMind', html);
     } catch (error) {
       this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
     }

@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Configurar Educando | KaniMente</title>
+    <title>Configurar Educando | KMind</title>
 </svelte:head>
 
 <script lang="ts">

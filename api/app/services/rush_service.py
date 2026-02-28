@@ -4,7 +4,7 @@ from app.utils.text_helpers import safe_load_json_object, _sanitize_rush_payload
 from app.config import LANG_VARIANT
 
 PROMPT_RUSH_JSON = """
-You are a Quiz Generator API for KaniMente.
+You are a Quiz Generator API for KMind.
 OUTPUT RULES (STRICT):
 - Output ONLY one single JSON object (no markdown, no explanation).
 - JSON keys must be: "_logic", "question", "options", "correct_answer", "explanation".

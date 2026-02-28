@@ -272,7 +272,7 @@ let availableTopics: { [key: string]: any[] } = {
                     <Brain size={20} />
                 </div>
                 <div>
-                    <h2 class="font-bold text-slate-700 leading-tight">KaniMente</h2>
+                    <h2 class="font-bold text-slate-700 leading-tight">KMind</h2>
                     <p class="text-xs text-slate-500 font-bold uppercase tracking-wider">
                         {viewState === 'CHAT' ? sessionContext.topic : 'Menu Principal'}
                     </p>
@@ -421,7 +421,7 @@ let availableTopics: { [key: string]: any[] } = {
 
                     {:else if !isTyping}
                          <div class="w-full text-center opacity-50 text-sm font-bold animate-pulse text-slate-400 mt-4">
-                            À espera do Kani...
+                            À espera do K...
                          </div>
                     {/if}
                 </div>
@@ -433,7 +433,7 @@ let availableTopics: { [key: string]: any[] } = {
                 
                 {#if isTyping}
                     <div class="flex justify-center items-center gap-2">
-                        <span class="sr-only">Kani está a escrever...</span>
+                        <span class="sr-only">K está a escrever...</span>
                         <div class="h-3 w-3 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                         <div class="h-3 w-3 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                         <div class="h-3 w-3 bg-blue-400 rounded-full animate-bounce"></div>

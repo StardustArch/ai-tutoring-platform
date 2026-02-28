@@ -23,5 +23,5 @@ app.useGlobalPipes(new ValidationPipe({
   app.use(cookieParser());
 const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0'); 
-  console.log(`🚀 Maestro KaniMente a ouvir na porta ${port}`);}
+  console.log(`🚀 Maestro KMind a ouvir na porta ${port}`);}
 bootstrap();

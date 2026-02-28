@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Relatórios de Desempenho | KaniMente</title>
+    <title>Relatórios de Desempenho | KMind</title>
 </svelte:head>
 
 <script lang="ts">

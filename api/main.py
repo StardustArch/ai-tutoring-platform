@@ -7,7 +7,7 @@ from app.services.rush_service import generate_rush_question_logic
 from app.services.chat_service import generate_chat_response_logic
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="KaniMente Engine Modular", version="6.1.0")
+app = FastAPI(title="KMind Engine Modular", version="6.1.0")
 if not os.path.exists("static"):
     os.makedirs("static")
 
@@ -29,7 +29,7 @@ async def generate_chat_response(request: ChatRequest):
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "kanimente-ai"}
+    return {"status": "ok", "service": "KMind-ai"}
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), reload=True)

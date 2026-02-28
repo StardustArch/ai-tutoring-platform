@@ -34,7 +34,7 @@
       case 500:
         return {
           title: 'Erro no Sistema',
-          desc: 'O Kani ficou confuso. Tenta recarregar a página.',
+          desc: 'O KMind ficou confuso. Tenta recarregar a página.',
           icon: AlertTriangle,
           color: 'text-rose-500',
           bg: 'bg-rose-50',
@@ -106,7 +106,7 @@
     </div>
 
     <p class="text-xs text-slate-300 font-mono mt-8">
-      KaniMente Error Handler v1.0
+      KMind Error Handler v1.0
     </p>
 
   </div>

@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Definir Nova Senha | KaniMente</title>
+    <title>Definir Nova Senha | KMind</title>
 </svelte:head>
 
 <script lang="ts">

@@ -80,7 +80,7 @@ async def generate_tutor_response(system_prompt, user_query, history=[]):
 # ==========================================
 # 3. CLIENTE SOCIAL (Hugging Face - Hermes)
 # ==========================================
-# Este é o modelo "Kani" (Mascote/Amigo)
+# Este é o modelo "K" (Mascote/Amigo)
 MODEL_ID = "llama-3.3-70b-versatile"
 
 async def generate_groq_response(system_prompt, user_query, history=[]):

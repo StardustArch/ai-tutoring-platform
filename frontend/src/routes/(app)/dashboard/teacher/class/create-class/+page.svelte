@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Criar Nova Turma | KaniMente</title>
+    <title>Criar Nova Turma | KMind</title>
 </svelte:head>
 
 <script lang="ts">
@@ -104,7 +104,7 @@
   }
 </script>
 
-<div class="container mx-auto max-w-2xl min-h-[80vh] flex flex-col justify-center p-4 animate-fade-in">
+<div class="container mx-auto max-w-2xl md:min-h-[80vh] flex flex-col justify-center p-4 animate-fade-in">
   
   <div class="mb-8 text-center">
       {#if !turmaCriada}

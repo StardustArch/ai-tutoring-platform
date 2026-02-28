@@ -102,7 +102,7 @@ export class ChatService {
     } catch (error) { 
         this.logger.error(`ERRO IA: ${error.message}`);
         finalResponse = JSON.stringify({
-            text: "O KaniMente está a pensar... Podes tentar de novo?",
+            text: "O KMind está a pensar... Podes tentar de novo?",
             emotion: "THOUGHTFUL",
             interaction_type: "CHIPS", // Tipo neutro
             interaction_data: { options: ["Tentar"] }

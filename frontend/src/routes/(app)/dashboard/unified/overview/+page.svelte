@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Visão Geral - KaniMente</title>
+    <title>Visão Geral - KMind</title>
 </svelte:head>
 
 <script lang="ts">

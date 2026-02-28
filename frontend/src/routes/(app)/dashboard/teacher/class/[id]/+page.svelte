@@ -211,7 +211,7 @@ if (!aceitou) return; // Se disser não, para aqui.
   {:else if turma}
   
     <div class="bg-white dark:bg-surface-800 rounded-lg shadow-sm border border-surface-200 dark:border-surface-700 overflow-hidden">
-        <div class="p-6 md:p-8 flex flex-col md:flex-row justify-between gap-6">
+        <div class=" md:p-8 flex flex-col md:flex-row justify-between gap-6">
             
             <div class="flex gap-5">
                 <div class="w-14 h-14 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center text-surface-500 dark:text-surface-400 border border-surface-200 dark:border-surface-600 shrink-0">

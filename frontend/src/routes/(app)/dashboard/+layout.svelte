@@ -213,7 +213,7 @@
                             {#if isAdmin}
                                 Admin<span class="text-primary-500">Panel</span>
                             {:else}
-                                Kani<span class="text-primary-500">Mente</span>
+                                K<span class="text-primary-500">Mind</span>
                             {/if}
                         </span>
                     {/if}
@@ -358,7 +358,7 @@
                 <slot />
 
                 <div class="mt-auto pt-8 hidden md:block">
-                     <p class="text-xs text-center text-surface-400">© 2026 KaniMente</p>
+                     <p class="text-xs text-center text-surface-400">© 2026 KMind</p>
                 </div>
             </main>
 

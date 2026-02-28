@@ -74,7 +74,7 @@ GITHUB_TOKEN="your_github_token_for_model_acess"
 # Email Config (Gmail SMTP)
 EMAIL_USER="your_email"
 EMAIL_PASS="your_google_app_password"
-EMAIL_FROM="KaniMente Admin <your_emai_here(again)>"
+EMAIL_FROM="KMind Admin <your_emai_here(again)>"
 ```
 
 ### 2. Run Application

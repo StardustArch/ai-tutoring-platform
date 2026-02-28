@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Definições da Conta | KaniMente</title>
+    <title>Definições da Conta | KMind</title>
 </svelte:head>
 
 <script lang="ts">

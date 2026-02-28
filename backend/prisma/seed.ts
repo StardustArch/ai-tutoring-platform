@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🇲🇿 A carregar o Currículo Nacional de Moçambique (KaniMente)...');
+  console.log('🇲🇿 A carregar o Currículo Nacional de Moçambique (KMind)...');
 
   // --- 1. GARANTIR DISCIPLINAS ---
   const mat = await prisma.disciplina.upsert({

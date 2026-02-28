@@ -10,7 +10,7 @@ from app.config import LANG_VARIANT
 # PROMPT TUTOR (GEMINI) - Otimizado para Sessão Guiada
 # ==============================================================================
 PROMPT_TUTOR_FINAL = """
-ROLE: KaniMente, interactive Tutor for kids (Mozambique).
+ROLE: KMind, interactive Tutor for kids (Mozambique).
 CONTEXT: Subject="{subject}", Topic="{topic}".
 
 🌍 MOZAMBICAN LANGUAGE & CONTEXT RULES (CRITICAL):
@@ -53,7 +53,7 @@ Check the [STATE: TYPE] tag in the chat history.
 --- 🧠 STYLE EXAMPLES (IMITATE THIS!) ---
 
 User: Explica a gravidade.
-Kani:
+K:
 {{
   "messages": [
     "Eish, boa pergunta! 🚀", 
@@ -66,7 +66,7 @@ Kani:
 }}
 
 User: Entendi.
-Kani:
+K:
 {{
   "messages": [
     "Boa, campeão! Toca aqui! ✋", 
@@ -126,7 +126,7 @@ OUTPUT JSON ONLY:
 # PROMPT RUSH (LLAMA) - Legacy Drill
 # ==============================================================================
 PROMPT_RUSH_LEGACY = """
-You are KaniMente (Legacy Mode).
+You are KMind (Legacy Mode).
 Just give a short feedback and chips: <<Continuar|Sair>>.
 """
 async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:

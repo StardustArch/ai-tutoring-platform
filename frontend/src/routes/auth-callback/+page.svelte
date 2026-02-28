@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>A processar... | KaniMente</title>
+    <title>A processar... | KMind</title>
 </svelte:head>
 
 <script lang="ts">
@@ -102,7 +102,7 @@
                 A validar credenciais...
             </h1>
             <p class="text-sm text-surface-500 dark:text-surface-400">
-                A redirecionar para o KaniMente
+                A redirecionar para o KMind
             </p>
         </div>
     </div>

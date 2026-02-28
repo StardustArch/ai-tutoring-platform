@@ -1191,7 +1191,7 @@ private async getBaseStudentReport(
                   K
                 </div>
                 <span style="font-size: 24px; font-weight: 900; color: #111827;">
-                  Kani<span style="color: #3b82f6;">Mente</span>
+                  K<span style="color: #3b82f6;">Mind</span>
                 </span>
               </div>
               <p class="header-subtitle">Relatório Pedagógico • ${traduzirPeriodo(timeRange)}</p>
@@ -1430,12 +1430,12 @@ private async getBaseStudentReport(
               <div style="width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 10px;">
                 K
               </div>
-              <span style="font-weight: 700; color: #3b82f6;">KaniMente</span>
+              <span style="font-weight: 700; color: #3b82f6;">KMind</span>
             </div>
             <div style="font-size: 10px; color: #9ca3af; margin-bottom: 8px; max-width: 600px; margin-left: auto; margin-right: auto;">
               <strong>Nota:</strong> A Taxa de Sucesso de ${relatorio.resumo.taxaGlobal}% é composta por ${relatorio.resumo.detalhes.exercicios.acertos} acertos em ${relatorio.resumo.detalhes.exercicios.total} exercícios práticos (${taxaExercicios}%) e ${relatorio.resumo.detalhes.tutor.acertos} validações corretas em ${relatorio.resumo.detalhes.tutor.total} interações com o Tutor IA (${taxaTutor}%).
             </div>
-            Relatório pedagógico gerado automaticamente pela plataforma KaniMente.<br>
+            Relatório pedagógico gerado automaticamente pela plataforma KMind.<br>
             Documento válido para acompanhamento pedagógico e planejamento de intervenções. • ${new Date().getFullYear()}
           </div>
         </body>

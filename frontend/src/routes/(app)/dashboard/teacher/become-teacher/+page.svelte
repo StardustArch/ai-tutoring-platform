@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Ativar Perfil Docente | KaniMente</title>
+    <title>Ativar Perfil Docente | KMind</title>
     <meta name="description" content="Crie a sua sala de aula virtual e comece a gerir os seus alunos." />
 </svelte:head>
 

@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Sistema - Admin KaniMente</title>
+    <title>Sistema - Admin KMind</title>
 </svelte:head>
 
 <script lang="ts">
@@ -120,7 +120,7 @@
 
             <div class="bg-white dark:bg-surface-800 p-6 rounded-lg border border-surface-200 dark:border-surface-700 shadow-sm">
                 <h3 class="text-sm font-semibold text-surface-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <Cpu size={16} /> KaniMente AI
+                    <Cpu size={16} /> KMind AI
                 </h3>
                 
                 {#if sys.services.ai.status === 'ONLINE'}

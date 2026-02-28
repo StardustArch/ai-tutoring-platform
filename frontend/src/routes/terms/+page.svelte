@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Termos de Uso | KaniMente</title>
+    <title>Termos de Uso | KMind</title>
 </svelte:head>
 
 <script lang="ts">
@@ -19,7 +19,7 @@
         Termos de Uso
       </h1>
       <p class="text-lg text-surface-600 dark:text-surface-400 max-w-2xl mx-auto">
-        Regras claras para manter o KaniMente um ambiente seguro e produtivo para a educação.
+        Regras claras para manter o KMind um ambiente seguro e produtivo para a educação.
       </p>
       <p class="text-sm text-surface-500 mt-6 font-mono">
         Última atualização: {lastUpdated}
@@ -34,7 +34,7 @@
         <ScrollText class="text-primary-500" size={24} /> 1. Aceitação dos Termos
       </h2>
       <p class="text-surface-600 dark:text-surface-300 leading-relaxed">
-        Ao criar uma conta ou utilizar a plataforma KaniMente, você concorda em cumprir estes Termos de Uso. Se não concordar com alguma parte destes termos, não deverá utilizar os nossos serviços. Estes termos aplicam-se a todos os visitantes, utilizadores e outras pessoas que acedam ou utilizem o Serviço.
+        Ao criar uma conta ou utilizar a plataforma KMind, você concorda em cumprir estes Termos de Uso. Se não concordar com alguma parte destes termos, não deverá utilizar os nossos serviços. Estes termos aplicam-se a todos os visitantes, utilizadores e outras pessoas que acedam ou utilizem o Serviço.
       </p>
     </section>
 
@@ -58,7 +58,7 @@
       </h2>
       <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 p-6 rounded-xl space-y-3">
         <p class="text-surface-800 dark:text-surface-200 font-medium">
-            O KaniMente utiliza tecnologia de Inteligência Artificial para gerar conteúdos educativos e respostas. Embora nos esforcemos pela precisão:
+            O KMind utiliza tecnologia de Inteligência Artificial para gerar conteúdos educativos e respostas. Embora nos esforcemos pela precisão:
         </p>
         <ul class="list-disc pl-5 space-y-2 text-surface-600 dark:text-surface-300 text-sm">
             <li>A IA pode ocasionalmente gerar informações incorretas (alucinações).</li>
@@ -73,7 +73,7 @@
         <Copyright class="text-primary-500" size={24} /> 4. Propriedade Intelectual
       </h2>
       <p class="text-surface-600 dark:text-surface-300 leading-relaxed">
-        O Serviço e o seu conteúdo original (excluindo conteúdo fornecido pelos utilizadores), funcionalidades e design são e permanecerão propriedade exclusiva da KaniMente e dos seus licenciadores. O Serviço está protegido por direitos de autor e outras leis de Moçambique e países estrangeiros.
+        O Serviço e o seu conteúdo original (excluindo conteúdo fornecido pelos utilizadores), funcionalidades e design são e permanecerão propriedade exclusiva da KMind e dos seus licenciadores. O Serviço está protegido por direitos de autor e outras leis de Moçambique e países estrangeiros.
       </p>
     </section>
 
@@ -103,7 +103,7 @@
 
     <div class="pt-8 border-t border-surface-200 dark:border-surface-800">
         <p class="text-surface-500 text-sm">
-            Tem dúvidas sobre os termos? Contacte-nos em <a href="mailto:legal@kanimente.co.mz" class="text-primary-600 font-bold hover:underline">legal@kanimente.co.mz</a>
+            Tem dúvidas sobre os termos? Contacte-nos em <a href="mailto:legal@KMind.co.mz" class="text-primary-600 font-bold hover:underline">legal@KMind.co.mz</a>
         </p>
     </div>
 

@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Registar | KaniMente</title>
+    <title>Registar | KMind</title>
 </svelte:head>
 
 <script lang="ts">

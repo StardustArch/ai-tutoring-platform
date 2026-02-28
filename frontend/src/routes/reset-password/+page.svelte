@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Recuperar Senha | KaniMente</title>
+    <title>Recuperar Senha | KMind</title>
 </svelte:head>
 
 <script lang="ts">

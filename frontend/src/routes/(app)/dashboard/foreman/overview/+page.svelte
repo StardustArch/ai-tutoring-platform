@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Painel da Família | KaniMente</title>
+    <title>Painel da Família | KMind</title>
 </svelte:head>
 
 <script lang="ts">

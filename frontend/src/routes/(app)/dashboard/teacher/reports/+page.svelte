@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Relatórios Académicos | KaniMente</title>
+    <title>Relatórios Académicos | KMind</title>
 </svelte:head>
 
 <script lang="ts">

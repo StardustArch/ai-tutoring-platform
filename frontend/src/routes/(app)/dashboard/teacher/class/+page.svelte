@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Minhas Turmas | KaniMente</title>
+    <title>Minhas Turmas | KMind</title>
 </svelte:head>
 
 <script lang="ts">

@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>KaniMente | O Futuro da Educação em Moçambique</title>
+    <title>KMind | O Futuro da Educação em Moçambique</title>
     <meta name="description" content="Plataforma de ensino inteligente para a 3ª e 4ª classe. Matemática e Português com IA." />
 </svelte:head>
 
@@ -92,7 +92,7 @@
     {
       name: 'Maria Silva',
       role: 'Encarregada de Educação',
-      text: 'O meu filho via o estudo como uma obrigação chata. Com o KaniMente e o sistema de XP, ele agora pede para estudar.',
+      text: 'O meu filho via o estudo como uma obrigação chata. Com o KMind e o sistema de XP, ele agora pede para estudar.',
       rating: 5
     },
     {
@@ -120,7 +120,7 @@
             K
           </div>
           <span class="text-lg font-bold tracking-tight text-surface-900 dark:text-white">
-            Kani<span class="text-primary-600 dark:text-primary-400">Mente</span>
+            K<span class="text-primary-600 dark:text-primary-400">Mind</span>
           </span>
         </a>
 
@@ -197,7 +197,7 @@
                     <div class="w-3 h-3 rounded-full bg-green-400/80"></div>
                 </div>
                 <div class="hidden sm:flex text-[10px] text-surface-400 font-mono bg-white dark:bg-surface-800 px-3 py-1 rounded-md border border-surface-200 dark:border-surface-700">
-                    kanimente.co.mz/aluno
+                    KMind.co.mz/aluno
                 </div>
                 <div class="w-10"></div> 
             </div>
@@ -492,7 +492,7 @@
         <div class="col-span-2 md:col-span-1">
           <div class="flex items-center gap-2 mb-4">
             <div class="w-6 h-6 rounded bg-primary-600 flex items-center justify-center text-white text-xs font-bold">K</div>
-            <span class="font-bold text-surface-900 dark:text-white">KaniMente</span>
+            <span class="font-bold text-surface-900 dark:text-white">KMind</span>
           </div>
           <p class="text-sm text-surface-500 leading-relaxed">
             Desenvolvendo o futuro através da educação e tecnologia.
@@ -518,14 +518,14 @@
         <div>
           <h4 class="font-bold text-surface-900 dark:text-white mb-4">Contacto</h4>
           <ul class="space-y-2 text-sm text-surface-600 dark:text-surface-400">
-            <li>suporte@kanimente.co.mz</li>
+            <li>suporte@KMind.co.mz</li>
             <li>Maputo, Moçambique</li>
           </ul>
         </div>
       </div>
 
       <div class="border-t border-surface-200 dark:border-surface-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-surface-500">
-        <p>&copy; {new Date().getFullYear()} KaniMente Inc.</p>
+        <p>&copy; {new Date().getFullYear()} KMind Inc.</p>
         <div class="flex gap-4">
             </div>
       </div>

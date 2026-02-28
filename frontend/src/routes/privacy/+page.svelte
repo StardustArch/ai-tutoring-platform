@@ -1,5 +1,5 @@
 <svelte:head>
-    <title>Política de Privacidade | KaniMente</title>
+    <title>Política de Privacidade | KMind</title>
 </svelte:head>
 
 <script lang="ts">
@@ -93,7 +93,7 @@
         <Baby class="text-primary-500" size={24} /> 4. Privacidade Infantil
       </h2>
       <p class="text-surface-600 dark:text-surface-300 leading-relaxed">
-        O KaniMente foi desenhado para ser usado por crianças, mas a conta deve ser sempre gerida por um responsável legal. Não recolhemos intencionalmente informações de contacto direto de menores de 13 anos sem consentimento dos pais. Se acredita que coletamos dados indevidamente, contacte-nos para remoção imediata.
+        O KMind foi desenhado para ser usado por crianças, mas a conta deve ser sempre gerida por um responsável legal. Não recolhemos intencionalmente informações de contacto direto de menores de 13 anos sem consentimento dos pais. Se acredita que coletamos dados indevidamente, contacte-nos para remoção imediata.
       </p>
     </section>
 
@@ -108,7 +108,7 @@
 
     <div class="pt-8 border-t border-surface-200 dark:border-surface-800">
         <p class="text-surface-500 text-sm">
-            Para questões de privacidade ou para exercer o seu direito ao esquecimento (apagar dados), envie email para <a href="mailto:privacy@kanimente.co.mz" class="text-primary-600 font-bold hover:underline">privacy@kanimente.co.mz</a>
+            Para questões de privacidade ou para exercer o seu direito ao esquecimento (apagar dados), envie email para <a href="mailto:privacy@KMind.co.mz" class="text-primary-600 font-bold hover:underline">privacy@KMind.co.mz</a>
         </p>
     </div>
 

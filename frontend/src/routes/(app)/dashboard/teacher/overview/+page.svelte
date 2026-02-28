@@ -1,6 +1,6 @@
 <svelte:head>
-    <title>Painel do Professor | KaniMente</title>
-    <meta name="description" content="Gestão de turmas, alunos e relatórios de desempenho escolar no KaniMente." />
+    <title>Painel do Professor | KMind</title>
+    <meta name="description" content="Gestão de turmas, alunos e relatórios de desempenho escolar no KMind." />
 </svelte:head>
 
 <script lang="ts">

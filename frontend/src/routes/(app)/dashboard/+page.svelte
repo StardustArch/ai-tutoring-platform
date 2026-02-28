@@ -87,7 +87,7 @@
                     Olá, {getFirstName()}! 👋
                 </h1>
                 <p class="text-lg text-surface-600 dark:text-surface-400">
-                    Como deseja utilizar o KaniMente hoje?
+                    Como deseja utilizar o KMind hoje?
                 </p>
             </div>
 
