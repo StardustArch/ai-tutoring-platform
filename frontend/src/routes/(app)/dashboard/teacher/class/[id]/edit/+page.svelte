@@ -23,9 +23,9 @@
   };
   let disciplinaNome = ''; 
 
-  // Estilo Padronizado
-  const inputClass = "w-full px-3 py-2.5 border border-surface-300 dark:border-surface-600 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm";
-  const labelClass = "block text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 mb-1.5 ml-0.5";
+  // Ajuste nos Inputs: py-3 no mobile para toque, py-2.5 no desktop
+  const inputClass = "w-full px-3 py-3 md:py-2.5 border border-surface-300 dark:border-surface-600 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm";
+  const labelClass = "block text-xs font-bold uppercase tracking-wider text-surface-500 dark:text-surface-400 mb-1.5 ml-0.5";
 
   onMount(async () => {
     await carregarTurma();
@@ -80,17 +80,15 @@
 
   async function arquivarTurma() {
         const aceitou = await confirm({
-        title: `Tem a certeza que deseja arquivar a turma "${formData.nome}"?`,
+        title: `Arquivar a turma "${formData.nome}"?`,
         message: 'Isto irá remover o acesso dos alunos, mas manterá o histórico.',
-        type: "danger", // Fica Laranja/Amarelo
+        type: "danger",
         cancelText: 'Cancelar'
     });
-if (!aceitou) return; // Se disser não, para aqui.
-
+    if (!aceitou) return;
 
     isDeleting = true;
     try {
-      // Assumindo que DELETE arquiva/desativa (soft-delete)
       const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/${classId}`, {
         method: 'DELETE' 
       });
@@ -116,7 +114,7 @@ if (!aceitou) return; // Se disser não, para aqui.
   }
 </script>
 
-<div class="container mx-auto max-w-4xl p-4 md:p-6 pb-24 space-y-6 animate-fade-in">
+<div class="container mx-auto max-w-4xl w-full p-4 md:p-6 pb-40 md:pb-24 space-y-6 animate-fade-in">
 
   <div class="flex items-center gap-3 border-b border-surface-200 dark:border-surface-700 pb-4">
     <button 
@@ -126,7 +124,7 @@ if (!aceitou) return; // Se disser não, para aqui.
       <ArrowLeft size={20} />
     </button>
     <div>
-        <h1 class="text-xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">Configurações da Turma</h1>
+        <h1 class="text-lg md:text-xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">Configurações da Turma</h1>
     </div>
   </div>
 
@@ -134,20 +132,19 @@ if (!aceitou) return; // Se disser não, para aqui.
     <div class="bg-white dark:bg-surface-800 rounded-lg p-6 space-y-4 animate-pulse border border-surface-200 dark:border-surface-700">
         <div class="h-4 w-1/4 bg-surface-200 dark:bg-surface-700 rounded"></div>
         <div class="h-10 w-full bg-surface-200 dark:bg-surface-700 rounded"></div>
-        <div class="h-20 w-full bg-surface-200 dark:bg-surface-700 rounded mt-4"></div>
     </div>
   {:else}
   
     <div class="bg-white dark:bg-surface-800 rounded-lg shadow-sm border border-surface-200 dark:border-surface-700 overflow-hidden">
         
-        <div class="p-6 border-b border-surface-100 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/50 flex justify-between items-center">
-             <h2 class="text-sm font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300 flex items-center gap-2">
+        <div class="p-5 md:p-6 border-b border-surface-100 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/50 flex justify-between items-center">
+             <h2 class="text-xs md:text-sm font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300 flex items-center gap-2">
                 <School size={16} />
                 Dados Gerais
             </h2>
         </div>
 
-        <div class="p-6 space-y-6">
+        <div class="p-5 md:p-6 space-y-6">
             <div>
                 <label for="nome" class={labelClass}>Nome da Turma</label>
                 <input 
@@ -165,52 +162,49 @@ if (!aceitou) return; // Se disser não, para aqui.
                 <input 
                     id="disciplina"
                     type="text" 
-                    class="{inputClass} bg-surface-50 dark:bg-surface-900/40 text-surface-500 cursor-not-allowed border-surface-200 dark:border-surface-700" 
+                    class="{inputClass} bg-surface-50 dark:bg-surface-900/40 text-surface-500 cursor-not-allowed border-surface-200 dark:border-surface-700 opacity-70" 
                     value={disciplinaNome} 
                     disabled
-                    title="A disciplina não pode ser alterada após a criação."
                 />
-                <p class="text-xs text-surface-400 mt-1.5">
-                    A disciplina é fixa. Crie uma nova turma para mudar.
-                </p>
             </div>
             
-            <div class="flex items-start justify-between p-4 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/20">
-                <div class="space-y-0.5">
-                    <label class="text-sm font-medium text-surface-900 dark:text-surface-100 flex items-center gap-2">
+            <div class="flex items-center justify-between p-4 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900/20 gap-4">
+                <div class="flex-1 space-y-0.5">
+                    <label class="text-sm font-bold text-surface-900 dark:text-surface-100 flex items-center gap-2">
                         {#if formData.ativa}
-                            <CheckCircle2 size={16} class="text-green-600" /> Estado: Activa
+                            <CheckCircle2 size={16} class="text-green-600 shrink-0" /> 
+                            <span>Turma Activa</span>
                         {:else}
-                            <Ban size={16} class="text-surface-400" /> Estado: Oculta
+                            <Ban size={16} class="text-surface-400 shrink-0" /> 
+                            <span>Turma Oculta</span>
                         {/if}
                     </label>
-                    <p class="text-xs text-surface-500 max-w-[280px]">
-                        Turmas ocultas não aparecem para os alunos, mas os dados são preservados.
+                    <p class="text-[11px] text-surface-500 leading-tight">
+                        Se ocultar, os alunos deixam de ver esta turma no painel deles.
                     </p>
                 </div>
                 
                 <button 
-                    class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {formData.ativa ? 'bg-primary-600' : 'bg-surface-300 dark:bg-surface-600'}"
+                    class="shrink-0 relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {formData.ativa ? 'bg-primary-600' : 'bg-surface-300 dark:bg-surface-600'}"
                     on:click={() => formData.ativa = !formData.ativa}
                     role="switch"
                     aria-checked={formData.ativa}
                 >
                     <span class="sr-only">Ativar turma</span>
-                    
-                    <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {formData.ativa ? 'translate-x-6' : 'translate-x-1'}"></span>
+                    <span class="inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm {formData.ativa ? 'translate-x-6' : 'translate-x-1'}"></span>
                 </button>
             </div>
 
-            <div class="pt-4 flex justify-end gap-3 border-t border-surface-100 dark:border-surface-700">
+            <div class="pt-4 flex flex-col md:flex-row justify-end gap-3 border-t border-surface-100 dark:border-surface-700">
                 <button 
-                    class="btn bg-white dark:bg-surface-700 border border-surface-300 dark:border-surface-600 text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-600 font-medium rounded-md py-2 px-4 transition-colors text-sm" 
+                    class="w-full md:w-auto btn bg-white dark:bg-surface-700 border border-surface-300 dark:border-surface-600 text-surface-700 dark:text-surface-200 hover:bg-surface-50 dark:hover:bg-surface-600 font-medium rounded-md py-3 md:py-2 px-4 transition-colors text-sm order-2 md:order-1" 
                     on:click={goBack}
                     disabled={isSaving}
                 >
                     Cancelar
                 </button>
                 <button 
-                    class="btn bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md py-2 px-6 flex items-center gap-2 shadow-sm transition-all focus:ring-2 focus:ring-offset-1 focus:ring-primary-500 disabled:opacity-70 text-sm" 
+                    class="w-full md:w-auto btn bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md py-3 md:py-2 px-6 flex items-center justify-center gap-2 shadow-sm transition-all focus:ring-2 focus:ring-offset-1 focus:ring-primary-500 disabled:opacity-70 text-sm order-1 md:order-2" 
                     on:click={guardarAlteracoes}
                     disabled={isSaving}
                 >
@@ -227,18 +221,18 @@ if (!aceitou) return; // Se disser não, para aqui.
     </div>
 
     <div class="rounded-lg border border-red-200 dark:border-red-900/30 bg-white dark:bg-surface-800 overflow-hidden">
-        <div class="p-6">
-            <h3 class="text-sm font-bold text-red-700 dark:text-red-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+        <div class="p-5 md:p-6">
+            <h3 class="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wide mb-3 flex items-center gap-2">
                 <AlertTriangle size={16}/> Zona de Perigo
             </h3>
             
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <p class="text-sm text-surface-600 dark:text-surface-300 max-w-md">
-                    Arquivar esta turma removerá o acesso de todos os alunos. Esta ação pode ser revertida contactando o suporte, mas não é recomendada durante o ano lectivo.
+                    Arquivar remove o acesso de todos os alunos. Só faça isto no fim do ano lectivo.
                 </p>
                 
                 <button 
-                    class="btn bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-md flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap shadow-sm" 
+                    class="w-full md:w-auto btn bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-md flex items-center justify-center gap-2 px-4 py-3 md:py-2 text-sm font-medium transition-colors shadow-sm" 
                     on:click={arquivarTurma}
                     disabled={isDeleting}
                 >
