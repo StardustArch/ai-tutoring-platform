@@ -36,37 +36,28 @@ export class DiagnosticService {
 
 async generateDiagnosticQuestions(
     alunoId: number,
-    disciplina: string, // "matematica" ou "portugues" (lowercase do frontend)
+    disciplina: string, 
     classe: number,
     topicoAlvo?: string
   ) {
     const aluno = await this.prisma.aluno.findUnique({ where: { id: alunoId } });
     if (!aluno) throw new NotFoundException('Aluno não encontrado');
 
-    // 1. Resolver o Nome da Disciplina (para bater com a BD: "Matemática" vs "matematica")
     const nomeDisciplinaBd = disciplina.toLowerCase() === 'matematica' ? 'Matemática' : 'Português';
     
-    // 2. Definir Tópicos a Gerar
     let topicosParaGerar: string[] = [];
     let perguntasPorTopico = 2;
 
     if (topicoAlvo) {
         topicosParaGerar = [topicoAlvo];
-        perguntasPorTopico = 5; // Mais perguntas se for focado
-    } else {
-        // Fallback genérico se não houver tópico (ex: teste inicial de ano)
-        // Idealmente, deverias buscar os tópicos da BD aqui também, mas para brevidade:
-        topicosParaGerar = disciplina === 'matematica'
-          ? ['Adição e Subtração', 'Multiplicação', 'Divisão'] 
-          : ['Verbos', 'Ortografia', 'Interpretação'];
+        perguntasPorTopico = 5; 
     }
 
     const perguntas: any[] = [];
 
-    // 3. Loop de Geração com Contexto da BD
+    // Loop pelos Tópicos
     for (const nomeTopico of topicosParaGerar) {
       
-      // 🔍 AQUI ESTÁ O SEGREDO: Buscar o Metadata na BD
       const topicoDb = await this.prisma.topico.findFirst({
         where: {
           nome: nomeTopico,
@@ -75,41 +66,64 @@ async generateDiagnosticQuestions(
         }
       });
 
-      // Extrair regras específicas do currículo (ai_rules)
       let regrasContexto = "Gere uma pergunta apropriada para a classe.";
       if (topicoDb?.metadata && typeof topicoDb.metadata === 'object') {
           const meta = topicoDb.metadata as any;
-          if (meta.ai_rules) {
-              regrasContexto = meta.ai_rules;
-              this.logger.log(`📜 Regras carregadas para '${nomeTopico}': ${regrasContexto}`);
-          }
+          if (meta.ai_rules) regrasContexto = meta.ai_rules;
       }
 
-      for (let i = 0; i < perguntasPorTopico; i++) {
-        try {
-          const payload = {
-            student_class: classe,
-            subject: nomeDisciplinaBd,
-            subtopic: nomeTopico,
-            difficulty_level: 3, // Nível médio para diagnóstico
-            
-            // 🚨 ENVIAR AS REGRAS DO METADATA PARA A IA
-            context_rules: regrasContexto, 
-            
-            recent_questions: []
-          };
+      // 🚨 CORREÇÃO 1: Criar memória de curto prazo para este tópico
+      const historicoPerguntas: string[] = [];
 
-          const obs = this.http.post(`${this.aiUrl}/generate-rush-question`, payload);
-          const res = await firstValueFrom(obs.pipe(timeout(this.httpTimeoutMs)));
-          
-          if (res.data) {
-              perguntas.push({
-                topico: nomeTopico, // Mantém o nome original para o frontend agrupar
-                ...res.data
-              });
-          }
-        } catch (err) {
-          this.logger.error(`Erro ao gerar pergunta para ${nomeTopico}: ${err.message}`);
+      // Loop de Geração (5 perguntas)
+ for (let i = 0; i < perguntasPorTopico; i++) {
+        
+        let tentativas = 0;
+        let perguntaAceite = false;
+
+        // Tenta até 3 vezes conseguir uma pergunta ÚNICA para esta posição
+        while (!perguntaAceite && tentativas < 3) {
+            try {
+              const payload = {
+                student_class: classe,
+                subject: nomeDisciplinaBd,
+                subtopic: nomeTopico,
+                difficulty_level: 3, 
+                context_rules: regrasContexto, 
+                recent_questions: historicoPerguntas 
+              };
+
+              const obs = this.http.post(`${this.aiUrl}/generate-rush-question`, payload);
+              const res = await firstValueFrom(obs.pipe(timeout(this.httpTimeoutMs)));
+              
+              if (res.data && res.data.question) {
+                  const novaPerguntaTexto = res.data.question.trim().toLowerCase();
+                  
+                  // 🛡️ O PORTEIRO: Verifica se esta pergunta já existe (ignorando maiúsculas/minúsculas)
+                  const ehDuplicada = historicoPerguntas.some(p => p.toLowerCase().includes(novaPerguntaTexto) || novaPerguntaTexto.includes(p.toLowerCase()));
+
+                  if (!ehDuplicada) {
+                      // ✅ Pergunta é nova e fresca! Aceita.
+                      perguntas.push({
+                        topico: nomeTopico, 
+                        ...res.data
+                      });
+
+                      historicoPerguntas.push(res.data.question); // Adiciona ao histórico
+                      perguntaAceite = true; // Sai do while e avança o loop 'for'
+                  } else {
+                      // ❌ É repetida! Lixo.
+                      this.logger.warn(`♻️ A IA tentou repetir: "${res.data.question}". A pedir outra vez...`);
+                      tentativas++;
+                  }
+              } else {
+                  tentativas++; // Resposta vazia conta como falha
+              }
+
+            } catch (err) {
+              this.logger.error(`Erro na tentativa ${tentativas + 1}: ${err.message}`);
+              tentativas++;
+            }
         }
       }
     }

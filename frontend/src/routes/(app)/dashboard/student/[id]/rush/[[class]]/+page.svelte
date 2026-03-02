@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, afterUpdate } from 'svelte';
     import { page } from '$app/stores';
     import { apiFetch } from '$lib/utils/api';
     import { 
@@ -8,19 +8,13 @@
         Triangle, Sigma, Ruler, PieChart, Equal,
         Activity, Tags, RefreshCcw, PenTool, MessageSquare, TrafficCone, 
         UserCheck, MapPin, GitBranch, Calendar, BookOpen, Mail, Box,
-        CheckCircle2, Play, Trophy, Star,
-
-		BrainCircuit,
-
-		Flame
-
-
+        CheckCircle2, Play, Trophy, Star, BrainCircuit, Flame
     } from 'lucide-svelte';
     import { goto } from '$app/navigation';
     import confetti from 'canvas-confetti';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
-    import SessionTimer from '$lib/components/SessionTimer.svelte'; // <--- ADICIONA ISTO
-      import { notifications } from '$lib/store/notifications'; 
+    import SessionTimer from '$lib/components/SessionTimer.svelte';
+    import { notifications } from '$lib/store/notifications'; 
 
     // --- PARÂMETROS ---
     let studentId = $page.params.id || '';
@@ -31,7 +25,7 @@
     let studentClass: any = 3; 
     let studentData: any = null;
     let allowedTopicIds: number[] = []; 
-    let isTimeUp = false; // <--- NOVA VARIÁVEL
+    let isTimeUp = false; 
 
     type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER' | 'BLOCKED' | 'DIAGNOSTIC';
     let currentState: GameState = 'MENU';
@@ -39,10 +33,10 @@
     let selectedSubject = 'matematica';
     let selectedSubtopic = '';
     
-    let needsDiagnostic = false;
     let diagnosticQuestions: any[] = [];
     let currentDiagnosticIndex = 0;
     let diagnosticAnswers: Array<{ topico: string; acertou: boolean }> = [];
+    
     // Variáveis de Jogo
     let loading = false;
     let questionData: any = null;
@@ -50,17 +44,18 @@
     let isCorrect: boolean | null = null;
     let lives = 3;
     let score = 0;
-    let streak = 0; // <--- NOVA VARIÁVEL
+    let streak = 0;
     let blockTimeRemaining: any;
     let blockedUntil: Date | null = null;
+    let optionsContainer: HTMLElement; // Para controlar scroll
 
-    // Estatísticas
+    // Estatísticas e Tópicos
     let stats = { xp: 0, totalExercicios: 0, acertos: 0, taxaAcerto: 0, erros: 0 };
     let loadingStats = true;
     let availableTopics: { matematica: any[], portugues: any[] } = { matematica: [], portugues: [] };
     let loadingTopics = true;
 
-    // Ícones
+    // Ícones Mapeados
     const ICON_MAP: Record<string, any> = {
         Hash, ListOrdered, Shapes, Calculator, X, Divide, Scale, Coins, LineChart,
         Triangle, Sigma, Ruler, PieChart, Equal, Activity, Tags, RefreshCcw, PenTool, 
@@ -105,138 +100,94 @@
         return ICON_MAP[iconName];
     }
 
-    function getColor(color: string | undefined, subject: string) {
-        if (color && color.startsWith('bg-')) return color;
-        return subject === 'matematica' ? 'bg-blue-500' : 'bg-green-500';
+    function handleTimeUp() {
+        isTimeUp = true;
+        currentState = 'GAMEOVER';
     }
 
-    function handleTimeUp() {
-    isTimeUp = true;
-    currentState = 'GAMEOVER';
-    // Opcional: Som de apito ou confettis cinzentos
-}
-// 1. O GATILHO: Quando o aluno clica num tópico
-async function checkAndStartGame(subject: string, subtopic: string) {
-    // Guarda o que o aluno queria jogar
-    selectedSubject = subject;
-    selectedSubtopic = subtopic;
-
-    loading = true;
-    try {
-        // PERGUNTA AO BACKEND: Precisa de diagnóstico?
-        const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/needs/${studentId}?disciplina=${subject}`);
-        
-        if (res.ok) {
-            const data = await res.json();
-            
-            if (data.needs) {
-                // 🚨 DESVIO: O aluno precisa de diagnóstico primeiro!
-                console.log("⚠️ Diagnóstico necessário! A iniciar modo de calibração...");
-                await startDiagnostic(subject);
+    // --- LÓGICA DE JOGO ---
+    async function checkAndStartGame(subject: string, subtopic: string) {
+        selectedSubject = subject;
+        selectedSubtopic = subtopic;
+        loading = true;
+        try {
+            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/needs/${studentId}?disciplina=${subject}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.needs) {
+                    await startDiagnostic(subject);
+                } else {
+                    startGame(subject, subtopic);
+                }
             } else {
-                // ✅ TUDO OK: Pode jogar o tópico que escolheu
                 startGame(subject, subtopic);
             }
-        } else {
-            // Se a API falhar, assume que não precisa e deixa jogar (Fail-safe)
+        } catch (e) {
             startGame(subject, subtopic);
+        } finally {
+            loading = false;
         }
-    } catch (e) {
-        console.error("Erro ao verificar diagnóstico:", e);
-        startGame(subject, subtopic);
-    } finally {
-        loading = false;
     }
-}
 
-// 2. INICIAR DIAGNÓSTICO (Gera Perguntas)
-async function startDiagnostic(subject: string) {
-    loading = true;
-    currentState = 'DIAGNOSTIC';
-    diagnosticAnswers = [];
-    currentDiagnosticIndex = 0;
-    
-    try {
-        const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                alunoId: parseInt(studentId), 
-                disciplina: subject, 
-                classe: studentClass,
-                topico: selectedSubtopic
-            })
-        });
-
-        if (res.ok) {
-            const data = await res.json(); // Recebe o objeto { alunoId, perguntas: [...] }
-            
-            // 🚨 CORREÇÃO AQUI: Acessamos .perguntas
-            if (data.perguntas && Array.isArray(data.perguntas)) {
-                diagnosticQuestions = data.perguntas;
-            } else {
-                console.warn("Formato inesperado:", data);
-                diagnosticQuestions = [];
+    async function startDiagnostic(subject: string) {
+        loading = true;
+        currentState = 'DIAGNOSTIC';
+        diagnosticAnswers = [];
+        currentDiagnosticIndex = 0;
+        try {
+            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    alunoId: parseInt(studentId), 
+                    disciplina: subject, 
+                    classe: studentClass,
+                    topico: selectedSubtopic
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.perguntas && Array.isArray(data.perguntas)) {
+                    diagnosticQuestions = data.perguntas;
+                    console.log(diagnosticQuestions)
+                    if (diagnosticQuestions.length > 0) {
+                        questionData = diagnosticQuestions[0];
+                    } else {
+                        currentState = 'MENU';
+                    }
+                }
             }
-
-            console.log("🧠 Perguntas carregadas:", diagnosticQuestions.length);
-            
-            if (diagnosticQuestions.length > 0) {
-                questionData = diagnosticQuestions[0];
-            } else {
-                currentState = 'MENU';
-            }
-        }
-    } catch (e) {
-        console.error("Erro diagnóstico:", e);
-        currentState = 'MENU';
-    } finally {
-        loading = false;
+        } catch (e) { currentState = 'MENU'; } 
+        finally { loading = false; }
     }
-}
-// 3. RESPONDER NO DIAGNÓSTICO
-async function handleDiagnosticAnswer(option: string) {
-    if (selectedOption) return;
-    selectedOption = option;
 
-    const correctAnswer = questionData.correct_answer; 
-    isCorrect = option === correctAnswer;
+    async function handleDiagnosticAnswer(option: string) {
+        if (selectedOption) return;
+        selectedOption = option;
+        const correctAnswer = questionData.correct_answer; 
+        isCorrect = option === correctAnswer;
+        diagnosticAnswers.push({ topico: questionData.topico || selectedSubject, acertou: isCorrect });
 
-    // 🚨 CORREÇÃO AQUI: Usamos 'topico' (do JSON) em vez de 'topic'
-    diagnosticAnswers.push({
-        topico: questionData.topico || selectedSubject, 
-        acertou: isCorrect
-    });
+        if (isCorrect) confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
 
-    if (isCorrect) confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
+        setTimeout(async () => {
+            selectedOption = null; isCorrect = null; currentDiagnosticIndex++;
+            if (currentDiagnosticIndex < diagnosticQuestions.length) {
+                questionData = diagnosticQuestions[currentDiagnosticIndex];
+            } else {
+                await submitDiagnosticResults();
+            }
+        }, 1000);
+    }
 
-    setTimeout(async () => {
-        selectedOption = null;
-        isCorrect = null;
-        currentDiagnosticIndex++;
-
-        if (currentDiagnosticIndex < diagnosticQuestions.length) {
-            questionData = diagnosticQuestions[currentDiagnosticIndex];
-        } else {
-            await submitDiagnosticResults();
-        }
-    }, 1000); // Reduzi para 1s para ser mais fluido
-}
-
-function startBlockCountdown() {
+    function startBlockCountdown() {
         if (blockTimeRemaining) clearInterval(blockTimeRemaining);
-        
         blockTimeRemaining = setInterval(() => {
             if (!blockedUntil) return;
-            
-            const now = new Date();
-            const diff = new Date(blockedUntil).getTime() - now.getTime();
-            
+            const diff = new Date(blockedUntil).getTime() - new Date().getTime();
             if (diff <= 0) {
                 clearInterval(blockTimeRemaining);
-                currentState = 'MENU';
-                blockedUntil = null;
-                // Opcional: Atualizar a lista de tópicos para desbloquear visualmente
+                currentState = 'MENU'; blockedUntil = null;
             } else {
                 const m = Math.floor(diff / 60000);
                 const s = Math.floor((diff % 60000) / 1000);
@@ -244,42 +195,27 @@ function startBlockCountdown() {
             }
         }, 1000);
     }
-// 4. FINALIZAR DIAGNÓSTICO
-async function submitDiagnosticResults() {
-    loading = true;
-    try {
-        console.log("📤 A enviar resultados...", diagnosticAnswers);
-        await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/process`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                alunoId: parseInt(studentId),
-                disciplina: selectedSubject,
-                respostas: diagnosticAnswers
-            })
-        });
 
-        // Sucesso! Agora o aluno pode jogar o que queria originalmente
-        // Mostra um alerta de sucesso ou vai direto
-        confetti({ particleCount: 200, spread: 100 });
-        notifications.send("Diagnóstico completo! Agora estás pronto para jogar.", "info");
-        
-        // Redireciona para o jogo normal
-        startGame(selectedSubject, selectedSubtopic);
-
-    } catch (e) {
-        console.error("Erro ao salvar diagnóstico:", e);
-        currentState = 'MENU';
-    } finally {
-        loading = false;
+    async function submitDiagnosticResults() {
+        loading = true;
+        try {
+            await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    alunoId: parseInt(studentId), disciplina: selectedSubject, respostas: diagnosticAnswers
+                })
+            });
+            confetti({ particleCount: 200, spread: 100 });
+            notifications.send("Diagnóstico completo!", "info");
+            startGame(selectedSubject, selectedSubtopic);
+        } catch (e) { currentState = 'MENU'; } 
+        finally { loading = false; }
     }
-}
+
     function startGame(subject: string, subtopic: string) {
-        selectedSubject = subject;
-        selectedSubtopic = subtopic;
-        currentState = 'PLAYING';
-        lives = 3; 
-        loadQuestion();
+        selectedSubject = subject; selectedSubtopic = subtopic;
+        currentState = 'PLAYING'; lives = 3; loadQuestion();
     }
 
     async function loadQuestion() {
@@ -289,76 +225,50 @@ async function submitDiagnosticResults() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    alunoId: parseInt(studentId),
-                    classe: studentClass,
-                    disciplina: selectedSubject,
-                    subtopico: selectedSubtopic,
-                    sessionId: sessionId || null
+                    alunoId: parseInt(studentId), classe: studentClass, disciplina: selectedSubject,
+                    subtopico: selectedSubtopic, sessionId: sessionId || null
                 })
             });
-            
             if (res.status === 403) {
                 const error = await res.json();
-                blockedUntil = error.blockedUntil; // Garante que é string ou date
-                startBlockCountdown(); // <--- INICIA O TIMER VISUAL
-                currentState = 'BLOCKED';
-                return;
+                blockedUntil = error.blockedUntil; startBlockCountdown();
+                currentState = 'BLOCKED'; return;
             }
             questionData = await res.json();
-        } catch (e) { console.error(e); } finally { loading = false; }
+        } catch (e) { console.error(e); } 
+        finally { loading = false; }
     }
 
     async function handleAnswer(option: string) {
         if (selectedOption) return;
         selectedOption = option;
-        
         const correctAnswer = questionData.correct_answer; 
         isCorrect = option === correctAnswer;
 
-if (isCorrect) {
-            streak++; // <--- AUMENTA O COMBO
-            
-            // Efeito visual extra se tiver um combo alto
-            if (streak >= 3) {
-                 confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 }, colors: ['#f59e0b', '#ef4444'] });
-            } else {
-                 confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 }, colors: ['#4ade80', '#22c55e', '#ffffff'] });
-            }
-
-            score += 10 + (streak * 2); // Bónus por combo!
-            stats.xp += 10 + (streak * 2);
-            stats.acertos += 1;
+        if (isCorrect) {
+            streak++;
+            if (streak >= 3) confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 }, colors: ['#f59e0b', '#ef4444'] });
+            score += 10 + (streak * 2); stats.xp += 10 + (streak * 2); stats.acertos += 1;
         } else {
-            streak = 0; // <--- ZERA O COMBO
-            stats.erros += 1; 
-            lives--;
+            streak = 0; stats.erros += 1; lives--;
         }
 
         const total = stats.acertos + stats.erros;
         stats.taxaAcerto = total > 0 ? Math.round((stats.acertos / total) * 100) : 0;
         stats.totalExercicios = total;
 
-try {
+        try {
             const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/answer`, {
-                // ... (mantém o body igual) ...
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    alunoId: parseInt(studentId),
-                    exercicioId: questionData.exercicioId,
-                    respostaAluno: option,
-                    classe: studentClass,
-                    turmaId: turmaId,
-                    sessaoId: sessionId || null
+                    alunoId: parseInt(studentId), exercicioId: questionData.exercicioId,
+                    respostaAluno: option, classe: studentClass, turmaId: turmaId, sessaoId: sessionId || null
                 })
             });
-            
             const result = await res.json();
-            
-            // SE FOR BLOQUEADO:
-            if (result.blocked && result.blockedUntil) {
-                blockedUntil = result.blockedUntil;
-                startBlockCountdown(); // <--- INICIA O TIMER VISUAL
+            if (result.blocked) {
+                blockedUntil = result.blockedUntil; startBlockCountdown();
                 setTimeout(() => { currentState = 'BLOCKED'; }, 1500);
             }
         } catch (error) { console.error(error); }
@@ -372,85 +282,83 @@ try {
         if (sessionId) await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}/end`, { method: 'PATCH' });
         goto(`/dashboard/foreman/student/${studentId}/class`);
     }
-
 </script>
 
 <svelte:head>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Rush | KMind</title>
 </svelte:head>
 
-<div class="flex flex-col h-screen bg-gradient-to-b from-amber-100 via-orange-50 to-white font-['Fredoka'] overflow-hidden">
+<div class="flex flex-col h-[100dvh] bg-gradient-to-b from-amber-100 via-orange-50 to-white font-['Fredoka'] overflow-hidden">
     
-<div class="flex justify-between items-center p-4 bg-white/90 backdrop-blur-sm border-b-4 border-amber-200 z-10 shadow-sm gap-2">
-    <button on:click={() => currentState === 'MENU' ? exitSession() : currentState = 'MENU'} 
-            class="p-2 rounded-xl bg-white border-2 border-slate-200 text-slate-400 hover:border-amber-400 hover:text-amber-500 hover:scale-105 transition-all shadow-sm active:translate-y-1 active:border-b-2">
-        <ArrowLeft size={28} strokeWidth={3} />
-    </button>
-    
-    {#if currentState === 'PLAYING'}
-        <div class="hidden sm:flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border-2 border-red-100 shadow-sm animate-pop-in">
-            {#each Array(3) as _, i}
-                <Heart 
-                    size={24} 
-                    class={`transition-all duration-500 ${i < lives ? 'text-red-500 fill-red-500 animate-pulse-slow' : 'text-slate-200 fill-slate-100'}`} 
-                />
-            {/each}
-        </div>
-    {:else}
-        <div class="hidden sm:flex flex-col items-center">
-            <h1 class="font-black text-xl text-amber-500 flex items-center gap-2 drop-shadow-sm tracking-wide">
-                <Zap class="fill-current animate-bounce-slow" size={20} /> RUSH
-            </h1>
-        </div>
-    {/if}
-    
-    <div class="scale-90 sm:scale-100 {currentState === 'GAMEOVER' || currentState === 'BLOCKED' ? 'invisible' : ''}">
-        <SessionTimer on:timeup={handleTimeUp} />
-    </div>
-
-    <div class="bg-amber-100 border-2 border-amber-200 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
-        <Star class="text-amber-500 fill-amber-500" size={18} />
-        <span class="text-lg font-black text-amber-600">{stats.xp}</span>
-    </div>
-</div>
-{#if currentState === 'BLOCKED'}
-    <div class="flex-1 flex flex-col items-center justify-center text-center p-6 animate-zoom-in">
-        <div class="bg-rose-100 p-8 rounded-full mb-6 border-4 border-rose-200 animate-shake">
-            <Lock size={64} class="text-rose-500" />
-        </div>
-        <h2 class="text-3xl font-black text-slate-800 mb-2">Pausa para Café! ☕</h2>
-        <p class="text-slate-500 text-lg max-w-xs mx-auto mb-6">Já treinaste muito este tópico. Vamos dar descanso ao cérebro.</p>
-        
-        <div class="my-4 bg-slate-900 text-white px-10 py-6 rounded-3xl shadow-xl border-b-8 border-slate-700 w-full max-w-xs mx-auto">
-            <div class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Volta em</div>
-            <p class="font-black text-5xl font-mono tracking-widest tabular-nums animate-pulse">
-                {blockTimeRemaining || "--:--"}
-            </p>
-        </div>
-
-        <button on:click={() => currentState = 'MENU'} class="mt-8 px-10 py-5 bg-blue-500 text-white rounded-2xl font-bold shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 hover:brightness-110 transition-all">
-            Escolher Outra Missão
+    <div class="flex justify-between items-center p-3 bg-white/90 backdrop-blur-sm border-b-4 border-amber-200 z-10 shadow-sm gap-2 shrink-0">
+        <button on:click={() => currentState === 'MENU' ? exitSession() : currentState = 'MENU'} 
+                class="p-2 rounded-xl bg-white border-2 border-slate-200 text-slate-400 hover:border-amber-400 hover:text-amber-500 transition-all shadow-sm active:scale-95 shrink-0">
+            <ArrowLeft size={24} strokeWidth={3} />
         </button>
+        
+        {#if currentState === 'PLAYING'}
+            <div class="flex items-center gap-1 md:gap-2 bg-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl border-2 border-red-100 shadow-sm animate-pop-in">
+                {#each Array(3) as _, i}
+                    <Heart 
+                        class={`transition-all duration-500 w-5 h-5 md:w-6 md:h-6 ${i < lives ? 'text-red-500 fill-red-500 animate-pulse-slow' : 'text-slate-200 fill-slate-100'}`} 
+                    />
+                {/each}
+            </div>
+        {:else}
+            <div class="hidden sm:flex flex-col items-center">
+                <h1 class="font-black text-xl text-amber-500 flex items-center gap-2 drop-shadow-sm tracking-wide">
+                    <Zap class="fill-current animate-bounce-slow" size={20} /> RUSH
+                </h1>
+            </div>
+        {/if}
+        
+        <div class="shrink-0 {currentState === 'GAMEOVER' || currentState === 'BLOCKED' ? 'invisible' : ''}">
+            <SessionTimer on:timeup={handleTimeUp} />
+        </div>
+
+        <div class="bg-amber-100 border-2 border-amber-200 px-3 py-1 md:px-4 md:py-1.5 rounded-full flex items-center gap-1 md:gap-2 shadow-inner shrink-0">
+            <Star class="text-amber-500 fill-amber-500 w-4 h-4 md:w-5 md:h-5" />
+            <span class="text-base md:text-lg font-black text-amber-600">{stats.xp}</span>
+        </div>
     </div>
+
+    {#if currentState === 'BLOCKED'}
+        <div class="flex-1 flex flex-col items-center justify-center text-center p-6 animate-zoom-in">
+            <div class="bg-rose-100 p-6 md:p-8 rounded-full mb-6 border-4 border-rose-200 animate-shake">
+                <Lock size={48} class="text-rose-500 md:w-16 md:h-16" />
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-slate-800 mb-2">Pausa para Café! ☕</h2>
+            <p class="text-slate-500 text-base md:text-lg max-w-xs mx-auto mb-6">Já treinaste muito. Descansa um pouco.</p>
+            
+            <div class="my-4 bg-slate-900 text-white px-8 py-5 md:px-10 md:py-6 rounded-3xl shadow-xl border-b-8 border-slate-700 w-full max-w-xs mx-auto">
+                <div class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Volta em</div>
+                <p class="font-black text-4xl md:text-5xl font-mono tracking-widest tabular-nums animate-pulse">
+                    {blockTimeRemaining || "--:--"}
+                </p>
+            </div>
+            <button on:click={() => currentState = 'MENU'} class="mt-8 px-8 py-4 bg-blue-500 text-white rounded-2xl font-bold shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1">
+                Escolher Outra
+            </button>
+        </div>
 
     {:else if currentState === 'MENU'}
-        <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
-            <div class="max-w-4xl mx-auto space-y-8 animate-slide-up">
-
-                <div class="bg-gradient-to-tr from-violet-500 via-purple-500 to-fuchsia-500 rounded-3xl p-6 text-white shadow-xl shadow-purple-200 relative overflow-hidden border-4 border-white/20">
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-hide">
+            <div class="max-w-4xl mx-auto space-y-6 md:space-y-8 animate-slide-up">
+                <div class="bg-gradient-to-tr from-violet-500 via-purple-500 to-fuchsia-500 rounded-3xl p-5 md:p-6 text-white shadow-xl shadow-purple-200 relative overflow-hidden border-4 border-white/20">
                     <div class="absolute -top-10 -right-10 opacity-20 rotate-12">
-                        <Trophy size={180} />
+                        <Trophy size={140} class="md:w-[180px] md:h-[180px]" />
                     </div>
                     
                     <div class="flex items-center justify-between relative z-10">
                         <div>
-                            <p class="text-purple-100 text-sm font-bold uppercase tracking-wider mb-1">XP Total</p>
-                            <p class="text-5xl font-black drop-shadow-md">{stats.xp}</p>
+                            <p class="text-purple-100 text-xs md:text-sm font-bold uppercase tracking-wider mb-1">XP Total</p>
+                            <p class="text-4xl md:text-5xl font-black drop-shadow-md">{stats.xp}</p>
                         </div>
-                        <div class="text-right bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-sm border border-white/10">
-                            <p class="text-purple-100 text-xs font-bold uppercase mb-1">Respostas Certas</p>
-                            <p class="text-3xl font-bold text-green-300 flex items-center justify-end gap-2">
-                                <CheckCircle2 size={24} /> {stats.acertos}
+                        <div class="text-right bg-white/10 px-3 py-2 md:px-4 md:py-2 rounded-2xl backdrop-blur-sm border border-white/10">
+                            <p class="text-purple-100 text-[10px] md:text-xs font-bold uppercase mb-1">Certas</p>
+                            <p class="text-2xl md:text-3xl font-bold text-green-300 flex items-center justify-end gap-2">
+                                <CheckCircle2 size={20} class="md:w-6 md:h-6" /> {stats.acertos}
                             </p>
                         </div>
                     </div>
@@ -458,30 +366,24 @@ try {
 
                 {#if loadingTopics}
                      <div class="flex flex-col items-center justify-center py-20">
-                        <div class="w-16 h-16 border-8 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+                        <div class="w-12 h-12 border-8 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
                      </div>
                 {:else}
-                    
                     {#if availableTopics.matematica.length > 0}
                     <section>
-                        <h2 class="text-2xl font-black mb-4 text-slate-700 flex items-center gap-3">
-                            <div class="bg-blue-100 p-2 rounded-xl text-blue-500"><Calculator /></div> Matemática
+                        <h2 class="text-xl md:text-2xl font-black mb-3 text-slate-700 flex items-center gap-2 md:gap-3">
+                            <div class="bg-blue-100 p-2 rounded-xl text-blue-500"><Calculator size={20} /></div> Matemática
                         </h2>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                             {#each availableTopics.matematica as topic}
-                                <button 
-                                    on:click={() => checkAndStartGame('matematica', topic.nome)}
-                                    class="relative overflow-hidden p-5 rounded-2xl bg-white shadow-sm border-b-4 border-slate-200 hover:border-blue-400 hover:shadow-md active:border-b-0 active:translate-y-1 transition-all text-left group"
-                                >
-                                    <div class="flex items-start justify-between mb-4">
-                                        <div class="w-12 h-12 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                            <svelte:component this={getIcon(topic.metadata?.icon)} size={24} />
-                                        </div>
-                                        <div class="bg-slate-50 p-2 rounded-full group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                                            <Play size={18} class="fill-current text-slate-300 group-hover:text-blue-500" />
+                                <button on:click={() => checkAndStartGame('matematica', topic.nome)}
+                                    class="relative overflow-hidden p-4 md:p-5 rounded-2xl bg-white shadow-sm border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 transition-all text-left group">
+                                    <div class="flex items-start justify-between mb-3">
+                                        <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                            <svelte:component this={getIcon(topic.metadata?.icon)} size={20} />
                                         </div>
                                     </div>
-                                    <h3 class="font-bold text-lg text-slate-700 leading-tight group-hover:text-blue-600 transition-colors">
+                                    <h3 class="font-bold text-base md:text-lg text-slate-700 leading-tight">
                                         {topic.nome}
                                     </h3>
                                 </button>
@@ -491,24 +393,20 @@ try {
                     {/if}
 
                     {#if availableTopics.portugues.length > 0}
-                    <section class="mt-8">
-                        <h2 class="text-2xl font-black mb-4 text-slate-700 flex items-center gap-3">
-                            <div class="bg-green-100 p-2 rounded-xl text-green-500"><BookOpen /></div> Português
+                    <section class="mt-6 md:mt-8">
+                        <h2 class="text-xl md:text-2xl font-black mb-3 text-slate-700 flex items-center gap-2 md:gap-3">
+                            <div class="bg-green-100 p-2 rounded-xl text-green-500"><BookOpen size={20} /></div> Português
                         </h2>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                             {#each availableTopics.portugues as topic}
                                 <button on:click={() => checkAndStartGame('portugues', topic.nome)}
-                                    class="relative overflow-hidden p-5 rounded-2xl bg-white shadow-sm border-b-4 border-slate-200 hover:border-green-400 hover:shadow-md active:border-b-0 active:translate-y-1 transition-all text-left group">
-                                    
-                                    <div class="flex items-start justify-between mb-4">
-                                        <div class="w-12 h-12 rounded-xl bg-green-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                            <svelte:component this={getIcon(topic.metadata?.icon)} size={24} />
-                                        </div>
-                                        <div class="bg-slate-50 p-2 rounded-full group-hover:bg-green-100 group-hover:text-green-600 transition-colors">
-                                            <Play size={18} class="fill-current text-slate-300 group-hover:text-green-500" />
+                                    class="relative overflow-hidden p-4 md:p-5 rounded-2xl bg-white shadow-sm border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 transition-all text-left group">
+                                    <div class="flex items-start justify-between mb-3">
+                                        <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-green-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                            <svelte:component this={getIcon(topic.metadata?.icon)} size={20} />
                                         </div>
                                     </div>
-                                    <h3 class="font-bold text-lg text-slate-700 leading-tight group-hover:text-green-600 transition-colors">
+                                    <h3 class="font-bold text-base md:text-lg text-slate-700 leading-tight">
                                         {topic.nome}
                                     </h3>
                                 </button>
@@ -521,118 +419,99 @@ try {
         </div>
     
     {:else if currentState === 'DIAGNOSTIC'}
-        <div class="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full p-6 animate-zoom-in">
-            
-            <div class="text-center mb-8">
-                <div class="inline-flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-2 rounded-full font-black text-sm uppercase tracking-widest shadow-sm mb-4">
-                    <BrainCircuit size={18} />
-                    Teste de Nível
+        <div class="flex-1 flex flex-col justify-start max-w-2xl mx-auto w-full p-4 md:p-6 animate-zoom-in overflow-y-auto">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center gap-2 bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-black text-xs uppercase tracking-widest shadow-sm mb-4">
+                    <BrainCircuit size={14} /> Teste de Nível
                 </div>
-                
-                <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden mb-2">
+                <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-2">
                     <div class="bg-purple-500 h-full transition-all duration-500" 
                          style="width: {((currentDiagnosticIndex) / diagnosticQuestions.length) * 100}%">
                     </div>
                 </div>
-                <p class="text-slate-400 text-xs font-bold">PERGUNTA {currentDiagnosticIndex + 1} DE {diagnosticQuestions.length}</p>
+                <p class="text-slate-400 text-[10px] md:text-xs font-bold">PERGUNTA {currentDiagnosticIndex + 1} DE {diagnosticQuestions.length}</p>
             </div>
 
             {#if loading}
-                <div class="flex flex-col items-center py-10">
-                    <div class="w-12 h-12 border-4 border-purple-200 border-t-purple-500 rounded-full animate-spin"></div>
-                </div>
+                <div class="flex justify-center"><div class="w-10 h-10 border-4 border-purple-500 rounded-full animate-spin border-t-transparent"></div></div>
             {:else if questionData}
-                <h1 class="text-2xl md:text-3xl font-black text-center text-slate-800 mb-8 leading-snug">
+                <h1 class="text-xl md:text-2xl font-black text-center text-slate-800 mb-6 leading-snug">
                     {questionData.question}
                 </h1>
-
-                <div class="grid grid-cols-1 gap-4">
+                
+                <div class="grid grid-cols-1 gap-3 pb-24">
                     {#each questionData.options as option}
                         <button 
-                            class="relative p-6 rounded-2xl border-b-4 font-bold text-xl text-left transition-all flex items-center justify-between group
-                            {selectedOption === option && isCorrect === null
-                                ? 'bg-purple-100 border-purple-300 text-purple-900' // Selecionado (A aguardar)
-                                : selectedOption === option && isCorrect 
-                                    ? 'bg-green-500 border-green-700 text-white' // Correto
-                                    : selectedOption === option && !isCorrect
-                                        ? 'bg-rose-500 border-rose-700 text-white' // Errado
-                                        : 'bg-white border-slate-200 text-slate-600 hover:border-purple-400 hover:bg-purple-50 active:border-b-0 active:translate-y-1'}"
+                            class="relative p-4 rounded-2xl border-b-4 font-bold text-left transition-all flex items-center justify-between
+                            {selectedOption === option && isCorrect === null ? 'bg-purple-100 border-purple-300 text-purple-900' 
+                            : selectedOption === option && isCorrect ? 'bg-green-500 border-green-700 text-white' 
+                            : selectedOption === option && !isCorrect ? 'bg-rose-500 border-rose-700 text-white' 
+                            : 'bg-white border-slate-200 text-slate-600 active:border-b-0 active:translate-y-1'}"
+                            class:text-base={option.length > 30} 
+                            class:text-lg={option.length <= 30}
                             on:click={() => handleDiagnosticAnswer(option)}
                             disabled={!!selectedOption}
                         >
-                            <span>{option}</span>
-                            
+                            <span class="pr-2">{option}</span>
                             {#if selectedOption === option}
-                                {#if isCorrect}<CheckCircle2 class="animate-bounce" />{/if}
-                                {#if isCorrect === false}<X class="animate-shake" />{/if}
+                                {#if isCorrect}<CheckCircle2 size={20} />{:else}<X size={20} />{/if}
                             {/if}
                         </button>
                     {/each}
                 </div>
             {/if}
         </div>
+
     {:else if currentState === 'PLAYING'}
         {#if loading}
             <div class="flex-1 flex flex-col items-center justify-center">
-                <div class="w-20 h-20 border-8 border-amber-200 border-t-amber-500 rounded-full animate-spin mb-6"></div>
-                <p class="font-black text-xl text-amber-400 animate-pulse tracking-wide">A PREPARAR DESAFIO...</p>
+                <div class="w-16 h-16 border-8 border-amber-200 border-t-amber-500 rounded-full animate-spin mb-4"></div>
+                <p class="font-black text-lg text-amber-400 animate-pulse tracking-wide">A PREPARAR...</p>
             </div>
         {:else if questionData}
-             <div class="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full p-6 animate-pop-in pb-32">
-<div class="flex items-center justify-center gap-4 mb-8">
-    
-    <span class="bg-white border-2 border-slate-100 text-slate-500 text-sm font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-2">
-        <Hash size={14} /> {selectedSubtopic}
-    </span>
-
-    {#if streak > 1}
-        <div class="flex items-center gap-1.5 bg-orange-100 text-orange-600 px-3 py-1.5 rounded-full border-2 border-orange-200 shadow-sm animate-pop-in">
-            <div class="relative">
-                <Flame size={18} class="fill-orange-500 animate-pulse" />
-                <span class="absolute -top-1 -right-1 flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-                </span>
-            </div>
-            <span class="font-black text-sm">COMBO x{streak}</span>
-        </div>
-    {/if}
-</div>
+             <div class="flex-1 flex flex-col justify-start max-w-2xl mx-auto w-full p-4 md:p-6 animate-pop-in overflow-y-auto scrollbar-hide pb-40" bind:this={optionsContainer}>
                 
-                <div class="bg-white p-8 rounded-3xl shadow-xl border-b-8 border-slate-100 mb-8 relative">
-                    <div class="absolute -top-4 -left-4 bg-yellow-400 text-white p-2 rounded-xl rotate-12 shadow-lg">
-                        <Zap size={24} fill="currentColor" />
+                <div class="flex flex-wrap items-center justify-center gap-3 mb-4 md:mb-6 shrink-0">
+                    <span class="bg-white border-2 border-slate-100 text-slate-500 text-xs md:text-sm font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-2">
+                        <Hash size={14} /> {selectedSubtopic}
+                    </span>
+                    {#if streak > 1}
+                        <div class="flex items-center gap-1 bg-orange-100 text-orange-600 px-3 py-1 rounded-full border-2 border-orange-200 shadow-sm animate-pop-in">
+                            <Flame size={14} class="fill-orange-500 animate-pulse" />
+                            <span class="font-black text-xs md:text-sm">COMBO x{streak}</span>
+                        </div>
+                    {/if}
+                </div>
+                
+                <div class="bg-white p-5 md:p-8 rounded-3xl shadow-xl border-b-8 border-slate-100 mb-6 relative shrink-0">
+                    <div class="absolute -top-3 -left-3 bg-yellow-400 text-white p-1.5 rounded-lg rotate-12 shadow-lg">
+                        <Zap size={20} fill="currentColor" />
                     </div>
-                    <h1 class="text-2xl md:text-3xl font-black text-center text-slate-800 leading-snug">
+                    <h1 class="text-xl md:text-2xl font-black text-center text-slate-800 leading-snug">
                         {questionData.question}
                     </h1>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4">
+                <div class="grid grid-cols-1 gap-3 md:gap-4 w-full">
                     {#each questionData.options as option}
                         <button 
-                            class="relative p-6 rounded-2xl border-b-4 font-bold text-xl text-left transition-all flex items-center justify-between group
-                            {selectedOption === option && isCorrect === null
-                                ? 'bg-amber-100 border-amber-300 text-amber-800'
-                                : selectedOption === option && isCorrect 
-                                    ? 'bg-green-500 border-green-700 text-white shadow-lg scale-[1.02]' 
-                                    : selectedOption === option && !isCorrect
-                                        ? 'bg-rose-500 border-rose-700 text-white shadow-lg'
-                                        : selectedOption && option === questionData.correct_answer
-                                            ? 'bg-green-500 border-green-700 text-white opacity-100 scale-[1.02] shadow-lg' // Revela a certa
-                                            : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:bg-blue-50 active:border-b-0 active:translate-y-1'}"
+                            class="relative p-4 rounded-2xl border-b-4 font-bold text-left transition-all flex items-center justify-between group min-h-[60px]
+                            {selectedOption === option && isCorrect === null ? 'bg-amber-100 border-amber-300 text-amber-800'
+                            : selectedOption === option && isCorrect ? 'bg-green-500 border-green-700 text-white scale-[1.01]' 
+                            : selectedOption === option && !isCorrect ? 'bg-rose-500 border-rose-700 text-white'
+                            : selectedOption && option === questionData.correct_answer ? 'bg-green-500 border-green-700 text-white opacity-100' // Revela a certa
+                            : 'bg-white border-slate-200 text-slate-600 active:border-b-0 active:translate-y-1'}"
+                            
+                            class:text-base={option.length > 25} 
+                            class:text-lg={option.length <= 25}
+
                             on:click={() => handleAnswer(option)}
                             disabled={!!selectedOption}
                             style={selectedOption && option !== selectedOption && option !== questionData.correct_answer ? 'opacity: 0.5' : ''}
                         >
-                            <span>{option}</span>
-                            
+                            <span class="pr-2 leading-tight">{option}</span>
                             {#if selectedOption === option}
-                                {#if isCorrect}
-                                    <CheckCircle2 class="animate-bounce" size={28} />
-                                {:else if isCorrect === false}
-                                    <X class="animate-shake" size={28} />
-                                {/if}
+                                {#if isCorrect}<CheckCircle2 size={24} class="shrink-0" />{:else}<X size={24} class="shrink-0" />{/if}
                             {/if}
                         </button>
                     {/each}
@@ -640,85 +519,57 @@ try {
             </div>
             
             {#if selectedOption}
-                <div class="fixed bottom-0 inset-x-0 p-6 z-50 animate-slide-up rounded-t-3xl shadow-[0_-10px_50px_rgba(0,0,0,0.2)]
+                <div class="fixed bottom-0 inset-x-0 p-4 md:p-6 z-50 animate-slide-up rounded-t-3xl shadow-[0_-10px_50px_rgba(0,0,0,0.2)] max-h-[60vh] overflow-y-auto
                             {isCorrect ? 'bg-green-100 border-t-8 border-green-500' : 'bg-rose-100 border-t-8 border-rose-500'}">
-                    <div class="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-                        
+                    <div class="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 md:gap-6">
                         <div class="flex-1 w-full text-center sm:text-left">
                             {#if isCorrect}
-<div class="text-green-700 font-black text-2xl flex items-center justify-center sm:justify-start gap-2 mb-2">
-            <CheckCircle2 class="fill-current" size={32} /> 
-            {#if streak > 2} 
-                IMPARÁVEL! 🔥 
-            {:else} 
-                ACERTASTE! 
-            {/if}
-        </div>
-        <p class="text-green-800 text-lg font-medium leading-relaxed">
-            {questionData.explanation || "Muito bem! Ganhaste XP."}
-            {#if streak > 1}
-                <span class="block text-sm font-bold mt-1 text-green-600 uppercase tracking-wide">
-                    + {streak * 2} XP de Bónus de Combo!
-                </span>
-            {/if}
-        </p>
-                            {:else}
-                                <div class="text-rose-600 font-black text-2xl flex items-center justify-center sm:justify-start gap-2 mb-2">
-                                    <X class="fill-current" size={32} /> ERRADO
+                                <div class="text-green-700 font-black text-xl flex items-center justify-center sm:justify-start gap-2 mb-2">
+                                    <CheckCircle2 class="fill-current" size={24} /> 
+                                    {#if streak > 2} IMPARÁVEL! 🔥 {:else} ACERTASTE! {/if}
                                 </div>
-                                <div class="text-rose-800 font-medium">
-                                    <p class="text-lg mb-1">
-                                        A resposta certa era <strong class="bg-white px-3 py-1 rounded-lg border border-rose-200 shadow-sm">{questionData.correct_answer}</strong>
-                                    </p>
+                                <p class="text-green-800 text-sm md:text-base font-medium leading-relaxed">
+                                    {questionData.explanation || "Muito bem! Ganhaste XP."}
+                                </p>
+                            {:else}
+                                <div class="text-rose-600 font-black text-xl flex items-center justify-center sm:justify-start gap-2 mb-2">
+                                    <X class="fill-current" size={24} /> ERRADO
+                                </div>
+                                <div class="text-rose-800 font-medium text-sm">
+                                    Resposta certa: <strong class="bg-white px-2 py-0.5 rounded border border-rose-200">{questionData.correct_answer}</strong>
                                 </div>
                             {/if}
                         </div>
 
                         <button on:click={loadQuestion} 
-                                class={`w-full sm:w-auto px-10 py-5 rounded-2xl font-black text-xl text-white shadow-xl border-b-4 active:border-b-0 active:translate-y-1 transition-all min-w-[200px]
-                                ${isCorrect ? 'bg-green-500 border-green-700 hover:bg-green-400' : 'bg-rose-500 border-rose-700 hover:bg-rose-400'}`}>
+                                class={`w-full sm:w-auto px-8 py-4 rounded-2xl font-black text-lg md:text-xl text-white shadow-xl border-b-4 active:border-b-0 active:translate-y-1 transition-all shrink-0
+                                ${isCorrect ? 'bg-green-500 border-green-700' : 'bg-rose-500 border-rose-700'}`}>
                             {isCorrect ? 'CONTINUAR' : 'PRÓXIMA'}
                         </button>
                     </div>
+                    <div class="h-[env(safe-area-inset-bottom)]"></div>
                 </div>
             {/if}
-
         {/if}
 
-{:else if currentState === 'GAMEOVER'}
+    {:else if currentState === 'GAMEOVER'}
         <div class="flex-1 flex flex-col items-center justify-center p-6 text-center animate-zoom-in">
-            
-            <div class="mb-6 text-8xl animate-bounce">
+            <div class="mb-4 text-7xl md:text-8xl animate-bounce">
                 {#if isTimeUp} ⏰ {:else} 💔 {/if}
             </div>
-
-            <h1 class="text-4xl md:text-5xl font-black text-slate-800 mb-4">
-                {#if isTimeUp}
-                    Tempo Esgotado!
-                {:else}
-                    Acabaram as vidas!
-                {/if}
+            <h1 class="text-3xl md:text-5xl font-black text-slate-800 mb-4">
+                {#if isTimeUp} Tempo Esgotado! {:else} Acabaram as vidas! {/if}
             </h1>
-
-            <p class="text-slate-500 text-lg mb-6 max-w-xs mx-auto">
-                {#if isTimeUp}
-                    O teu cérebro precisa de recarregar energias. Bom trabalho hoje!
-                {:else}
-                    Não desistas! Tenta novamente para melhorares a pontuação.
-                {/if}
+            <p class="text-slate-500 text-base md:text-lg mb-6 max-w-xs mx-auto">
+                {#if isTimeUp} Bom trabalho hoje! Descansa. {:else} Tenta de novo! {/if}
             </p>
-
             <div class="bg-white p-6 rounded-3xl shadow-lg border-2 border-slate-100 mb-8 w-full max-w-sm">
-                <p class="text-slate-500 font-bold uppercase tracking-widest text-sm mb-2">Total da Sessão</p>
-                <p class="text-6xl font-black text-amber-500">{score} <span class="text-2xl text-amber-300">XP</span></p>
+                <p class="text-slate-500 font-bold uppercase tracking-widest text-xs mb-2">XP Ganho</p>
+                <p class="text-5xl md:text-6xl font-black text-amber-500">{score}</p>
             </div>
-            
-            <button on:click={() => { 
-                    if(isTimeUp) { exitSession(); } // Se acabou o tempo, sai mesmo
-                    else { currentState = 'MENU'; isTimeUp = false; lives = 3; } // Se morreu, pode tentar outra
-                }} 
-                class="w-full max-w-xs px-8 py-5 bg-blue-500 text-white rounded-2xl font-bold shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 hover:brightness-110 transition-all text-xl">
-                {#if isTimeUp} Terminar por Hoje {:else} Voltar ao Mapa {/if}
+            <button on:click={() => { if(isTimeUp) exitSession(); else { currentState = 'MENU'; isTimeUp = false; lives = 3; } }} 
+                class="w-full max-w-xs px-8 py-4 bg-blue-500 text-white rounded-2xl font-bold shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 text-lg">
+                {#if isTimeUp} Sair {:else} Voltar ao Menu {/if}
             </button>
         </div>
     {/if}
