@@ -176,8 +176,6 @@
                         <option value="" disabled selected>Selecione...</option>
                         <option value="3">3ª Classe</option>
                         <option value="4">4ª Classe</option>
-                        <option value="5">5ª Classe</option>
-                        <option value="6">6ª Classe</option>
                     </select>
                 </div>
             </div>

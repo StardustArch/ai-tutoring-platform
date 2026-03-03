@@ -141,7 +141,7 @@ if (!aceitou) return; // Se disser não, para aqui.
         <div class="h-10 w-full bg-surface-200 dark:bg-surface-700 rounded"></div>
         <div class="h-20 w-full bg-surface-200 dark:bg-surface-700 rounded mt-4"></div>
     </div>
-  {:else}
+{:else}
 
     <div class="bg-white dark:bg-surface-800 rounded-lg shadow-sm border border-surface-200 dark:border-surface-700 overflow-hidden">
         
@@ -177,7 +177,7 @@ if (!aceitou) return; // Se disser não, para aqui.
                     <label for="classe" class={labelClass}>Nível Escolar</label>
                     <div class="relative">
                         <select id="classe" class="{inputClass} appearance-none pl-10" bind:value={formData.classe} disabled={isSaving}>
-                            {#each [3,4,5,6] as c}
+                            {#each [3,4] as c}
                                 <option value={c}>{c}ª Classe</option>
                             {/each}
                         </select>
@@ -186,53 +186,54 @@ if (!aceitou) return; // Se disser não, para aqui.
                 </div>
             </div>
 
-            <div class="pt-4 flex justify-end gap-3 border-t border-surface-100 dark:border-surface-700">
+            <div class="pt-6 mt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-surface-100 dark:border-surface-700">
                 <button 
-                    class="btn bg-white dark:bg-surface-700 border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 px-4 py-2 rounded-md text-sm font-medium transition-colors" 
+                    class="w-full sm:w-auto bg-white dark:bg-surface-700 border-2 border-surface-200 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-600 text-surface-700 dark:text-surface-200 px-6 py-3 sm:py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95" 
                     on:click={goBack}
                     disabled={isSaving}
                 >
                     Cancelar
                 </button>
                 <button 
-                    class="btn bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-md py-2 px-6 flex items-center gap-2 shadow-sm transition-all focus:ring-2 focus:ring-offset-1 focus:ring-emerald-500 disabled:opacity-70 text-sm" 
+                    class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg py-3 sm:py-2.5 px-8 flex items-center justify-center gap-2 shadow-md transition-all focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-70 text-sm active:scale-95" 
                     on:click={saveChanges} 
                     disabled={isSaving}
                 >
                     {#if isSaving}
-                        <Loader size={16} class="animate-spin" />
+                        <Loader size={18} class="animate-spin" />
                         <span>A Guardar...</span>
                     {:else}
-                        <Save size={16} />
-                        <span>Guardar Alterações</span>
+                        <Save size={18} />
+                        <span>Guardar</span>
                     {/if}
                 </button>
             </div>
         </div>
     </div>
 
-    <div class="rounded-lg border border-red-200 dark:border-red-900/30 bg-white dark:bg-surface-800 overflow-hidden">
-        <div class="p-6">
-            <h3 class="text-sm font-bold text-red-700 dark:text-red-400 uppercase tracking-wide mb-2 flex items-center gap-2">
-                <AlertTriangle size={16}/> Zona de Perigo
+    <div class="rounded-lg border-2 border-red-200 dark:border-red-900/30 bg-white dark:bg-surface-800 overflow-hidden shadow-sm mt-6">
+        <div class="p-6 md:p-8">
+            <h3 class="text-sm font-bold text-red-700 dark:text-red-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                <AlertTriangle size={18}/> Zona de Perigo
             </h3>
             
-            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <p class="text-sm text-surface-600 dark:text-surface-300 max-w-md">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+                <p class="text-sm text-surface-600 dark:text-surface-300 max-w-md leading-relaxed">
                     Ao remover este educando, todos os dados de progresso escolar, XP e interações com a IA serão apagados permanentemente.
                 </p>
                 
                 <button 
-                    class="btn bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-md flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap shadow-sm" 
+                    class="w-full sm:w-auto bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-lg flex items-center justify-center gap-2 px-6 py-3 sm:py-2.5 text-sm font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap shrink-0" 
                     on:click={deleteStudent} 
                     disabled={isDeleting}
                 >
                     {#if isDeleting}
-                        <Loader size={16} class="animate-spin" />
+                        <Loader size={18} class="animate-spin" />
+                        <span>A Remover...</span>
                     {:else}
-                        <Trash2 size={16} />
+                        <Trash2 size={18} />
+                        <span>Remover Perfil</span>
                     {/if}
-                    <span>Remover Perfil</span>
                 </button>
             </div>
         </div>

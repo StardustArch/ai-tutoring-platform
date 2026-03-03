@@ -135,8 +135,6 @@
                     <option value="" disabled selected>Selecione a classe...</option>
                     <option value="3">3ª Classe</option>
                     <option value="4">4ª Classe</option>
-                    <option value="5">5ª Classe</option>
-                    <option value="6">6ª Classe</option>
                 </select>
                 <GraduationCap size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
             </div>
