@@ -18,6 +18,7 @@ import { SessionModule } from './session/session.module';
 import { PdfModule } from './pdf/pdf.module';
 import { AdminModule } from './admin/admin.module';
 import { MailModule } from './mail/mail.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [AuthModule,
@@ -35,7 +36,8 @@ import { MailModule } from './mail/mail.module';
     SessionModule,
     PdfModule,
     AdminModule,
-    MailModule
+    MailModule, 
+    HealthModule
     ],
   controllers: [AppController],
   providers: [AppService],
