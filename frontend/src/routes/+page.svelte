@@ -197,7 +197,7 @@
                     <div class="w-3 h-3 rounded-full bg-green-400/80"></div>
                 </div>
                 <div class="hidden sm:flex text-[10px] text-surface-400 font-mono bg-white dark:bg-surface-800 px-3 py-1 rounded-md border border-surface-200 dark:border-surface-700">
-                    KMind.co.mz/aluno
+                    KMind.vercel.app/dashboard/student
                 </div>
                 <div class="w-10"></div> 
             </div>

@@ -1,7 +1,6 @@
 import os
 import json
-# import google.genai
-from openai import OpenAI
+from openai import OpenAI, RateLimitError  # 🚨 Importante adicionar o RateLimitError
 from huggingface_hub import InferenceClient
 # Certifica-te que adicionas o HF_TOKEN no teu app/config.py também!
 from app.config import OPENROUTER_API_KEY, BASE_URL, GOOGLE_API_KEY, HF_TOKEN, GITHUB_TOKEN
@@ -20,63 +19,91 @@ else:
 def get_rush_client():
     """Retorna o cliente para o Modo Rush (Drill/Quiz)"""
     return rush_client
-
+    
 # ==========================================
-# 2. CLIENTE TUTOR (GitHub Models - GPT-4o)
+# 2. CLIENTE TUTOR (GitHub Models - GPT-4o) - COM ROTAÇÃO 🔄
 # ==========================================
-tutor_client = None
 
-if GITHUB_TOKEN:
-    # Configuração para usar os modelos gratuitos do GitHub
-    tutor_client = OpenAI(
-        base_url="https://models.github.ai/inference",
-        api_key=GITHUB_TOKEN
-    )
+# 1. Carrega a lista de tokens do .env (separados por vírgula)
+raw_tokens = os.environ.get("GITHUB_TOKENS", os.environ.get("GITHUB_TOKEN", ""))
+GITHUB_TOKENS_LIST = [t.strip() for t in raw_tokens.split(",") if t.strip()]
+
+tutor_clients = []
+current_client_index = 0
+
+# 2. Cria um "exército" de clientes, um para cada token
+if GITHUB_TOKENS_LIST:
+    print(f"✅ ROTAÇÃO ATIVADA: Carregados {len(GITHUB_TOKENS_LIST)} tokens do GitHub.")
+    for token in GITHUB_TOKENS_LIST:
+        client = OpenAI(
+            base_url="https://models.github.ai/inference",
+            api_key=token
+        )
+        tutor_clients.append(client)
 else:
-    print("⚠️ AVISO: GITHUB_TOKEN em falta.")
-
-def get_tutor_client():
-    """Retorna o cliente OpenAI apontando para o GitHub Models"""
-    return tutor_client
+    print("⚠️ AVISO: Nenhum GITHUB_TOKENS encontrado.")
 
 async def generate_tutor_response(system_prompt, user_query, history=[]):
     """
-    Usa o GPT-4o-mini do GitHub de forma gratuita.
+    Usa o GPT-4o-mini do GitHub com rotação automática de tokens.
     """
-    if not tutor_client:
+    global current_client_index # Permite atualizar a posição na lista
+
+    if not tutor_clients:
         return {"error": "Serviço GitHub Models não configurado."}
 
+    # Prepara as mensagens (mantido igual ao teu código)
     messages = [{"role": "system", "content": system_prompt}]
-    
-    # Adicionamos o histórico para a IA ter memória
-    for msg in history[-6:]: # Últimas 6 para poupar tokens
+    for msg in history[-6:]:
         role = "assistant" if msg.get("role") in ["assistant", "model", "ai"] else "user"
         messages.append({"role": role, "content": str(msg.get("text", ""))})
-
     messages.append({"role": "user", "content": user_query})
-    try:
-        # Chamada ao modelo (Gratuito no GitHub)
-        response = tutor_client.chat.completions.create(
-            model="gpt-4o-mini", # Nome do modelo no GitHub Models
-            messages=messages,
-            temperature=0.7,
-            # Nota: GitHub Models às vezes é rígido com JSON Mode, 
-            # garantimos que o prompt pede JSON.
-        )
 
-        raw_text = response.choices[0].message.content
-        cleaned_text = clean_json_text(raw_text)
-        # Retorno
-        return json.loads(cleaned_text)
-    except Exception as e:
-        print(f"❌ Erro GPT-4o/JSON: {e}")
-        # Se falhar o parse, retornamos um fallback seguro
-        return {
-            "messages": ["Eish, tive um problema ao processar o que disseste. 🤖"],
-            "emotion": "THOUGHTFUL",
-            "interaction_type": "EXPLANATION",
-            "interaction_data": {"options": ["Tentar novamente"]}
-        }
+    # 3. O Loop de Segurança (Tenta usar os tokens até conseguir)
+    max_attempts = len(tutor_clients)
+    attempts = 0
+
+    while attempts < max_attempts:
+        # Seleciona o cliente da vez
+        client = tutor_clients[current_client_index]
+        used_index = current_client_index
+        
+        # Avança a "roleta" para o próximo aluno usar o próximo token
+        current_client_index = (current_client_index + 1) % len(tutor_clients)
+
+        try:
+            print(f"🔄 K-Mind: A processar com Token #{used_index + 1} de {len(tutor_clients)}...")
+            
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                temperature=0.7,
+            )
+
+            raw_text = response.choices[0].message.content
+            cleaned_text = clean_json_text(raw_text) # (Usa a tua função)
+            return json.loads(cleaned_text)
+
+        except RateLimitError as e:
+            # 🚨 ERRO 429: Este token esgotou o limite por agora!
+            print(f"⚠️ Token #{used_index + 1} esgotado (Rate Limit 429). A saltar rápido para o próximo...")
+            attempts += 1
+            continue # Força o 'while' a tentar o próximo token imediatamente
+
+        except Exception as e:
+            # Outros erros (ex: json mal formatado, internet abaixo)
+            print(f"❌ Erro Fatal GPT-4o (Token #{used_index + 1}): {e}")
+            break # Não adianta trocar de token, quebra o ciclo
+
+    # 4. Fallback Seguro (Se TODOS os tokens estiverem esgotados/falharem)
+    print("🚨 ALERTA GERAL: Todos os tokens esgotaram ou falharam!")
+    return {
+        "messages": ["O Kani está a pensar muito devagar agora! 🔋 Podes dar-me um minuto para recarregar as energias?"],
+        "emotion": "SAD",
+        "interaction_type": "EXPLANATION",
+        "interaction_data": {"options": ["Tentar novamente"]}
+    }
+
 # ==========================================
 # 3. CLIENTE SOCIAL (Hugging Face - Hermes)
 # ==========================================
