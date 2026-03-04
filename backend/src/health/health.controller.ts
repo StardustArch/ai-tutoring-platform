@@ -1,4 +1,4 @@
-import { Controller, Get, Logger } from '@nestjs/common';
+import { Controller, Get, Logger, Query } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
@@ -8,25 +8,26 @@ export class HealthController {
 
   constructor(private readonly httpService: HttpService) {}
 
+  // Adicionamos o @Query() aqui
   @Get('wakeup')
-  async wakeup() {
-    this.logger.log('⏰ Ping recebido do Frontend! Backend NestJS está acordado.');
+  async wakeup(@Query('wakeAi') wakeAi?: string) {
+    this.logger.log('⏰ Ping recebido! Backend NestJS está vivo.');
 
-    // Enviar Ping em cascata para o serviço de IA (Python)
-    const aiUrl = process.env.IA_API_URL || 'https://ai-tutoring-platform.onrender.com';
-    
-    try {
-      // Fazemos um GET simples à raiz ou a uma rota /health do Python
-      // Não usamos await para o Frontend não ficar 50s à espera da resposta do NestJS
-      firstValueFrom(this.httpService.get(`${aiUrl}/health`)).catch(() => {
-          this.logger.log('⏳ Serviço IA (Python) a acordar...');
-      });
-    } catch (error) {
-      // Ignoramos erros, o objetivo era só enviar tráfego para acordar a máquina
+    // Só acorda a IA (Python) se o pedido tiver ?wakeAi=true
+    if (wakeAi === 'true') {
+      const aiUrl = process.env.AI_SERVICE_URL || 'https://ai-tutoring-platform.onrender.com';
+      
+      try {
+        firstValueFrom(this.httpService.get(`${aiUrl}/health`)).catch(() => {
+            this.logger.log('⏳ Frontend detetado! A acordar o Serviço de IA (Python)...');
+        });
+      } catch (error) {}
+
+      return { status: 'ok', message: 'Backend vivo. A acordar IA em background...' };
     }
-    return { 
-        status: 'ok', 
-        message: 'Bom dia! Backend NestJS acordado. A acordar IA em background...' 
-    };
+
+    // Se for o UptimeRobot ou Google Script (não têm wakeAi=true)
+    this.logger.log('🤖 Ping de manutenção (Robô). A IA continua a dormir para poupar horas.');
+    return { status: 'ok', message: 'Backend vivo. Modo poupança de IA ativo.' };
   }
 }

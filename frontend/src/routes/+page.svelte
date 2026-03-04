@@ -31,11 +31,12 @@
 		// "Fire and forget": Dispara o ping e não bloqueia a tela
 		console.log('⏰ A enviar despertador para os servidores...');
 
-		fetch(`${PUBLIC_API_URL_HOST}/api/health/wakeup`)
-			.then((res) => {
-				if (res.ok) console.log('☀️ Servidores acordados e prontos!');
-			})
-			.catch(() => console.log('⏳ Servidores a acordar da hibernação...'));
+// No teu onMount do Svelte
+fetch(`${PUBLIC_API_URL_HOST}/api/health/wakeup?wakeAi=true`)
+    .then(res => {
+        if(res.ok) console.log("☀️ Sinal enviado: Backend e IA a preparar motores!");
+    })
+    .catch(() => console.log("⏳ A acordar servidores..."));
 	});
 	// Funcionalidades (Organizadas para Bento Grid)
 	const features = [
