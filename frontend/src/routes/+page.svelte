@@ -219,12 +219,6 @@
 					Criar Conta Grátis
 					<ArrowRight size={20} />
 				</a>
-				<a
-					href="#como-funciona"
-					class="inline-flex items-center justify-center gap-2 rounded-xl border border-surface-200 bg-white px-8 py-4 text-lg font-bold text-surface-700 transition-all hover:scale-105 hover:border-surface-300 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-200 dark:hover:border-surface-600"
-				>
-					Como Funciona
-				</a>
 			</div>
 			<div
 				class="relative mx-auto flex w-full max-w-7xl flex-col items-center justify-center gap-8 px-4 py-12 lg:flex-row lg:gap-12"
@@ -635,7 +629,7 @@
 		class="border-t border-surface-200 bg-white px-4 pt-16 pb-8 dark:border-surface-800 dark:bg-surface-950"
 	>
 		<div class="mx-auto max-w-7xl">
-			<div class="mb-12 grid grid-cols-2 gap-8 md:grid-cols-4">
+			<div class="mb-12 grid grid-cols-2 gap-8 md:grid-cols-3">
 				<div class="col-span-2 md:col-span-1">
 					<div class="mb-4 flex items-center gap-2">
 						<div
@@ -670,13 +664,6 @@
 					</ul>
 				</div>
 
-				<div>
-					<h4 class="mb-4 font-bold text-surface-900 dark:text-white">Contacto</h4>
-					<ul class="space-y-2 text-sm text-surface-600 dark:text-surface-400">
-						<li>suporte@KMind.co.mz</li>
-						<li>Maputo, Moçambique</li>
-					</ul>
-				</div>
 			</div>
 
 			<div
