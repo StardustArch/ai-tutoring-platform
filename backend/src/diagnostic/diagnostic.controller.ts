@@ -14,7 +14,6 @@ export class DiagnosticController {
     @Param('alunoId', ParseIntPipe) alunoId: number,
     @Query('disciplina') disciplina: string
   ) {
-    console.log('chamado')
     const needs = await this.diagnosticService.needsDiagnostic(alunoId, disciplina);
     return { needs, alunoId, disciplina };
   }

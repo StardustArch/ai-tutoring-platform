@@ -11,7 +11,7 @@ GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 # --- Configuração Tutor (GPT-4o) ---
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKENS")
 
 # --- Configuração Geral ---
 LANG_VARIANT = "Português (Portugal)"
