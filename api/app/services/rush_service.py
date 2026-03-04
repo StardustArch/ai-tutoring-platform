@@ -47,17 +47,19 @@ Generate a NEW, UNIQUE, and FLAWLESS question about "{subtopic}". Make it engagi
 
 async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
     client = get_rush_client()
-    if not client: raise Exception("LLM Client unavailable")
+    if not client:
+        raise Exception("LLM Client unavailable")
 
     subject = request.subject.lower()
-    if subject not in ("matematica", "portugues"): subject = "matematica"
+    if subject not in ("matematica", "portugues"):
+        subject = "matematica"
     
     subtopic = request.subtopic if request.subtopic else "Geral"
     exclude_text = "\n- ".join(request.recent_questions) if request.recent_questions else "None"
 
     prompt = PROMPT_RUSH_JSON.format(
-        lang=LANG_VARIANT, 
-        student_class=request.student_class, 
+        lang=LANG_VARIANT,
+        student_class=request.student_class,
         subject=subject,
         subtopic=subtopic,
         exclude_list=exclude_text,
@@ -65,35 +67,38 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
         context_rules=request.context_rules
     )
 
-    try:
-        # Temperatura 0.3 para reduzir alucinações lógicas
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": f"Generate one question about {subtopic}."}
-            ],
-            temperature=0.2, 
-            max_tokens=400,
-            response_format={"type": "json_object"}
-        )
-        
-        raw = completion.choices[0].message.content
-        obj = safe_load_json_object(raw)
-        
-        if not obj: raise ValueError("JSON inválido ou vazio")
-        
-        # ✅ Chama o sanitizador isolado aqui
-        clean_data = _sanitize_rush_payload(obj)
-        
-        return RushResponse(**clean_data)
+    # 🔁 Tenta até 3 vezes gerar algo válido
+    for tentativa in range(3):
+        try:
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": prompt}
+                ],
+                temperature=0.2,
+                top_p=0.8,
+                frequency_penalty=0.3,
+                max_tokens=400,
+                response_format={"type": "json_object"}
+            )
 
-    except Exception as e:
-        print(f"ERRO RUSH: {e}")
-        return RushResponse(
-            question="Quanto é 1 + 1?",
-            options=["1", "2", "3", "4"],
-            correct_answer="2",
-            explanation="Erro técnico. Tente novamente."
-        )
+            raw = completion.choices[0].message.content
+            obj = safe_load_json_object(raw)
 
+            if not obj:
+                raise ValueError("JSON inválido")
+
+            clean_data = _sanitize_rush_payload(obj, subject, subtopic)
+
+            return RushResponse(**clean_data)
+
+        except Exception as e:
+            print(f"⚠️ Tentativa {tentativa+1} falhou: {e}")
+
+    # 🚨 Fallback seguro
+    return RushResponse(
+        question="Quanto é 1 + 1?",
+        options=["1", "2", "3", "4"],
+        correct_answer="2",
+        explanation="Erro técnico. Tente novamente."
+    )

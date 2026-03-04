@@ -1,6 +1,7 @@
 import json
 import re
 from typing import Any
+import random
 
 def safe_load_json_object(text: str) -> Any | None:
     if not text: return None
@@ -35,62 +36,146 @@ def truncate_history_by_chars(history: list[dict], max_chars: int = 4000) -> lis
     return list(reversed(kept))
 
 
-def _sanitize_rush_payload(raw_obj: dict) -> dict:
+import re
+import operator
+
+def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
     """
-    Função pura que recebe o dicionário bruto da IA e garante
-    que a 'correct_answer' existe matematicamente dentro das 'options'.
+    Sanitizador universal com validação condicional inteligente.
     """
-    # 1. Normalizar as opções (garantir string e sem espaços)
+
+    if not isinstance(raw_obj, dict):
+        raise ValueError("Payload inválido")
+
+    question = str(raw_obj.get("question", "")).strip()
+    explanation = str(raw_obj.get("explanation", "")).strip()
+    raw_correct = str(raw_obj.get("correct_answer", "")).strip()
+
     raw_options = raw_obj.get("options", [])
     if not isinstance(raw_options, list):
-        raw_options = []
-    options = [str(o).strip() for o in raw_options]
+        raise ValueError("Opções inválidas")
 
-    # Fallback crítico se a IA não gerar opções
-    if not options:
-        return {
-            "question": "Erro na questão",
-            "options": ["Erro"],
-            "correct_answer": "Erro",
-            "explanation": "Falha na geração."
-        }
+    # -------------------------
+    # Normalizar opções
+    # -------------------------
+    options = []
+    for opt in raw_options:
+        clean = str(opt).strip().strip('"').strip("'").strip(".")
+        if clean:
+            options.append(clean)
 
-    # 2. Limpar a resposta correta (remover aspas extras, pontos finais)
-    raw_correct = str(raw_obj.get("correct_answer", "")).strip()
-    clean_correct = raw_correct.strip('"').strip("'").strip('.')
-    
-    final_correct = clean_correct
+    # Remover duplicadas
+    options = list(dict.fromkeys(options))
 
-    # 3. Lógica de Recuperação (Se a resposta não bater exata)
-    if final_correct not in options:
-        print(f"⚠️ SANITIZER: A resposta '{clean_correct}' não bate com {options}. A corrigir...")
-        
-        # Ordenar por tamanho decrescente para evitar falsos positivos
-        # (Ex: evitar que '3' dê match dentro de '300')
-        sorted_options = sorted(options, key=len, reverse=True)
-        
-        found_fix = False
-        for opt in sorted_options:
-            # Verifica se a OPÇÃO está contida na FRASE da IA (Case Insensitive)
-            # Ex: IA diz "A resposta é Azul.", Opção é "Azul" -> Match!
-            if opt.lower() in clean_correct.lower():
-                final_correct = opt
-                found_fix = True
-                print(f"✅ SANITIZER: Corrigido para '{final_correct}'")
-                break
-        
-        # Fallback de Emergência: Se nada bater, usa a primeira opção
-        if not found_fix:
-            print(f"❌ SANITIZER: Correção falhou. Forçando primeira opção: '{options[0]}'")
-            final_correct = options[0]
+    if len(options) < 3:
+        raise ValueError("Menos de 3 opções únicas")
+
+    # -------------------------
+    # Garantir resposta correta válida
+    # -------------------------
+    clean_correct = raw_correct.strip('"').strip("'").strip(".")
+
+    if clean_correct not in options:
+        raise ValueError("Resposta correta não corresponde às opções")
+
+    # -------------------------
+    # 🔥 VALIDAÇÃO MATEMÁTICA CONDICIONAL
+    # -------------------------
+    q_type = _detect_question_type(question)
+
+    if subject == "matematica" and q_type == "explicit_arithmetic":
+        correct_number = int(re.findall(r'\d+', clean_correct)[0])
+        smart_distractors = _generate_smart_distractors(correct_number)
+        options = [str(correct_number)] + [str(d) for d in smart_distractors]
+        random.shuffle(options)
+        clean_correct = str(correct_number)
+
+    if not question or not explanation:
+        raise ValueError("Pergunta ou explicação vazia")
+
+    if _pedagogical_score(question, options) < 3:
+        raise ValueError("Pergunta fraca pedagogicamente")
 
     return {
-        "question": str(raw_obj.get("question", "")).strip(),
+        "question": question,
         "options": options,
-        "correct_answer": final_correct, # Agora garantido que está em options
-        "explanation": str(raw_obj.get("explanation", "")).strip()
+        "correct_answer": clean_correct,
+        "explanation": explanation
     }
 
+# ------------------------------------------
+# Detecta se o tópico é de operação direta
+# ------------------------------------------
+def _is_arithmetic_topic(subtopic: str) -> bool:
+    arithmetic_keywords = [
+        "adição",
+        "subtração",
+        "somas",
+        "multiplicação",
+        "divisão",
+        "expressões"
+    ]
+
+    sub = subtopic.lower()
+    return any(k in sub for k in arithmetic_keywords)
+
+
+# ------------------------------------------
+# Validação simples de expressão matemática
+# ------------------------------------------
+def _validate_arithmetic_question(question: str, correct_answer: str):
+
+    # Extrair expressão tipo: 345 + 120
+    match = re.search(r'(\d+)\s*([+\-x×÷])\s*(\d+)', question)
+    
+    if not match:
+        return  # Não encontrou expressão explícita → ignora
+
+    a = int(match.group(1))
+    op = match.group(2)
+    b = int(match.group(3))
+
+    ops = {
+        '+': operator.add,
+        '-': operator.sub,
+        'x': operator.mul,
+        '×': operator.mul,
+        '÷': operator.floordiv
+    }
+
+    if op not in ops:
+        return
+
+    result = ops[op](a, b)
+
+    # Extrair número da resposta correta
+    correct_number = int(re.findall(r'\d+', correct_answer)[0])
+
+    if result != correct_number:
+        raise ValueError(
+            f"Erro matemático detectado: {a} {op} {b} != {correct_number}"
+        )
+
+def _detect_question_type(question: str) -> str:
+    q = question.lower()
+
+    # expressão matemática explícita
+    if re.search(r'\d+\s*[+\-x×÷]\s*\d+', q):
+        return "explicit_arithmetic"
+
+    # problema textual com números
+    if re.search(r'\d+', q) and any(word in q for word in [
+        "comprou", "vendeu", "tem", "gastou", "recebeu", "restam"
+    ]):
+        return "word_problem"
+
+    # conceitos geométricos
+    if any(word in q for word in [
+        "triângulo", "quadrado", "ângulo", "círculo", "reta"
+    ]):
+        return "geometry"
+
+    return "conceptual"
 
 def clean_json_text(raw_text):
     """
@@ -114,6 +199,46 @@ def clean_json_text(raw_text):
         return match.group()
     return text
 
+def _pedagogical_score(question: str, options: list) -> int:
+    score = 0
+
+    if len(question) > 15:
+        score += 1
+
+    if len(options) >= 4:
+        score += 1
+
+    if not any(opt == options[0] for opt in options[1:]):
+        score += 1
+
+    if "?" in question:
+        score += 1
+
+    return score
+
+
+def _generate_smart_distractors(correct_value: int):
+
+    distractors = set()
+
+    # erro comum: trocar dígitos
+    swapped = int(str(correct_value)[::-1])
+    if swapped != correct_value:
+        distractors.add(swapped)
+
+    # erro comum: esquecer zero
+    if correct_value > 10:
+        distractors.add(correct_value // 10)
+
+    # erro comum: +10 ou -10
+    distractors.add(correct_value + 10)
+    distractors.add(correct_value - 10)
+
+    # garantir 3 únicos
+    distractors = [d for d in distractors if d > 0]
+    random.shuffle(distractors)
+
+    return distractors[:3]
 
 def remove_emojis(text: str) -> str:
     # Esta regex remove a maioria dos emojis e símbolos pictográficos do Unicode

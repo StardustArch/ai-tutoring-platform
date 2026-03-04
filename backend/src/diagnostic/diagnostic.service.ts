@@ -75,30 +75,21 @@ async generateDiagnosticQuestions(
       // 🚨 CORREÇÃO 1: Criar memória de curto prazo para este tópico
       const historicoPerguntas: string[] = [];
 
-      const estilosDePergunta = [
-          "Cálculo Direto (ex: quanto é X + Y?)",
-          "Problema de História/Situação Real (AVISO CRÍTICO: A pergunta TEM de conter todos os dados e números necessários para a resposta. Não crie perguntas que dependam de textos externos.)",
-          "Conceitual ou Definição (ex: o que significa X?)",
-          "Comparação ou Lógica (ex: qual é maior?)",
-          "Identificação ou Inverso (ex: qual destes NÃO é?)"
-      ];
       // Loop de Geração (5 perguntas)
  for (let i = 0; i < perguntasPorTopico; i++) {
         
         let tentativas = 0;
         let perguntaAceite = false;
 
-        const estiloAtual = estilosDePergunta[i % estilosDePergunta.length];
         // Tenta até 3 vezes conseguir uma pergunta ÚNICA para esta posição
         while (!perguntaAceite && tentativas < 3) {
             try {
-              const regrasComEstilo = `${regrasContexto} IMPORTANT: This specific question MUST be of type: "${estiloAtual}". Do NOT generate the same type as before.`;
 const payload = {
                 student_class: classe,
                 subject: nomeDisciplinaBd,
                 subtopic: nomeTopico,
                 difficulty_level: 3, 
-                context_rules: regrasComEstilo, // <--- A Mágica acontece aqui 🎩
+                context_rules: regrasContexto, // <--- A Mágica acontece aqui 🎩
                 recent_questions: historicoPerguntas 
               };
 
