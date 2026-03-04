@@ -245,6 +245,7 @@
                         </div>
                         
                         <div class="space-y-1.5">
+                            <!-- svelte-ignore a11y_label_has_associated_control -->
                             <label class="text-[10px] font-bold uppercase tracking-widest text-surface-400 ml-1">Código da Turma</label>
                             <input 
                                 type="text" 
