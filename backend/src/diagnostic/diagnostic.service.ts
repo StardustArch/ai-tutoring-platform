@@ -77,7 +77,7 @@ async generateDiagnosticQuestions(
 
       const estilosDePergunta = [
           "Cálculo Direto (ex: quanto é X + Y?)",
-          "Problema de História/Situação Real (Word Problem)",
+          "Problema de História/Situação Real (AVISO CRÍTICO: A pergunta TEM de conter todos os dados e números necessários para a resposta. Não crie perguntas que dependam de textos externos.)",
           "Conceitual ou Definição (ex: o que significa X?)",
           "Comparação ou Lógica (ex: qual é maior?)",
           "Identificação ou Inverso (ex: qual destes NÃO é?)"

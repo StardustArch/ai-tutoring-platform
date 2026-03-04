@@ -37,6 +37,7 @@
     try {
       const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`);
       if (res.ok) student = await res.json();
+      console.log(student)
     } catch (err) { 
       notifications.send('Erro ao carregar dados do aluno.', 'error');
     } finally { 
@@ -150,6 +151,36 @@
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
+            {#if student.alunoTurmas && student.alunoTurmas.length > 0}
+                {#each student.alunoTurmas as inscricao}
+                    <button 
+                        on:click={() => goto(`/dashboard/foreman/student/${studentId}/session-config/?turmaId=${inscricao.turma.id}`)}
+                        class="{cardBase} p-6 border-l-4 border-l-primary-500 hover:border-primary-500 hover:shadow-md group"
+                    >
+                        <div class="flex-1">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="p-2 bg-surface-100 dark:bg-surface-700 rounded-md text-primary-600 border border-surface-200 dark:border-surface-600">
+                                    <BookOpen size={18} />
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">Turma Escolar</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-surface-900 dark:text-white truncate">
+                                {inscricao.turma.nome}
+                            </h3>
+                            <p class="text-xs text-surface-500 mt-1">
+                                Disciplina: <span class="font-medium text-surface-700 dark:text-surface-300">{inscricao.turma.disciplina.nome}</span>
+                            </p>
+                            <p class="text-[10px] font-semibold text-surface-400 mt-3 flex items-center gap-1 uppercase">
+                                <GraduationCap size={12} /> Prof. {inscricao.turma.professor?.usuario?.nome || 'Escola'}
+                            </p>
+                        </div>
+                        
+                        <div class="mt-6 flex items-center text-primary-600 dark:text-primary-400 font-bold text-xs uppercase tracking-widest">
+                            <Zap size={14} class="mr-2 fill-current" /> Entrar na Sala
+                        </div>
+                    </button>
+                {/each}
+            {/if}
         <button 
             on:click={() => goto(`/dashboard/foreman/student/${studentId}/session-config/`)}
             class="{cardBase} p-6 border-l-4 border-l-emerald-500 hover:border-emerald-500 hover:shadow-md group"
@@ -172,36 +203,6 @@
             </div>
         </button>
 
-        {#if student.alunoTurmas && student.alunoTurmas.length > 0}
-            {#each student.alunoTurmas as inscricao}
-                <button 
-                    on:click={() => goto(`/dashboard/foreman/student/${studentId}/session-config/?turmaId=${inscricao.turma.id}`)}
-                    class="{cardBase} p-6 border-l-4 border-l-primary-500 hover:border-primary-500 hover:shadow-md group"
-                >
-                    <div class="flex-1">
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="p-2 bg-surface-100 dark:bg-surface-700 rounded-md text-primary-600 border border-surface-200 dark:border-surface-600">
-                                <BookOpen size={18} />
-                            </div>
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">Turma Escolar</span>
-                        </div>
-                        <h3 class="text-lg font-bold text-surface-900 dark:text-white truncate">
-                            {inscricao.turma.nome}
-                        </h3>
-                        <p class="text-xs text-surface-500 mt-1">
-                            Disciplina: <span class="font-medium text-surface-700 dark:text-surface-300">{inscricao.turma.disciplina.nome}</span>
-                        </p>
-                        <p class="text-[10px] font-semibold text-surface-400 mt-3 flex items-center gap-1 uppercase">
-                            <GraduationCap size={12} /> Prof. {inscricao.turma.professor?.usuario?.nome || 'Escola'}
-                        </p>
-                    </div>
-                    
-                    <div class="mt-6 flex items-center text-primary-600 dark:text-primary-400 font-bold text-xs uppercase tracking-widest">
-                        <Zap size={14} class="mr-2 fill-current" /> Entrar na Sala
-                    </div>
-                </button>
-            {/each}
-        {/if}
 
         <button 
             on:click={openModal}

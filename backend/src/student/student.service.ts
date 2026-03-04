@@ -58,13 +58,20 @@ export class StudentService {
   async findOne(id: number, usuarioId: number) {
     await this.validarPropriedade(id, usuarioId);
 
-    const aluno = await this.prisma.aluno.findUnique({
+const aluno = await this.prisma.aluno.findUnique({
       where: { id },
       include: {
         alunoTurmas: {
           include: {
             turma: {
-              include: { disciplina: true }
+              include: { 
+                disciplina: true,
+                professor: {          // 1. Inclui a relação com o Professor
+                  include: {
+                    usuario: true     // 2. Inclui a relação com o Usuário para apanhar o nome
+                  }
+                }
+              }
             }
           }
         }

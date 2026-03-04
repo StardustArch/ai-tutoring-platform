@@ -93,8 +93,8 @@ async def generate_tutor_response(system_prompt, user_query, history=[]):
         except Exception as e:
             # Outros erros (ex: json mal formatado, internet abaixo)
             print(f"❌ Erro Fatal GPT-4o (Token #{used_index + 1}): {e}")
-            break # Não adianta trocar de token, quebra o ciclo
-
+            continue # <--- USA ISTO! Obriga a tentar o próximo token.
+        
     # 4. Fallback Seguro (Se TODOS os tokens estiverem esgotados/falharem)
     print("🚨 ALERTA GERAL: Todos os tokens esgotaram ou falharam!")
     return {
