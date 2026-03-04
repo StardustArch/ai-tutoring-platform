@@ -15,7 +15,7 @@ export class HealthController {
 
     // Só acorda a IA (Python) se o pedido tiver ?wakeAi=true
     if (wakeAi === 'true') {
-      const aiUrl = process.env.AI_SERVICE_URL || 'https://ai-tutoring-platform.onrender.com';
+      const aiUrl = process.env.IA_API_URL || 'https://ai-tutoring-platform.onrender.com';
       
       try {
         firstValueFrom(this.httpService.get(`${aiUrl}/health`)).catch(() => {
