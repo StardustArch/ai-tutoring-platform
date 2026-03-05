@@ -109,24 +109,24 @@
     async function checkAndStartGame(subject: string, subtopic: string) {
         selectedSubject = subject;
         selectedSubtopic = subtopic;
-        loading = true;
+        loading = true; // Inicia o loading
+        
         try {
             const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/needs/${studentId}?disciplina=${subject}`);
             if (res.ok) {
                 const data = await res.json();
                 if (data.needs) {
                     await startDiagnostic(subject);
-                } else {
-                    startGame(subject, subtopic);
+                    return; // Retorna para que a gestão de loading passe para o diagnóstico
                 }
-            } else {
-                startGame(subject, subtopic);
             }
         } catch (e) {
-            startGame(subject, subtopic);
-        } finally {
-            loading = false;
+            console.error(e);
         }
+        
+        // Se não for preciso diagnóstico, vai para o Rush normal.
+        // A função startGame() trata do seu próprio loading (através do loadQuestion).
+        startGame(subject, subtopic);
     }
 
     async function startDiagnostic(subject: string) {
@@ -147,18 +147,33 @@
             });
             if (res.ok) {
                 const data = await res.json();
+
+                if (data.jaConcluido) {
+                    notifications.send("Diagnóstico concluído! A iniciar treino...", "success");
+                    startGame(subject, selectedSubtopic);
+                    return; // Retorna imediatamente. startGame vai assumir o controlo!
+                }
+
                 if (data.perguntas && Array.isArray(data.perguntas)) {
                     diagnosticQuestions = data.perguntas;
-                    console.log(diagnosticQuestions)
                     if (diagnosticQuestions.length > 0) {
                         questionData = diagnosticQuestions[0];
+                        loading = false; // Sucesso a carregar! Já podemos desligar o loading.
                     } else {
-                        currentState = 'MENU';
+                        startGame(subject, selectedSubtopic);
                     }
+                } else {
+                    currentState = 'MENU';
+                    loading = false;
                 }
+            } else {
+                currentState = 'MENU';
+                loading = false;
             }
-        } catch (e) { currentState = 'MENU'; } 
-        finally { loading = false; }
+        } catch (e) { 
+            currentState = 'MENU'; 
+            loading = false; 
+        }
     }
 
     async function handleDiagnosticAnswer(option: string) {
@@ -209,8 +224,11 @@
             confetti({ particleCount: 200, spread: 100 });
             notifications.send("Diagnóstico completo!", "info");
             startGame(selectedSubject, selectedSubtopic);
-        } catch (e) { currentState = 'MENU'; } 
-        finally { loading = false; }
+            // NÃO metemos loading = false aqui, porque o startGame assumiu esse papel!
+        } catch (e) { 
+            currentState = 'MENU'; 
+            loading = false;
+        } 
     }
 
     function startGame(subject: string, subtopic: string) {
@@ -499,7 +517,7 @@
                             {selectedOption === option && isCorrect === null ? 'bg-amber-100 border-amber-300 text-amber-800'
                             : selectedOption === option && isCorrect ? 'bg-green-500 border-green-700 text-white scale-[1.01]' 
                             : selectedOption === option && !isCorrect ? 'bg-rose-500 border-rose-700 text-white'
-                            : selectedOption && option === questionData.correct_answer ? 'bg-green-500 border-green-700 text-white opacity-100' // Revela a certa
+                            : selectedOption && option === questionData.correct_answer ? 'bg-green-500 border-green-700 text-white opacity-100' 
                             : 'bg-white border-slate-200 text-slate-600 active:border-b-0 active:translate-y-1'}"
                             
                             class:text-base={option.length > 25} 
@@ -576,39 +594,27 @@
 </div>
 
 <style>
-    /* Animações Personalizadas */
     @keyframes slide-up {
         from { transform: translateY(100%); }
         to { transform: translateY(0); }
     }
-    .animate-slide-up {
-        animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    }
+    .animate-slide-up { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
     
     @keyframes popIn {
         0% { opacity: 0; transform: scale(0.9); }
         100% { opacity: 1; transform: scale(1); }
     }
-    .animate-pop-in {
-        animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
+    .animate-pop-in { animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
     @keyframes zoomIn {
         from { opacity: 0; transform: scale(0.8); }
         to { opacity: 1; transform: scale(1); }
     }
-    .animate-zoom-in {
-        animation: zoomIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-    }
+    .animate-zoom-in { animation: zoomIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
 
-    .animate-bounce-slow {
-        animation: bounce 3s infinite;
-    }
-    .animate-pulse-slow {
-        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
+    .animate-bounce-slow { animation: bounce 3s infinite; }
+    .animate-pulse-slow { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     
-    /* Utilitário para esconder scroll */
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 </style>

@@ -19,6 +19,7 @@ import { PdfModule } from './pdf/pdf.module';
 import { AdminModule } from './admin/admin.module';
 import { MailModule } from './mail/mail.module';
 import { HealthModule } from './health/health.module';
+import { QuestionCacheModule } from './common/question-cache/question-cache.module';
 
 @Module({
   imports: [AuthModule,
@@ -37,7 +38,8 @@ import { HealthModule } from './health/health.module';
     PdfModule,
     AdminModule,
     MailModule, 
-    HealthModule
+    HealthModule,
+    QuestionCacheModule
     ],
   controllers: [AppController],
   providers: [AppService],

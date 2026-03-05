@@ -5,10 +5,11 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { HttpModule } from '@nestjs/axios';
 import { RushController } from './rush.controller';
 import { RushService } from './rush.service';
+import { QuestionCacheModule } from '../common/question-cache/question-cache.module';
 
 
 @Module({
-  imports:[PrismaModule, HttpModule],
+  imports:[PrismaModule, HttpModule,QuestionCacheModule],
   controllers: [ChatController, RushController],
   providers: [ChatService, RushService],
 })

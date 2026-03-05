@@ -8,19 +8,35 @@ from app.config import OPENROUTER_API_KEY, BASE_URL, GOOGLE_API_KEY, HF_TOKEN, G
 from app.utils.text_helpers import clean_json_text
 
 # ==========================================
-# 1. CLIENTE RUSH (Llama / OpenRouter)
+# 1. CLIENTE RUSH (OpenRouter - COM ROTAÇÃO DE CHAVES 🔄)
 # ==========================================
-rush_client = None
+raw_or_tokens = os.environ.get("OPENROUTER_API_KEYS", os.environ.get("OPENROUTER_API_KEY", ""))
 
-if OPENROUTER_API_KEY:
-    rush_client = OpenAI(base_url=BASE_URL, api_key=OPENROUTER_API_KEY)
+# 🔥 CORREÇÃO CRÍTICA: Limpeza extrema de aspas duplas, aspas simples e espaços!
+OPENROUTER_TOKENS_LIST = [t.strip().strip('"').strip("'") for t in raw_or_tokens.split(",") if t.strip()]
+
+rush_clients = []
+
+if OPENROUTER_TOKENS_LIST:
+    print(f"✅ ROTAÇÃO RUSH ATIVADA: Carregadas {len(OPENROUTER_TOKENS_LIST)} chaves do OpenRouter.")
+    for idx, token in enumerate(OPENROUTER_TOKENS_LIST):
+        # 🔍 DEBUG DE SEGURANÇA: Mostra o início da chave e o tamanho real para detetar erros
+        print(f"🔍 DEBUG Chave #{idx+1}: '{token[:12]}...' | Tamanho: {len(token)} caracteres")
+        
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=token,
+            default_headers={
+                "HTTP-Referer": "https://kmind.vercel.app",
+                "X-Title": "KMind TCC"
+            }
+        )
+        rush_clients.append(client)
 else:
-    print("⚠️ AVISO: API Key do Rush (OpenRouter/Groq) em falta.")
+    print("⚠️ AVISO: Nenhuma chave OPENROUTER encontrada.")
 
-def get_rush_client():
-    """Retorna o cliente para o Modo Rush (Drill/Quiz)"""
-    return rush_client
-    
+def get_rush_clients():
+    return rush_clients  
 # ==========================================
 # 2. CLIENTE TUTOR (GitHub Models - GPT-4o) - COM ROTAÇÃO 🔄
 # ==========================================

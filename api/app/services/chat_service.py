@@ -1,6 +1,6 @@
 import json
 import re
-from app.services.llm_client import get_rush_client, generate_groq_response, generate_tutor_response
+from app.services.llm_client import get_rush_clients, generate_groq_response, generate_tutor_response
 from app.services.voice_service import generate_voice_audio
 from app.models.schemas import ChatRequest, ChatResponse
 from app.utils.text_helpers import safe_load_json_object, clean_json_text
@@ -133,13 +133,16 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
     
     # --- MODO RUSH (Manteve-se igual) ---
     if request.mode == "rush_feedback":
-        client = get_rush_client()
+        client = get_rush_clients()
         if not client: return ChatResponse(response_text="Erro: Rush indisponível.")
         try:
             completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="meta-llama/llama-3.3-70b-instruct:free",
                 messages=[{"role": "user", "content": f"{PROMPT_RUSH_LEGACY}\n{request.user_query}"}],
-                temperature=0.8, max_tokens=150
+                temperature=0.8, max_tokens=150,                 top_p=0.9,
+                frequency_penalty=0.6,
+                presence_penalty=0.4,
+                response_format={"type": "json_object"}
             )
             return ChatResponse(response_text=completion.choices[0].message.content)
         except: return ChatResponse(response_text="Muito bem! <<Continuar>>")

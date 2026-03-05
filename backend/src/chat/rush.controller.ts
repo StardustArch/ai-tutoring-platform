@@ -1,8 +1,10 @@
-import { Controller, Post, Get, Body, Param, BadRequestException, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, BadRequestException, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
 import { RushService } from './rush.service';
 import { AnswerExerciseDto } from './dto/answer-exercise.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('api/rush')
+@UseGuards(AuthGuard('jwt'))
 export class RushController {
   constructor(private readonly rushService: RushService) { }
 

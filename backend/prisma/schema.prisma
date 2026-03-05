@@ -16,19 +16,18 @@ enum Role {
 }
 
 model Usuario {
-  id            Int     @id @default(autoincrement())
-  email         String  @unique
-  nome          String
-  sobrenome     String
-  telefone      String
-  role          Role    @default(USER)
-  passwordHash  String?
-  oauthProvider String?
-  oauthId       String? @unique
-  hashedRt      String? // <--- Adiciona isto (Pode ser nulo se o user não estiver logado)
-  ativo          Boolean   @default(true) // <--- ADICIONA ISTO (Default true = desbloqueado)
-  verificationToken String?  // <--- NOVO CAMPO
-
+  id                Int     @id @default(autoincrement())
+  email             String  @unique
+  nome              String
+  sobrenome         String
+  telefone          String
+  role              Role    @default(USER)
+  passwordHash      String?
+  oauthProvider     String?
+  oauthId           String? @unique
+  hashedRt          String? // <--- Adiciona isto (Pode ser nulo se o user não estiver logado)
+  ativo             Boolean @default(true) // <--- ADICIONA ISTO (Default true = desbloqueado)
+  verificationToken String? // <--- NOVO CAMPO
 
   // Relações 1-para-1 com os Perfis
   perfilProfessor   Professor?
@@ -151,6 +150,7 @@ model Topico {
   exercicioResultados ExercicioResultado[]
   proficienciaTopicos AlunoProficienciaTopico[]
   exercicios          Exercicio[]
+  questoesNoCache     QuestaoCache[]
 
   @@map("topicos")
 }
@@ -324,4 +324,26 @@ model SessaoEstudo {
   exercicios ExercicioResultado[]
 
   @@map("sessoes_estudo")
+}
+
+// Adiciona este modelo ao teu schema.prisma atual
+
+// ✅ NOVO MODELO DE CACHE (ARMAZÉM)
+model QuestaoCache {
+  id          Int    @id @default(autoincrement())
+  topicoId    Int
+  topico      Topico @relation(fields: [topicoId], references: [id], onDelete: Cascade)
+  disciplina  String // "matematica" ou "portugues"
+  classe      Int
+  dificuldade Int // 1 a 5
+  pergunta    String @db.Text
+  opcoesJson  Json
+
+  resposta      String
+  explicacao    String   @db.Text
+  signatureHash String
+  criadoEm      DateTime @default(now())
+
+  @@index([topicoId, dificuldade, classe])
+  @@map("questao_cache")
 }
