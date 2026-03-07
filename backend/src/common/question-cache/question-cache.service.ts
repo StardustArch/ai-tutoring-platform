@@ -28,10 +28,12 @@ export class QuestionCacheService {
     const { topicoId, dificuldade, classe, disciplina, historicoRecente } = params;
 
     const topico = await this.prisma.topico.findUnique({ where: { id: topicoId } });
-    const contextRules = (topico?.metadata as any)?.ai_rules || '';
-    const currentSignature = this.generateSignature(contextRules);
+    if (!topico) throw new Error("Tópico não encontrado");
 
-    // 1. Tentar Cache
+    const contextRules = (topico.metadata as any)?.ai_rules || '';
+    const currentSignature = this.generateSignature(contextRules);
+this.logger.debug(`🔍 Procurando: Topico ${topicoId}, Level ${dificuldade}, Classe ${classe}, Hash ${currentSignature}`);
+    // 1. Tentar Cache (com exclusão do histórico do aluno)
     const cachedPool = await this.prisma.questaoCache.findMany({
       where: {
         topicoId,
@@ -40,7 +42,7 @@ export class QuestionCacheService {
         signatureHash: currentSignature,
         pergunta: { notIn: historicoRecente }
       },
-      take: 5 // Pegamos 5 candidatos
+      take: 5
     });
 
     if (cachedPool.length > 0) {
@@ -55,12 +57,73 @@ export class QuestionCacheService {
       };
     }
 
-    // 2. Cache Miss: Gera na IA
+    // 2. Cache Miss: Gera na IA (Real-time, isBackground = false)
     this.logger.warn(`🐢 [CACHE MISS] Tópico ${topicoId} - Gerando via IA`);
-    return this.generateAndCache(params, currentSignature, contextRules, topico?.nome || '');
+    return this.generateAndCache(params, currentSignature, contextRules, topico.nome, false);
   }
 
-  private async generateAndCache(params: any, signature: string, rules: string, topicoNome: string) {
+  /**
+   * 🚀 FUNÇÃO DE REPOSIÇÃO EM MASSA (O Momento do Worker)
+   */
+  async refillStock(topicId: number, targetAmount = 20, isBackground = true) {
+    const topico = await this.prisma.topico.findUnique({ 
+        where: { id: topicId },
+        include: { disciplina: true } 
+    });
+    
+    if (!topico) return;
+
+    const contextRules = (topico.metadata as any)?.ai_rules || '';
+    const signature = this.generateSignature(contextRules);
+
+    for (let nivel = 1; nivel <= 5; nivel++) {
+      // Pega todas as perguntas que JÁ ESTÃO no armazém para este nível
+      const existentes = await this.prisma.questaoCache.findMany({
+        where: { topicoId: topicId, dificuldade: nivel, signatureHash: signature },
+        select: { pergunta: true }
+      });
+
+      const currentCount = existentes.length;
+      const needs = targetAmount - currentCount;
+
+      if (needs > 0) {
+        this.logger.log(`📦 Repondo estoque: Tópico ${topico.nome} | Nível ${nivel} | Faltam ${needs}`);
+        
+        // A nossa "Lista Negra" inicial é o que já está na BD
+        const historicoAtualizado = existentes.map(e => e.pergunta);
+        const iteracoes = Math.min(needs, 5); // Limita a 5 por ciclo para não sobrecarregar a API
+
+        // 🔥 SEQUENCIAL: Evita race conditions e permite à IA saber o que acabou de gerar
+        for (let i = 0; i < iteracoes; i++) {
+            try {
+                const gerada = await this.generateAndCache({
+                    classe: topico.nivelClasse,
+                    disciplina: topico.disciplina.nome.toLowerCase(),
+                    topicoId: topicId,
+                    dificuldade: nivel,
+                    historicoRecente: historicoAtualizado // Envia a lista negra para a IA
+                }, signature, contextRules, topico.nome, isBackground);
+
+                // Adiciona a pergunta recém-gerada à lista negra para a PRÓXIMA iteração do loop
+                if (gerada && gerada.question) {
+                    historicoAtualizado.push(gerada.question);
+                }
+                
+                // Pequeno respiro entre pedidos para aliviar a API
+                await new Promise(resolve => setTimeout(resolve, 800));
+
+            } catch (err) {
+                this.logger.error(`Falha no refill loop: ${err.message}`);
+            }
+        }
+      }
+    }
+  }
+
+  /**
+   * 🛡️ GERAÇÃO COM BARREIRA ANTI-DUPLICATAS
+   */
+  private async generateAndCache(params: any, signature: string, rules: string, topicoNome: string, isBackground: boolean = false) {
     try {
       const payload = {
         student_class: params.classe,
@@ -68,26 +131,44 @@ export class QuestionCacheService {
         subtopic: topicoNome,
         difficulty_level: params.dificuldade,
         context_rules: rules,
-        recent_questions: params.historicoRecente
+        recent_questions: params.historicoRecente,
+        is_background: isBackground
       };
 
-      const res = await firstValueFrom(this.http.post(`${this.aiUrl}/generate-rush-question`, payload).pipe(timeout(this.httpTimeoutMs)));
+      const timeoutValue = isBackground ? 120000 : this.httpTimeoutMs;
+      
+      const res = await firstValueFrom(
+          this.http.post(`${this.aiUrl}/generate-rush-question`, payload).pipe(timeout(timeoutValue))
+      );
+      
       const data = res.data;
 
-      // Armazena no cache para o próximo
-      await this.prisma.questaoCache.create({
-        data: {
-          topicoId: params.topicoId,
-          disciplina: params.disciplina,
-          classe: params.classe,
-          dificuldade: params.dificuldade,
-          pergunta: data.question,
-          opcoesJson: data.options,
-          resposta: data.correct_answer,
-          explicacao: data.explanation || '',
-          signatureHash: signature
-        }
+      // 🛑 BARREIRA FINAL: Verificar diretamente na Base de Dados antes de guardar
+      const perguntaDuplicada = await this.prisma.questaoCache.findFirst({
+          where: {
+              topicoId: params.topicoId,
+              pergunta: data.question // Busca pelo texto exato
+          }
       });
+
+      if (perguntaDuplicada) {
+          this.logger.warn(`♻️ A IA gerou uma duplicata exata ("${data.question.substring(0, 30)}..."). Entregue ao aluno, mas NÃO guardada no armazém.`);
+      } else {
+          // Só guardamos se for 100% original
+          await this.prisma.questaoCache.create({
+            data: {
+              topicoId: params.topicoId,
+              disciplina: params.disciplina,
+              classe: params.classe,
+              dificuldade: params.dificuldade,
+              pergunta: data.question,
+              opcoesJson: data.options,
+              resposta: data.correct_answer,
+              explicacao: data.explanation || '',
+              signatureHash: signature
+            }
+          });
+      }
 
       return { ...data, cached: false };
     } catch (e) {
@@ -99,42 +180,4 @@ export class QuestionCacheService {
   private generateSignature(rules: string): string {
     return crypto.createHash('md5').update(rules).digest('hex');
   }
-
-    /**
-   * 🚀 FUNÇÃO DE REPOSIÇÃO EM MASSA (O Momento do Worker)
-   * Pode ser chamada por um cron job ou manualmente para encher o armazém.
-   */
-  async refillStock(topicId: number, targetAmount = 20) {
-    const topico = await this.prisma.topico.findUnique({ where: { id: topicId } });
-    if (!topico) return;
-
-    const contextRules = (topico.metadata as any)?.ai_rules || '';
-    const signature = this.generateSignature(contextRules);
-
-    // Verifica todos os níveis de dificuldade (1 a 5)
-    for (let nivel = 1; nivel <= 5; nivel++) {
-      const currentCount = await this.prisma.questaoCache.count({
-        where: { topicoId: topicId, dificuldade: nivel, signatureHash: signature }
-      });
-
-      const needs = targetAmount - currentCount;
-      if (needs > 0) {
-        this.logger.log(`📦 Repondo estoque: Tópico ${topico.nome} | Nível ${nivel} | Faltam ${needs}`);
-        
-        // Dispara pedidos em paralelo para o Python
-        const promises = Array.from({ length: Math.min(needs, 5) }).map(() => 
-          this.generateAndCache({
-            classe: topico.nivelClasse,
-            disciplina: 'matematica', // Idealmente buscar da relação
-            topicoId: topicId,
-            dificuldade: nivel,
-            historicoRecente: []
-          }, signature, contextRules, topico.nome)
-        );
-
-        await Promise.all(promises.map(p => p.catch(() => null)));
-      }
-    }
-  }
-
 }

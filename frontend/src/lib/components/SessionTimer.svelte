@@ -1,9 +1,13 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { Battery, BatteryWarning } from 'lucide-svelte';
-
+  import '../../app.css'
+  
   // Tempo padrão: 30 minutos em segundos
   const MAX_TIME = 30 * 60; 
+  
+  // 🔥 NOVO: Chave para o localStorage. Exportamos caso queiras passar o ID da sessão depois!
+  export let timerKey = 'rush_session_timer';
   
   let timeLeft = MAX_TIME;
   let interval: any;
@@ -18,11 +22,21 @@
            : 'bg-red-500';
 
   onMount(() => {
+    // 🔥 1. RECUPERA O TEMPO SALVO (se existir)
+    const savedTime = localStorage.getItem(timerKey);
+    if (savedTime !== null) {
+        timeLeft = parseInt(savedTime, 10);
+    }
+
     interval = setInterval(() => {
       if (timeLeft > 0) {
         timeLeft--;
+        // 🔥 2. GUARDA O TEMPO RESTANTE A CADA SEGUNDO
+        localStorage.setItem(timerKey, timeLeft.toString());
       } else {
         clearInterval(interval);
+        // 🔥 3. LIMPA O LOCALSTORAGE QUANDO O TEMPO ACABA
+        localStorage.removeItem(timerKey);
         dispatch('timeup'); // Avisa a página principal que acabou
       }
     }, 1000);

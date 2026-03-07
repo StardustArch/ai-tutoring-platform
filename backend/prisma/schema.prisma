@@ -228,6 +228,7 @@ enum NivelProficiencia {
   ABAIXO_MEDIA
   NA_MEDIA
   AVANCADO
+  EXPERT
   NAO_DIAGNOSTICADO
 }
 

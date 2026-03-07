@@ -1,7 +1,6 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '../prisma/prisma.service';
-import { NivelDificuldade, NivelProficiencia } from '@prisma/client';
 import { QuestionCacheService } from '../common/question-cache/question-cache.service';
 import { firstValueFrom, timeout } from 'rxjs';
 
@@ -51,12 +50,12 @@ export class RushService {
   }
 
   // --- 2. GERAR PERGUNTA (REFATORADA COM CACHE) ---
+
   async getNextQuestion(alunoId: number, classe: number, disciplina: string, subtopico: string) {
     const subject = (disciplina || 'matematica').toLowerCase();
     const subtopicName = subtopico || 'Geral';
     const classeInt = Number(classe);
 
-    // A. Tenta encontrar ou criar o tópico (Mantido)
     let topicoDb = await this.prisma.topico.findFirst({
       where: { nome: subtopicName, nivelClasse: classeInt }
     });
@@ -69,7 +68,6 @@ export class RushService {
       topicoDb = await this.prisma.topico.findUnique({ where: { id: topicoId } });
     }
 
-    // B. Verificar Bloqueio por Vidas (Mantido)
     if (alunoId) {
       const proficiencia = await this.prisma.alunoProficienciaTopico.findUnique({
         where: { alunoId_topicoId: { alunoId, topicoId } }
@@ -85,20 +83,18 @@ export class RushService {
       }
     }
 
-    // C. Histórico para evitar repetição (Mantido)
     const perguntasParaIgnorar = alunoId
       ? (await this.prisma.exercicioResultado.findMany({
         where: { alunoId, topicoId },
         orderBy: { timestamp: 'desc' },
-        take: 10,
+        take: 20,
         include: { exercicio: true }
       })).map(r => r.exercicio?.pergunta).filter(Boolean) as string[]
       : [];
 
     const dificuldade = await this.getDifficultyLevel(alunoId, topicoId, subject);
-
+      
     try {
-      // D. A MUDANÇA: Em vez de axios direto, chamamos o nosso Armazém
       const data = await this.cacheService.getQuestion({
         classe: classeInt,
         disciplina: subject,
@@ -107,31 +103,40 @@ export class RushService {
         historicoRecente: perguntasParaIgnorar
       });
 
-      // E. Salva como exercício para poder rastrear o ID (Mantido)
-      const created = await this.prisma.exercicio.create({
-        data: {
-          topicoId,
-          tipo: 'multiple_choice',
-          pergunta: data.question,
-          opcoesJson: data.options,
-          resposta: data.correct_answer,
-          dificuldade: dificuldade
+      // 🔥 CORREÇÃO CRÍTICA: OTIMIZAÇÃO DA BD
+      // Só cria o exercício se ele não existir. Caso contrário, reaproveita o ID.
+      let exercicioDb = await this.prisma.exercicio.findFirst({
+        where: { 
+            topicoId: topicoId, 
+            pergunta: data.question 
         }
       });
 
+      if (!exercicioDb) {
+        exercicioDb = await this.prisma.exercicio.create({
+          data: {
+            topicoId,
+            tipo: 'multiple_choice',
+            pergunta: data.question,
+            opcoesJson: data.options,
+            resposta: data.correct_answer,
+            dificuldade: dificuldade
+          }
+        });
+      }
+
       return {
-        exercicioId: created.id,
+        exercicioId: exercicioDb.id, // ID reaproveitado ou novo
         topicoId,
         question: data.question,
         options: data.options,
         correct_answer: data.correct_answer,
         explanation: data.explanation || '',
-        cached: data.cached // Para debug sabermos se veio do armazém
+        cached: data.cached
       };
 
     } catch (err) {
       this.logger.error(`Erro no motor de questões: ${err.message}`);
-      // Fallback de emergência (Mantido)
       return {
         exercicioId: null,
         topicoId,
@@ -158,6 +163,7 @@ export class RushService {
           sessaoId: sessaoId || null      
           }
       });
+      await this.updateProficiencyLevel(alunoId, topicoId, acertou, tx);
 
       let prof = await tx.alunoProficienciaTopico.findUnique({
         where: { alunoId_topicoId: { alunoId, topicoId } }
@@ -175,7 +181,6 @@ export class RushService {
           data: { xp: { increment: 10 } }
         });
 
-        await this.updateProficiencyLevel(alunoId, topicoId, acertou, tx);
         return {
           ...resultado,
           blocked: false,
@@ -274,38 +279,49 @@ export class RushService {
     return topico.id;
   }
 
-  private async updateProficiencyLevel(alunoId: number, topicoId: number, acertou: boolean, tx: any) {
-      const ultimos = await tx.exercicioResultado.findMany({
-          where: { alunoId, topicoId },
-          orderBy: { timestamp: 'desc' },
-          take: 12, 
-          select: { acertou: true }
-      });
+private async updateProficiencyLevel(alunoId: number, topicoId: number, acertou: boolean, tx: any) {
+    const ultimos = await tx.exercicioResultado.findMany({
+        where: { alunoId, topicoId },
+        orderBy: { timestamp: 'desc' },
+        take: 12, 
+        select: { acertou: true }
+    });
 
-      if (ultimos.length < 10) return;
+    if (ultimos.length < 10) return;
 
-      const acertos = ultimos.filter(r => r.acertou).length;
-      const taxa = acertos / ultimos.length;
+    const acertos = ultimos.filter(r => r.acertou).length;
+    const taxa = acertos / ultimos.length;
 
-      const atual = await tx.alunoProficienciaTopico.findUnique({
-          where: { alunoId_topicoId: { alunoId, topicoId } }
-      });
-      
-      if (!atual) return;
+    const atual = await tx.alunoProficienciaTopico.findUnique({
+        where: { alunoId_topicoId: { alunoId, topicoId } }
+    });
+    
+    if (!atual) return;
 
-      const niveis = ['INICIANTE', 'ABAIXO_MEDIA', 'NA_MEDIA', 'AVANCADO'];
-      let index = niveis.indexOf(atual.nivel);
-      if(index === -1) index = 0;
+    // 🔥 1. ADICIONADO 'EXPERT' E 'NAO_DIAGNOSTICADO' PARA EVITAR ERROS
+    const niveis = ['INICIANTE', 'ABAIXO_MEDIA', 'NA_MEDIA', 'AVANCADO', 'EXPERT'];
+    let index = niveis.indexOf(atual.nivel);
 
-      let novoIndex = index;
-      if (taxa >= 0.8 && index < (niveis.length - 1)) novoIndex++;
-      else if (taxa <= 0.3 && index > 0) novoIndex--;
+    // Se for um nível estranho ou não diagnosticado, assumimos a média para poder subir/descer
+    if (index === -1) index = 2; 
 
-      if (novoIndex !== index) {
-             await tx.alunoProficienciaTopico.update({
-                 where: { id: atual.id },
-                 data: { nivel: niveis[novoIndex] as any }
-             });
-      }
-  }
+    let novoIndex = index;
+
+    // 🔥 2. Lógica de Subida (80% de acerto)
+    if (taxa >= 0.8 && index < (niveis.length - 1)) {
+        novoIndex++;
+    } 
+    // 🔥 3. Lógica de Descida (30% de acerto)
+    else if (taxa <= 0.3 && index > 0) {
+        novoIndex--;
+    }
+
+    if (novoIndex !== index) {
+        this.logger.log(`📈 MUDANÇA DE NÍVEL: Aluno ${alunoId} foi de ${niveis[index]} para ${niveis[novoIndex]}`);
+        await tx.alunoProficienciaTopico.update({
+            where: { id: atual.id },
+            data: { nivel: niveis[novoIndex] as any }
+        });
+    }
+}
 }

@@ -194,3 +194,30 @@ async def generate_groq_response(system_prompt, user_query, history=[]):
             "interaction_type": "CHIPS",
             "interaction_data": {"options": ["Repetir"]}    
         }
+
+# ==========================================
+# 3. CLIENTE RUSH (Groq Nativo - COM ROTAÇÃO 🏎️)
+# ==========================================
+
+# 1. Carrega as chaves do Groq (.env)
+raw_groq_tokens = os.environ.get("GROQ_API_KEYS", os.environ.get("GROQ_API_KEY", ""))
+GROQ_TOKENS_LIST = [t.strip().strip('"').strip("'") for t in raw_groq_tokens.split(",") if t.strip()]
+
+rush_groq_clients = []
+current_groq_index = 0
+
+if GROQ_TOKENS_LIST:
+    print(f"🚀 ROTAÇÃO GROQ ATIVADA: Carregadas {len(GROQ_TOKENS_LIST)} chaves do Groq.")
+    for idx, token in enumerate(GROQ_TOKENS_LIST):
+        # Usamos o cliente OpenAI porque a API do Groq é 100% compatível
+        client = OpenAI(
+            base_url="https://api.groq.com/openai/v1",
+            api_key=token
+        )
+        rush_groq_clients.append(client)
+else:
+    print("⚠️ AVISO: Nenhuma chave GROQ encontrada. O modo Rush pode falhar.")
+
+def get_rush_groq_clients():
+    """Devolve a lista de clientes Groq para uso externo se necessário."""
+    return rush_groq_clients

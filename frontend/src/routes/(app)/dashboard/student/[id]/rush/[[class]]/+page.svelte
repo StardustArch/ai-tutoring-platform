@@ -1,620 +1,933 @@
 <script lang="ts">
-    import { onMount, afterUpdate } from 'svelte';
-    import { page } from '$app/stores';
-    import { apiFetch } from '$lib/utils/api';
-    import { 
-        ArrowLeft, Zap, Check, X, Heart, Lock,
-        Hash, ListOrdered, Shapes, Calculator, Divide, Scale, Coins, LineChart,
-        Triangle, Sigma, Ruler, PieChart, Equal,
-        Activity, Tags, RefreshCcw, PenTool, MessageSquare, TrafficCone, 
-        UserCheck, MapPin, GitBranch, Calendar, BookOpen, Mail, Box,
-        CheckCircle2, Play, Trophy, Star, BrainCircuit, Flame
-    } from 'lucide-svelte';
-    import { goto } from '$app/navigation';
-    import confetti from 'canvas-confetti';
-    import { PUBLIC_API_URL_HOST } from '$env/static/public';
-    import SessionTimer from '$lib/components/SessionTimer.svelte';
-    import { notifications } from '$lib/store/notifications'; 
+	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import { apiFetch } from '$lib/utils/api';
+	import {
+		ArrowLeft,
+		Zap,
+		Check,
+		X,
+		Heart,
+		Lock,
+		Hash,
+		ListOrdered,
+		Shapes,
+		Calculator,
+		Divide,
+		Scale,
+		Coins,
+		LineChart,
+		Triangle,
+		Sigma,
+		Ruler,
+		PieChart,
+		Equal,
+		Activity,
+		Tags,
+		RefreshCcw,
+		PenTool,
+		MessageSquare,
+		TrafficCone,
+		UserCheck,
+		MapPin,
+		GitBranch,
+		Calendar,
+		BookOpen,
+		Mail,
+		Box,
+		CheckCircle2,
+		Play,
+		Trophy,
+		Star,
+		BrainCircuit,
+		Flame
+	} from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import confetti from 'canvas-confetti';
+	import { PUBLIC_API_URL_HOST } from '$env/static/public';
+	import SessionTimer from '$lib/components/SessionTimer.svelte';
+	import { notifications } from '$lib/store/notifications';
+	import { rushStore } from '$lib/store/rush'; // Garante que o path está correto
 
-    // --- PARÂMETROS ---
-    let studentId = $page.params.id || '';
-    let turmaId = Number($page.params.class) || 0; 
-    let sessionId = $page.url.searchParams.get('sessionId') ? parseInt($page.url.searchParams.get('sessionId')!) : null;
+	// --- PARÂMETROS ---
+	let studentId = $page.params.id || '';
+	let turmaId = Number($page.params.class) || 0;
+	let sessionId = $page.url.searchParams.get('sessionId')
+		? parseInt($page.url.searchParams.get('sessionId')!)
+		: null;
 
-    // --- ESTADO ---
-    let studentClass: any = 3; 
-    let studentData: any = null;
-    let allowedTopicIds: number[] = []; 
-    let isTimeUp = false; 
+	// --- ESTADO LOCAL (Apenas o que não pertence ao jogo em si) ---
+	let studentClass: any = 3;
+	let studentData: any = null;
+	let allowedTopicIds: number[] = [];
+	let isTimeUp = false;
 
-    type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER' | 'BLOCKED' | 'DIAGNOSTIC';
-    let currentState: GameState = 'MENU';
+	let loading = false;
+	let selectedOption: string | null = null;
+	let isCorrect: boolean | null = null;
+	let blockTimeRemaining: any;
+	let optionsContainer: HTMLElement;
 
-    let selectedSubject = 'matematica';
-    let selectedSubtopic = '';
-    
-    let diagnosticQuestions: any[] = [];
-    let currentDiagnosticIndex = 0;
-    let diagnosticAnswers: Array<{ topico: string; acertou: boolean }> = [];
-    
-    // Variáveis de Jogo
-    let loading = false;
-    let questionData: any = null;
-    let selectedOption: string | null = null;
-    let isCorrect: boolean | null = null;
-    let lives = 3;
-    let score = 0;
-    let streak = 0;
-    let blockTimeRemaining: any;
-    let blockedUntil: Date | null = null;
-    let optionsContainer: HTMLElement; // Para controlar scroll
+	// Stats visuais (Persistidos localmente de forma simples)
+	let statsLoaded = false;
 
-    // Estatísticas e Tópicos
-    let stats = { xp: 0, totalExercicios: 0, acertos: 0, taxaAcerto: 0, erros: 0 };
-    let loadingStats = true;
-    let availableTopics: { matematica: any[], portugues: any[] } = { matematica: [], portugues: [] };
-    let loadingTopics = true;
+	let loadingStats = true;
+	let availableTopics: { matematica: any[]; portugues: any[] } = { matematica: [], portugues: [] };
+	let loadingTopics = true;
 
-    // Ícones Mapeados
-    const ICON_MAP: Record<string, any> = {
-        Hash, ListOrdered, Shapes, Calculator, X, Divide, Scale, Coins, LineChart,
-        Triangle, Sigma, Ruler, PieChart, Equal, Activity, Tags, RefreshCcw, PenTool, 
-        MessageSquare, TrafficCone, Heart, UserCheck, MapPin, GitBranch, Calendar, Zap, BookOpen, Mail, Box
-    };
+	const ICON_MAP: Record<string, any> = {
+		Hash,
+		ListOrdered,
+		Shapes,
+		Calculator,
+		X,
+		Divide,
+		Scale,
+		Coins,
+		LineChart,
+		Triangle,
+		Sigma,
+		Ruler,
+		PieChart,
+		Equal,
+		Activity,
+		Tags,
+		RefreshCcw,
+		PenTool,
+		MessageSquare,
+		TrafficCone,
+		Heart,
+		UserCheck,
+		MapPin,
+		GitBranch,
+		Calendar,
+		Zap,
+		BookOpen,
+		Mail,
+		Box
+	};
 
-    onMount(async () => {
-        loading = true; loadingStats = true; loadingTopics = true;
-        try {
-            if (sessionId) {
-                const resSession = await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}`); 
-                if (resSession.ok) {
-                    const sessionData = await resSession.json();
-                    let rawIds = sessionData.topicosAlvo;
-                    if (typeof rawIds === 'string') { try { rawIds = JSON.parse(rawIds); } catch(e) {} }
-                    if (Array.isArray(rawIds)) allowedTopicIds = rawIds.map((id: any) => Number(id));
-                }
-            }
+	onMount(async () => {
+		const currentState = rushStore.init(studentId);
 
-            const resUser = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`);
-            if (resUser.ok) {
-                studentData = await resUser.json();
-                if (studentData.classe) studentClass = studentData.classe;
-            }
+		// 2. Fetch dos dados base
+		loading = true;
+		loadingStats = true;
+		loadingTopics = true;
+		try {
+			if (sessionId) {
+				const resSession = await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}`);
+				if (resSession.ok) {
+					const sessionData = await resSession.json();
+					let rawIds = sessionData.topicosAlvo;
+					if (typeof rawIds === 'string') {
+						try {
+							rawIds = JSON.parse(rawIds);
+						} catch (e) {}
+					}
+					if (Array.isArray(rawIds)) allowedTopicIds = rawIds.map((id: any) => Number(id));
+				}
+			}
 
-            const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${studentClass}&studentId=${studentId}`);
-            if (resTopics.ok) {
-                const allTopics = await resTopics.json();
-                if (sessionId) {
-                    availableTopics.matematica = (allTopics.matematica || []).filter((t: any) => allowedTopicIds.includes(Number(t.id)));
-                    availableTopics.portugues = (allTopics.portugues || []).filter((t: any) => allowedTopicIds.includes(Number(t.id)));
-                } else {
-                    availableTopics = allTopics;
-                }
-            }
-        } catch (e) { console.error(e); } 
-        finally { loading = false; loadingTopics = false; loadingStats = false; }
-    });
+			const resUser = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`);
+			if (resUser.ok) {
+				studentData = await resUser.json();
+				if (studentData.classe) studentClass = studentData.classe;
+			}
 
-    function getIcon(iconName: string | undefined) {
-        if (!iconName || !ICON_MAP[iconName]) return Calculator;
-        return ICON_MAP[iconName];
-    }
+			const resTopics = await apiFetch(
+				`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${studentClass}&studentId=${studentId}`
+			);
+			if (resTopics.ok) {
+				const allTopics = await resTopics.json();
+				if (sessionId) {
+					availableTopics.matematica = (allTopics.matematica || []).filter((t: any) =>
+						allowedTopicIds.includes(Number(t.id))
+					);
+					availableTopics.portugues = (allTopics.portugues || []).filter((t: any) =>
+						allowedTopicIds.includes(Number(t.id))
+					);
+				} else {
+					availableTopics = allTopics;
+				}
+			}
+		} catch (e) {
+			console.error(e);
+		} finally {
+			loading = false;
+			loadingTopics = false;
+			loadingStats = false;
+		}
+	});
 
-    function handleTimeUp() {
-        isTimeUp = true;
-        currentState = 'GAMEOVER';
-    }
+	function getIcon(iconName: string | undefined) {
+		if (!iconName || !ICON_MAP[iconName]) return Calculator;
+		return ICON_MAP[iconName];
+	}
 
-    // --- LÓGICA DE JOGO ---
-    async function checkAndStartGame(subject: string, subtopic: string) {
-        selectedSubject = subject;
-        selectedSubtopic = subtopic;
-        loading = true; // Inicia o loading
-        
-        try {
-            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/needs/${studentId}?disciplina=${subject}`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.needs) {
-                    await startDiagnostic(subject);
-                    return; // Retorna para que a gestão de loading passe para o diagnóstico
-                }
-            }
-        } catch (e) {
-            console.error(e);
-        }
-        
-        // Se não for preciso diagnóstico, vai para o Rush normal.
-        // A função startGame() trata do seu próprio loading (através do loadQuestion).
-        startGame(subject, subtopic);
-    }
+	function handleTimeUp() {
+		isTimeUp = true;
+		$rushStore.currentState = 'GAMEOVER';
+	}
 
-    async function startDiagnostic(subject: string) {
-        loading = true;
-        currentState = 'DIAGNOSTIC';
-        diagnosticAnswers = [];
-        currentDiagnosticIndex = 0;
-        try {
-            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/generate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    alunoId: parseInt(studentId), 
-                    disciplina: subject, 
-                    classe: studentClass,
-                    topico: selectedSubtopic
-                })
-            });
-            if (res.ok) {
-                const data = await res.json();
+	// --- LÓGICA DE JOGO ---
+	async function checkAndStartGame(subject: string, subtopic: string) {
+		$rushStore.selectedSubject = subject;
+		$rushStore.selectedSubtopic = subtopic;
+		loading = true;
 
-                if (data.jaConcluido) {
-                    notifications.send("Diagnóstico concluído! A iniciar treino...", "success");
-                    startGame(subject, selectedSubtopic);
-                    return; // Retorna imediatamente. startGame vai assumir o controlo!
-                }
+		try {
+			const res = await apiFetch(
+				`${PUBLIC_API_URL_HOST}/api/diagnostic/needs/${studentId}?disciplina=${subject}`
+			);
+			if (res.ok) {
+				const data = await res.json();
+				if (data.needs) {
+					await startDiagnostic(subject);
+					return;
+				}
+			}
+		} catch (e) {
+			console.error(e);
+		}
 
-                if (data.perguntas && Array.isArray(data.perguntas)) {
-                    diagnosticQuestions = data.perguntas;
-                    if (diagnosticQuestions.length > 0) {
-                        questionData = diagnosticQuestions[0];
-                        loading = false; // Sucesso a carregar! Já podemos desligar o loading.
-                    } else {
-                        startGame(subject, selectedSubtopic);
-                    }
-                } else {
-                    currentState = 'MENU';
-                    loading = false;
-                }
-            } else {
-                currentState = 'MENU';
-                loading = false;
-            }
-        } catch (e) { 
-            currentState = 'MENU'; 
-            loading = false; 
-        }
-    }
+		startGame(subject, subtopic);
+	}
 
-    async function handleDiagnosticAnswer(option: string) {
-        if (selectedOption) return;
-        selectedOption = option;
-        const correctAnswer = questionData.correct_answer; 
-        isCorrect = option === correctAnswer;
-        diagnosticAnswers.push({ topico: questionData.topico || selectedSubject, acertou: isCorrect });
+	async function startDiagnostic(subject: string) {
+		loading = true;
+		$rushStore.currentState = 'DIAGNOSTIC';
+		$rushStore.diagnosticAnswers = [];
+		$rushStore.currentDiagnosticIndex = 0;
+		try {
+			const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/generate`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					alunoId: parseInt(studentId),
+					disciplina: subject,
+					classe: studentClass,
+					topico: $rushStore.selectedSubtopic
+				})
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (data.jaConcluido) {
+					notifications.send('Diagnóstico concluído! A iniciar treino...', 'success');
+					startGame(subject, $rushStore.selectedSubtopic);
+					return;
+				}
 
-        if (isCorrect) confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
+				if (data.perguntas && Array.isArray(data.perguntas)) {
+					$rushStore.diagnosticQuestions = data.perguntas;
+					if ($rushStore.diagnosticQuestions.length > 0) {
+						$rushStore.questionData = $rushStore.diagnosticQuestions[0];
+						loading = false;
+					} else {
+						startGame(subject, $rushStore.selectedSubtopic);
+					}
+				} else {
+					$rushStore.currentState = 'MENU';
+					loading = false;
+				}
+			} else {
+				$rushStore.currentState = 'MENU';
+				loading = false;
+			}
+		} catch (e) {
+			$rushStore.currentState = 'MENU';
+			loading = false;
+		}
+	}
 
-        setTimeout(async () => {
-            selectedOption = null; isCorrect = null; currentDiagnosticIndex++;
-            if (currentDiagnosticIndex < diagnosticQuestions.length) {
-                questionData = diagnosticQuestions[currentDiagnosticIndex];
-            } else {
-                await submitDiagnosticResults();
-            }
-        }, 1000);
-    }
+	async function handleDiagnosticAnswer(option: string) {
+		if (selectedOption) return;
+		selectedOption = option;
+		const correctAnswer = $rushStore.questionData.correct_answer;
+		isCorrect = option === correctAnswer;
 
-    function startBlockCountdown() {
-        if (blockTimeRemaining) clearInterval(blockTimeRemaining);
-        blockTimeRemaining = setInterval(() => {
-            if (!blockedUntil) return;
-            const diff = new Date(blockedUntil).getTime() - new Date().getTime();
-            if (diff <= 0) {
-                clearInterval(blockTimeRemaining);
-                currentState = 'MENU'; blockedUntil = null;
-            } else {
-                const m = Math.floor(diff / 60000);
-                const s = Math.floor((diff % 60000) / 1000);
-                blockTimeRemaining = `${m}:${s < 10 ? '0' : ''}${s}`;
-            }
-        }, 1000);
-    }
+		// Atualiza Store nativamente (mágico)
+		$rushStore.diagnosticAnswers = [
+			...$rushStore.diagnosticAnswers,
+			{
+				topico: $rushStore.questionData.topico || $rushStore.selectedSubject,
+				acertou: isCorrect
+			}
+		];
 
-    async function submitDiagnosticResults() {
-        loading = true;
-        try {
-            await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/process`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    alunoId: parseInt(studentId), disciplina: selectedSubject, respostas: diagnosticAnswers
-                })
-            });
-            confetti({ particleCount: 200, spread: 100 });
-            notifications.send("Diagnóstico completo!", "info");
-            startGame(selectedSubject, selectedSubtopic);
-            // NÃO metemos loading = false aqui, porque o startGame assumiu esse papel!
-        } catch (e) { 
-            currentState = 'MENU'; 
-            loading = false;
-        } 
-    }
+		if (isCorrect) confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
 
-    function startGame(subject: string, subtopic: string) {
-        selectedSubject = subject; selectedSubtopic = subtopic;
-        currentState = 'PLAYING'; lives = 3; loadQuestion();
-    }
+		setTimeout(async () => {
+			selectedOption = null;
+			isCorrect = null;
+			$rushStore.currentDiagnosticIndex++;
 
-    async function loadQuestion() {
-        loading = true; selectedOption = null; isCorrect = null;
-        try {
-            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/next`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    alunoId: parseInt(studentId), classe: studentClass, disciplina: selectedSubject,
-                    subtopico: selectedSubtopic, sessionId: sessionId || null
-                })
-            });
-            if (res.status === 403) {
-                const error = await res.json();
-                blockedUntil = error.blockedUntil; startBlockCountdown();
-                currentState = 'BLOCKED'; return;
-            }
-            questionData = await res.json();
-        } catch (e) { console.error(e); } 
-        finally { loading = false; }
-    }
+			if ($rushStore.currentDiagnosticIndex < $rushStore.diagnosticQuestions.length) {
+				$rushStore.questionData = $rushStore.diagnosticQuestions[$rushStore.currentDiagnosticIndex];
+			} else {
+				await submitDiagnosticResults();
+			}
+		}, 1000);
+	}
 
-    async function handleAnswer(option: string) {
-        if (selectedOption) return;
-        selectedOption = option;
-        const correctAnswer = questionData.correct_answer; 
-        isCorrect = option === correctAnswer;
+	function startBlockCountdown() {
+		if (blockTimeRemaining) clearInterval(blockTimeRemaining);
+		blockTimeRemaining = setInterval(() => {
+			if (!$rushStore.blockedUntil) return;
+			const diff = new Date($rushStore.blockedUntil).getTime() - new Date().getTime();
+			if (diff <= 0) {
+				clearInterval(blockTimeRemaining);
+				$rushStore.currentState = 'MENU';
+				$rushStore.blockedUntil = null;
+			} else {
+				const m = Math.floor(diff / 60000);
+				const s = Math.floor((diff % 60000) / 1000);
+				blockTimeRemaining = `${m}:${s < 10 ? '0' : ''}${s}`;
+			}
+		}, 1000);
+	}
 
-        if (isCorrect) {
-            streak++;
-            if (streak >= 3) confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 }, colors: ['#f59e0b', '#ef4444'] });
-            score += 10 + (streak * 2); stats.xp += 10 + (streak * 2); stats.acertos += 1;
-        } else {
-            streak = 0; stats.erros += 1; lives--;
-        }
+	async function submitDiagnosticResults() {
+		loading = true;
+		try {
+			await apiFetch(`${PUBLIC_API_URL_HOST}/api/diagnostic/process`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					alunoId: parseInt(studentId),
+					disciplina: $rushStore.selectedSubject,
+					respostas: $rushStore.diagnosticAnswers
+				})
+			});
+			confetti({ particleCount: 200, spread: 100 });
+			notifications.send('Diagnóstico completo!', 'info');
+			startGame($rushStore.selectedSubject, $rushStore.selectedSubtopic);
+		} catch (e) {
+			$rushStore.currentState = 'MENU';
+			loading = false;
+		}
+	}
 
-        const total = stats.acertos + stats.erros;
-        stats.taxaAcerto = total > 0 ? Math.round((stats.acertos / total) * 100) : 0;
-        stats.totalExercicios = total;
+	function startGame(subject: string, subtopic: string) {
+		$rushStore.selectedSubject = subject;
+		$rushStore.selectedSubtopic = subtopic;
+		$rushStore.currentState = 'PLAYING';
+		$rushStore.lives = 3;
+		loadQuestion();
+	}
 
-        try {
-            const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/answer`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    alunoId: parseInt(studentId), exercicioId: questionData.exercicioId,
-                    respostaAluno: option, classe: studentClass, turmaId: turmaId, sessaoId: sessionId || null
-                })
-            });
-            const result = await res.json();
-            if (result.blocked) {
-                blockedUntil = result.blockedUntil; startBlockCountdown();
-                setTimeout(() => { currentState = 'BLOCKED'; }, 1500);
-            }
-        } catch (error) { console.error(error); }
+	async function loadQuestion() {
+		loading = true;
+		selectedOption = null;
+		isCorrect = null;
+		try {
+			const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/next`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					alunoId: parseInt(studentId),
+					classe: studentClass,
+					disciplina: $rushStore.selectedSubject,
+					subtopico: $rushStore.selectedSubtopic,
+					sessionId: sessionId || null
+				})
+			});
+			if (res.status === 403) {
+				const error = await res.json();
+				$rushStore.blockedUntil = error.blockedUntil;
+				startBlockCountdown();
+				$rushStore.currentState = 'BLOCKED';
+				return;
+			}
+			$rushStore.questionData = await res.json();
+		} catch (e) {
+			console.error(e);
+		} finally {
+			loading = false;
+		}
+	}
 
-        if (lives <= 0 && currentState !== 'BLOCKED') {
-            setTimeout(() => { currentState = 'GAMEOVER'; }, 1500);
-        }
-    }
-    
-    async function exitSession() {
-        if (sessionId) await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}/end`, { method: 'PATCH' });
-        goto(`/dashboard/foreman/student/${studentId}/class`);
-    }
+	async function handleAnswer(option: string) {
+		if (selectedOption) return;
+		selectedOption = option;
+
+		const correct = option === $rushStore.questionData.correct_answer;
+		isCorrect = correct; // ✅ ADICIONA ESTA LINHA
+		rushStore.update((s) => {
+			const points = correct ? 10 + s.streak * 2 : 0;
+			const newStreak = correct ? s.streak + 1 : 0;
+			const newAcertos = correct ? s.acertos + 1 : s.acertos;
+			const newErros = !correct ? s.erros + 1 : s.erros;
+
+			if (correct && newStreak >= 3) {
+				confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 } });
+			}
+
+			return {
+				...s,
+				xp: s.xp + points,
+				streak: newStreak,
+				acertos: newAcertos,
+				erros: newErros,
+				totalExercicios: newAcertos + newErros,
+				lives: correct ? s.lives : s.lives - 1,
+				currentState: s.lives - (correct ? 0 : 1) <= 0 ? 'GAMEOVER' : s.currentState
+			};
+		});
+
+		try {
+			const payload: any = {
+				alunoId: parseInt(studentId),
+				exercicioId: parseInt($rushStore.questionData.exercicioId),
+				respostaAluno: option,
+				classe: studentClass
+			};
+
+			if (turmaId && turmaId > 0) payload.turmaId = turmaId;
+			if (sessionId && sessionId > 0) payload.sessaoId = sessionId;
+
+			const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/rush/answer`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+
+			if (!res.ok) {
+				const err = await res.json();
+                
+				console.error('🚨 API ERROR (A BD NÃO GUARDOU):', err);
+			} else {
+				const result = await res.json();
+                rushStore.update(s => ({
+                    ...s,
+                    // Se o back mandar as vidas reais, usamos as do back. 
+                    // Se não mandar, mantemos o que calculamos localmente.
+                    lives: result.currentLives !== undefined ? result.currentLives : s.lives,
+                    blockedUntil: result.blockedUntil || s.blockedUntil
+                }));
+				if (result.blocked) {
+					$rushStore.blockedUntil = result.blockedUntil;
+					startBlockCountdown();
+					setTimeout(() => {
+						$rushStore.currentState = 'BLOCKED';
+					}, 1500);
+				}
+			}
+		} catch (error) {
+			console.error('🚨 Falha grave de rede:', error);
+		}
+
+		if ($rushStore.lives <= 0 && $rushStore.currentState !== 'BLOCKED') {
+			setTimeout(() => {
+				$rushStore.currentState = 'GAMEOVER';
+			}, 1500);
+		}
+	}
+	function handleBack() {
+		if ($rushStore.currentState === 'MENU') {
+			exitSession();
+		} else {
+			loading = false;
+			selectedOption = null;
+			isCorrect = null;
+
+			// 🔥 Apenas resetamos a sessão mantendo o XP
+			rushStore.clear();
+		}
+	}
+	async function exitSession() {
+		if (sessionId)
+			await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}/end`, { method: 'PATCH' });
+
+		// 🔥 Limpamos a Store do jogo
+		rushStore.clear();
+
+		// 🔥 Limpamos o temporizador para a próxima sessão começar do zero
+		if (typeof window !== 'undefined') {
+			localStorage.removeItem(`rush_timer_${studentId}`);
+		}
+
+		goto(`/dashboard/foreman/student/${studentId}/class`);
+	}
 </script>
 
 <svelte:head>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <title>Rush | KMind</title>
+	<link
+		href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap"
+		rel="stylesheet"
+	/>
+	<title>Rush | KMind</title>
 </svelte:head>
 
-<div class="flex flex-col h-[100dvh] bg-gradient-to-b from-amber-100 via-orange-50 to-white font-['Fredoka'] overflow-hidden">
-    
-    <div class="flex justify-between items-center p-3 bg-white/90 backdrop-blur-sm border-b-4 border-amber-200 z-10 shadow-sm gap-2 shrink-0">
-        <button on:click={() => currentState === 'MENU' ? exitSession() : currentState = 'MENU'} 
-                class="p-2 rounded-xl bg-white border-2 border-slate-200 text-slate-400 hover:border-amber-400 hover:text-amber-500 transition-all shadow-sm active:scale-95 shrink-0">
-            <ArrowLeft size={24} strokeWidth={3} />
-        </button>
-        
-        {#if currentState === 'PLAYING'}
-            <div class="flex items-center gap-1 md:gap-2 bg-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl border-2 border-red-100 shadow-sm animate-pop-in">
-                {#each Array(3) as _, i}
-                    <Heart 
-                        class={`transition-all duration-500 w-5 h-5 md:w-6 md:h-6 ${i < lives ? 'text-red-500 fill-red-500 animate-pulse-slow' : 'text-slate-200 fill-slate-100'}`} 
-                    />
-                {/each}
-            </div>
-        {:else}
-            <div class="hidden sm:flex flex-col items-center">
-                <h1 class="font-black text-xl text-amber-500 flex items-center gap-2 drop-shadow-sm tracking-wide">
-                    <Zap class="fill-current animate-bounce-slow" size={20} /> RUSH
-                </h1>
-            </div>
-        {/if}
-        
-        <div class="shrink-0 {currentState === 'GAMEOVER' || currentState === 'BLOCKED' ? 'invisible' : ''}">
-            <SessionTimer on:timeup={handleTimeUp} />
-        </div>
+<div
+	class="flex h-[100dvh] flex-col overflow-hidden bg-gradient-to-b from-amber-100 via-orange-50 to-white font-['Fredoka']"
+>
+	<div
+		class="z-10 flex shrink-0 items-center justify-between gap-2 border-b-4 border-amber-200 bg-white/90 p-3 shadow-sm backdrop-blur-sm"
+	>
+		<button
+			on:click={handleBack}
+			class="shrink-0 rounded-xl border-2 border-slate-200 bg-white p-2 text-slate-400 shadow-sm transition-all hover:border-amber-400 hover:text-amber-500 active:scale-95"
+		>
+			<ArrowLeft size={24} strokeWidth={3} />
+		</button>
 
-        <div class="bg-amber-100 border-2 border-amber-200 px-3 py-1 md:px-4 md:py-1.5 rounded-full flex items-center gap-1 md:gap-2 shadow-inner shrink-0">
-            <Star class="text-amber-500 fill-amber-500 w-4 h-4 md:w-5 md:h-5" />
-            <span class="text-base md:text-lg font-black text-amber-600">{stats.xp}</span>
-        </div>
-    </div>
+		{#if $rushStore.currentState === 'PLAYING'}
+			<div
+				class="animate-pop-in flex items-center gap-1 rounded-xl border-2 border-red-100 bg-white px-3 py-1.5 shadow-sm md:gap-2 md:rounded-2xl md:px-4 md:py-2"
+			>
+				{#each Array(3) as _, i}
+					<Heart
+						class={`h-5 w-5 transition-all duration-500 md:h-6 md:w-6 ${i < $rushStore.lives ? 'animate-pulse-slow fill-red-500 text-red-500' : 'fill-slate-100 text-slate-200'}`}
+					/>
+				{/each}
+			</div>
+		{:else}
+			<div class="hidden flex-col items-center sm:flex">
+				<h1
+					class="flex items-center gap-2 text-xl font-black tracking-wide text-amber-500 drop-shadow-sm"
+				>
+					<Zap class="animate-bounce-slow fill-current" size={20} /> RUSH
+				</h1>
+			</div>
+		{/if}
 
-    {#if currentState === 'BLOCKED'}
-        <div class="flex-1 flex flex-col items-center justify-center text-center p-6 animate-zoom-in">
-            <div class="bg-rose-100 p-6 md:p-8 rounded-full mb-6 border-4 border-rose-200 animate-shake">
-                <Lock size={48} class="text-rose-500 md:w-16 md:h-16" />
-            </div>
-            <h2 class="text-2xl md:text-3xl font-black text-slate-800 mb-2">Pausa para Café! ☕</h2>
-            <p class="text-slate-500 text-base md:text-lg max-w-xs mx-auto mb-6">Já treinaste muito. Descansa um pouco.</p>
-            
-            <div class="my-4 bg-slate-900 text-white px-8 py-5 md:px-10 md:py-6 rounded-3xl shadow-xl border-b-8 border-slate-700 w-full max-w-xs mx-auto">
-                <div class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Volta em</div>
-                <p class="font-black text-4xl md:text-5xl font-mono tracking-widest tabular-nums animate-pulse">
-                    {blockTimeRemaining || "--:--"}
-                </p>
-            </div>
-            <button on:click={() => currentState = 'MENU'} class="mt-8 px-8 py-4 bg-blue-500 text-white rounded-2xl font-bold shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1">
-                Escolher Outra
-            </button>
-        </div>
+		<div
+			class="shrink-0 {$rushStore.currentState === 'GAMEOVER' ||
+			$rushStore.currentState === 'BLOCKED'
+				? 'invisible'
+				: ''}"
+		>
+			<SessionTimer timerKey={`rush_timer_${studentId}`} on:timeup={handleTimeUp} />
+		</div>
 
-    {:else if currentState === 'MENU'}
-        <div class="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-hide">
-            <div class="max-w-4xl mx-auto space-y-6 md:space-y-8 animate-slide-up">
-                <div class="bg-gradient-to-tr from-violet-500 via-purple-500 to-fuchsia-500 rounded-3xl p-5 md:p-6 text-white shadow-xl shadow-purple-200 relative overflow-hidden border-4 border-white/20">
-                    <div class="absolute -top-10 -right-10 opacity-20 rotate-12">
-                        <Trophy size={140} class="md:w-[180px] md:h-[180px]" />
-                    </div>
-                    
-                    <div class="flex items-center justify-between relative z-10">
-                        <div>
-                            <p class="text-purple-100 text-xs md:text-sm font-bold uppercase tracking-wider mb-1">XP Total</p>
-                            <p class="text-4xl md:text-5xl font-black drop-shadow-md">{stats.xp}</p>
-                        </div>
-                        <div class="text-right bg-white/10 px-3 py-2 md:px-4 md:py-2 rounded-2xl backdrop-blur-sm border border-white/10">
-                            <p class="text-purple-100 text-[10px] md:text-xs font-bold uppercase mb-1">Certas</p>
-                            <p class="text-2xl md:text-3xl font-bold text-green-300 flex items-center justify-end gap-2">
-                                <CheckCircle2 size={20} class="md:w-6 md:h-6" /> {stats.acertos}
-                            </p>
-                        </div>
-                    </div>
-                </div>
+		<div
+			class="flex shrink-0 items-center gap-1 rounded-full border-2 border-amber-200 bg-amber-100 px-3 py-1 shadow-inner md:gap-2 md:px-4 md:py-1.5"
+		>
+			<Star class="h-4 w-4 fill-amber-500 text-amber-500 md:h-5 md:w-5" />
+			<span class="text-base font-black text-amber-600 md:text-lg">{$rushStore.xp}</span>
+		</div>
+	</div>
 
-                {#if loadingTopics}
-                     <div class="flex flex-col items-center justify-center py-20">
-                        <div class="w-12 h-12 border-8 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
-                     </div>
-                {:else}
-                    {#if availableTopics.matematica.length > 0}
-                    <section>
-                        <h2 class="text-xl md:text-2xl font-black mb-3 text-slate-700 flex items-center gap-2 md:gap-3">
-                            <div class="bg-blue-100 p-2 rounded-xl text-blue-500"><Calculator size={20} /></div> Matemática
-                        </h2>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                            {#each availableTopics.matematica as topic}
-                                <button on:click={() => checkAndStartGame('matematica', topic.nome)}
-                                    class="relative overflow-hidden p-4 md:p-5 rounded-2xl bg-white shadow-sm border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 transition-all text-left group">
-                                    <div class="flex items-start justify-between mb-3">
-                                        <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                            <svelte:component this={getIcon(topic.metadata?.icon)} size={20} />
-                                        </div>
-                                    </div>
-                                    <h3 class="font-bold text-base md:text-lg text-slate-700 leading-tight">
-                                        {topic.nome}
-                                    </h3>
-                                </button>
-                            {/each}
-                        </div>
-                    </section>
-                    {/if}
+	{#if $rushStore.currentState === 'BLOCKED'}
+		<div class="animate-zoom-in flex flex-1 flex-col items-center justify-center p-6 text-center">
+			<div class="animate-shake mb-6 rounded-full border-4 border-rose-200 bg-rose-100 p-6 md:p-8">
+				<Lock size={48} class="text-rose-500 md:h-16 md:w-16" />
+			</div>
+			<h2 class="mb-2 text-2xl font-black text-slate-800 md:text-3xl">Pausa! ☕</h2>
+			<p class="mx-auto mb-6 max-w-xs text-base text-slate-500 md:text-lg">
+				Já treinaste muito. Descansa um pouco.
+			</p>
 
-                    {#if availableTopics.portugues.length > 0}
-                    <section class="mt-6 md:mt-8">
-                        <h2 class="text-xl md:text-2xl font-black mb-3 text-slate-700 flex items-center gap-2 md:gap-3">
-                            <div class="bg-green-100 p-2 rounded-xl text-green-500"><BookOpen size={20} /></div> Português
-                        </h2>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                            {#each availableTopics.portugues as topic}
-                                <button on:click={() => checkAndStartGame('portugues', topic.nome)}
-                                    class="relative overflow-hidden p-4 md:p-5 rounded-2xl bg-white shadow-sm border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 transition-all text-left group">
-                                    <div class="flex items-start justify-between mb-3">
-                                        <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-green-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                            <svelte:component this={getIcon(topic.metadata?.icon)} size={20} />
-                                        </div>
-                                    </div>
-                                    <h3 class="font-bold text-base md:text-lg text-slate-700 leading-tight">
-                                        {topic.nome}
-                                    </h3>
-                                </button>
-                            {/each}
-                        </div>
-                    </section>
-                    {/if}
-                {/if}
-            </div>
-        </div>
-    
-    {:else if currentState === 'DIAGNOSTIC'}
-        <div class="flex-1 flex flex-col justify-start max-w-2xl mx-auto w-full p-4 md:p-6 animate-zoom-in overflow-y-auto">
-            <div class="text-center mb-6">
-                <div class="inline-flex items-center gap-2 bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-black text-xs uppercase tracking-widest shadow-sm mb-4">
-                    <BrainCircuit size={14} /> Teste de Nível
-                </div>
-                <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-2">
-                    <div class="bg-purple-500 h-full transition-all duration-500" 
-                         style="width: {((currentDiagnosticIndex) / diagnosticQuestions.length) * 100}%">
-                    </div>
-                </div>
-                <p class="text-slate-400 text-[10px] md:text-xs font-bold">PERGUNTA {currentDiagnosticIndex + 1} DE {diagnosticQuestions.length}</p>
-            </div>
+			<div
+				class="mx-auto my-4 w-full max-w-xs rounded-3xl border-b-8 border-slate-700 bg-slate-900 px-8 py-5 text-white shadow-xl md:px-10 md:py-6"
+			>
+				<div class="mb-2 text-xs font-bold tracking-widest text-slate-400 uppercase">Volta em</div>
+				<p
+					class="animate-pulse font-mono text-4xl font-black tracking-widest tabular-nums md:text-5xl"
+				>
+					{blockTimeRemaining || '--:--'}
+				</p>
+			</div>
+			<button
+				on:click={() => handleBack()}
+				class="mt-8 rounded-2xl border-b-4 border-blue-700 bg-blue-500 px-8 py-4 font-bold text-white shadow-lg active:translate-y-1 active:border-b-0"
+			>
+				Escolher Outro Tópico
+			</button>
+		</div>
+	{:else if $rushStore.currentState === 'MENU'}
+		<div class="scrollbar-hide flex-1 overflow-y-auto p-4 md:p-6">
+			<div class="animate-slide-up mx-auto max-w-4xl space-y-6 md:space-y-8">
+				<div
+					class="relative overflow-hidden rounded-3xl border-4 border-white/20 bg-gradient-to-tr from-violet-500 via-purple-500 to-fuchsia-500 p-5 text-white shadow-xl shadow-purple-200 md:p-6"
+				>
+					<div class="absolute -top-10 -right-10 rotate-12 opacity-20">
+						<Trophy size={140} class="md:h-[180px] md:w-[180px]" />
+					</div>
 
-            {#if loading}
-                <div class="flex justify-center"><div class="w-10 h-10 border-4 border-purple-500 rounded-full animate-spin border-t-transparent"></div></div>
-            {:else if questionData}
-                <h1 class="text-xl md:text-2xl font-black text-center text-slate-800 mb-6 leading-snug">
-                    {questionData.question}
-                </h1>
-                
-                <div class="grid grid-cols-1 gap-3 pb-24">
-                    {#each questionData.options as option}
-                        <button 
-                            class="relative p-4 rounded-2xl border-b-4 font-bold text-left transition-all flex items-center justify-between
-                            {selectedOption === option && isCorrect === null ? 'bg-purple-100 border-purple-300 text-purple-900' 
-                            : selectedOption === option && isCorrect ? 'bg-green-500 border-green-700 text-white' 
-                            : selectedOption === option && !isCorrect ? 'bg-rose-500 border-rose-700 text-white' 
-                            : 'bg-white border-slate-200 text-slate-600 active:border-b-0 active:translate-y-1'}"
-                            class:text-base={option.length > 30} 
-                            class:text-lg={option.length <= 30}
-                            on:click={() => handleDiagnosticAnswer(option)}
-                            disabled={!!selectedOption}
-                        >
-                            <span class="pr-2">{option}</span>
-                            {#if selectedOption === option}
-                                {#if isCorrect}<CheckCircle2 size={20} />{:else}<X size={20} />{/if}
-                            {/if}
-                        </button>
-                    {/each}
-                </div>
-            {/if}
-        </div>
+					<div class="relative z-10 flex items-center justify-between">
+						<div>
+							<p class="mb-1 text-xs font-bold tracking-wider text-purple-100 uppercase md:text-sm">
+								XP Total
+							</p>
+							<p class="text-4xl font-black drop-shadow-md md:text-5xl">{$rushStore.xp}</p>
+						</div>
+						<div
+							class="rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-right backdrop-blur-sm md:px-4 md:py-2"
+						>
+							<p class="mb-1 text-[10px] font-bold text-purple-100 uppercase md:text-xs">Certas</p>
+							<p
+								class="flex items-center justify-end gap-2 text-2xl font-bold text-green-300 md:text-3xl"
+							>
+								<CheckCircle2 size={20} class="md:h-6 md:w-6" />
+								{$rushStore.acertos}
+							</p>
+						</div>
+					</div>
+				</div>
 
-    {:else if currentState === 'PLAYING'}
-        {#if loading}
-            <div class="flex-1 flex flex-col items-center justify-center">
-                <div class="w-16 h-16 border-8 border-amber-200 border-t-amber-500 rounded-full animate-spin mb-4"></div>
-                <p class="font-black text-lg text-amber-400 animate-pulse tracking-wide">A PREPARAR...</p>
-            </div>
-        {:else if questionData}
-             <div class="flex-1 flex flex-col justify-start max-w-2xl mx-auto w-full p-4 md:p-6 animate-pop-in overflow-y-auto scrollbar-hide pb-40" bind:this={optionsContainer}>
-                
-                <div class="flex flex-wrap items-center justify-center gap-3 mb-4 md:mb-6 shrink-0">
-                    <span class="bg-white border-2 border-slate-100 text-slate-500 text-xs md:text-sm font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-2">
-                        <Hash size={14} /> {selectedSubtopic}
-                    </span>
-                    {#if streak > 1}
-                        <div class="flex items-center gap-1 bg-orange-100 text-orange-600 px-3 py-1 rounded-full border-2 border-orange-200 shadow-sm animate-pop-in">
-                            <Flame size={14} class="fill-orange-500 animate-pulse" />
-                            <span class="font-black text-xs md:text-sm">COMBO x{streak}</span>
-                        </div>
-                    {/if}
-                </div>
-                
-                <div class="bg-white p-5 md:p-8 rounded-3xl shadow-xl border-b-8 border-slate-100 mb-6 relative shrink-0">
-                    <div class="absolute -top-3 -left-3 bg-yellow-400 text-white p-1.5 rounded-lg rotate-12 shadow-lg">
-                        <Zap size={20} fill="currentColor" />
-                    </div>
-                    <h1 class="text-xl md:text-2xl font-black text-center text-slate-800 leading-snug">
-                        {questionData.question}
-                    </h1>
-                </div>
+				{#if loadingTopics}
+					<div class="flex flex-col items-center justify-center py-20">
+						<div
+							class="h-12 w-12 animate-spin rounded-full border-8 border-blue-200 border-t-blue-500"
+						></div>
+					</div>
+				{:else}
+					{#if availableTopics.matematica.length > 0}
+						<section>
+							<h2
+								class="mb-3 flex items-center gap-2 text-xl font-black text-slate-700 md:gap-3 md:text-2xl"
+							>
+								<div class="rounded-xl bg-blue-100 p-2 text-blue-500"><Calculator size={20} /></div>
+								 Matemática
+							</h2>
+							<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+								{#each availableTopics.matematica as topic}
+									<button
+										on:click={() => checkAndStartGame('matematica', topic.nome)}
+										class="group relative overflow-hidden rounded-2xl border-b-4 border-slate-200 bg-white p-4 text-left shadow-sm transition-all active:translate-y-1 active:border-b-0 md:p-5"
+									>
+										<div class="mb-3 flex items-start justify-between">
+											<div
+												class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 text-white shadow-lg transition-transform group-hover:scale-110 md:h-12 md:w-12"
+											>
+												<svelte:component this={getIcon(topic.metadata?.icon)} size={20} />
+											</div>
+										</div>
+										<h3 class="text-base leading-tight font-bold text-slate-700 md:text-lg">
+											{topic.nome}
+										</h3>
+									</button>
+								{/each}
+							</div>
+						</section>
+					{/if}
 
-                <div class="grid grid-cols-1 gap-3 md:gap-4 w-full">
-                    {#each questionData.options as option}
-                        <button 
-                            class="relative p-4 rounded-2xl border-b-4 font-bold text-left transition-all flex items-center justify-between group min-h-[60px]
-                            {selectedOption === option && isCorrect === null ? 'bg-amber-100 border-amber-300 text-amber-800'
-                            : selectedOption === option && isCorrect ? 'bg-green-500 border-green-700 text-white scale-[1.01]' 
-                            : selectedOption === option && !isCorrect ? 'bg-rose-500 border-rose-700 text-white'
-                            : selectedOption && option === questionData.correct_answer ? 'bg-green-500 border-green-700 text-white opacity-100' 
-                            : 'bg-white border-slate-200 text-slate-600 active:border-b-0 active:translate-y-1'}"
-                            
-                            class:text-base={option.length > 25} 
-                            class:text-lg={option.length <= 25}
+					{#if availableTopics.portugues.length > 0}
+						<section class="mt-6 md:mt-8">
+							<h2
+								class="mb-3 flex items-center gap-2 text-xl font-black text-slate-700 md:gap-3 md:text-2xl"
+							>
+								<div class="rounded-xl bg-green-100 p-2 text-green-500"><BookOpen size={20} /></div>
+								 Português
+							</h2>
+							<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+								{#each availableTopics.portugues as topic}
+									<button
+										on:click={() => checkAndStartGame('portugues', topic.nome)}
+										class="group relative overflow-hidden rounded-2xl border-b-4 border-slate-200 bg-white p-4 text-left shadow-sm transition-all active:translate-y-1 active:border-b-0 md:p-5"
+									>
+										<div class="mb-3 flex items-start justify-between">
+											<div
+												class="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500 text-white shadow-lg transition-transform group-hover:scale-110 md:h-12 md:w-12"
+											>
+												<svelte:component this={getIcon(topic.metadata?.icon)} size={20} />
+											</div>
+										</div>
+										<h3 class="text-base leading-tight font-bold text-slate-700 md:text-lg">
+											{topic.nome}
+										</h3>
+									</button>
+								{/each}
+							</div>
+						</section>
+					{/if}
+				{/if}
+			</div>
+		</div>
+	{:else if $rushStore.currentState === 'DIAGNOSTIC'}
+		<div
+			class="animate-zoom-in mx-auto flex w-full max-w-2xl flex-1 flex-col justify-start overflow-y-auto p-4 md:p-6"
+		>
+			<div class="mb-6 text-center">
+				<div
+					class="mb-4 inline-flex items-center gap-2 rounded-full bg-purple-100 px-3 py-1 text-xs font-black tracking-widest text-purple-700 uppercase shadow-sm"
+				>
+					<BrainCircuit size={14} /> Teste de Nível
+				</div>
+				<div class="mb-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+					<div
+						class="h-full bg-purple-500 transition-all duration-500"
+						style="width: {($rushStore.currentDiagnosticIndex /
+							$rushStore.diagnosticQuestions.length) *
+							100}%"
+					></div>
+				</div>
+				<p class="text-[10px] font-bold text-slate-400 md:text-xs">
+					PERGUNTA {$rushStore.currentDiagnosticIndex + 1} DE {$rushStore.diagnosticQuestions
+						.length}
+				</p>
+			</div>
 
-                            on:click={() => handleAnswer(option)}
-                            disabled={!!selectedOption}
-                            style={selectedOption && option !== selectedOption && option !== questionData.correct_answer ? 'opacity: 0.5' : ''}
-                        >
-                            <span class="pr-2 leading-tight">{option}</span>
-                            {#if selectedOption === option}
-                                {#if isCorrect}<CheckCircle2 size={24} class="shrink-0" />{:else}<X size={24} class="shrink-0" />{/if}
-                            {/if}
-                        </button>
-                    {/each}
-                </div>
-            </div>
-            
-            {#if selectedOption}
-                <div class="fixed bottom-0 inset-x-0 p-4 md:p-6 z-50 animate-slide-up rounded-t-3xl shadow-[0_-10px_50px_rgba(0,0,0,0.2)] max-h-[60vh] overflow-y-auto
-                            {isCorrect ? 'bg-green-100 border-t-8 border-green-500' : 'bg-rose-100 border-t-8 border-rose-500'}">
-                    <div class="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 md:gap-6">
-                        <div class="flex-1 w-full text-center sm:text-left">
-                            {#if isCorrect}
-                                <div class="text-green-700 font-black text-xl flex items-center justify-center sm:justify-start gap-2 mb-2">
-                                    <CheckCircle2 class="fill-current" size={24} /> 
-                                    {#if streak > 2} IMPARÁVEL! 🔥 {:else} ACERTASTE! {/if}
-                                </div>
-                                <p class="text-green-800 text-sm md:text-base font-medium leading-relaxed">
-                                    {questionData.explanation || "Muito bem! Ganhaste XP."}
-                                </p>
-                            {:else}
-                                <div class="text-rose-600 font-black text-xl flex items-center justify-center sm:justify-start gap-2 mb-2">
-                                    <X class="fill-current" size={24} /> ERRADO
-                                </div>
-                                <div class="text-rose-800 font-medium text-sm">
-                                    Resposta certa: <strong class="bg-white px-2 py-0.5 rounded border border-rose-200">{questionData.correct_answer}</strong>
-                                </div>
-                            {/if}
-                        </div>
+			{#if loading}
+				<div class="flex justify-center">
+					<div
+						class="h-10 w-10 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"
+					></div>
+				</div>
+			{:else if $rushStore.questionData}
+				<h1 class="mb-6 text-center text-xl leading-snug font-black text-slate-800 md:text-2xl">
+					{$rushStore.questionData.question}
+				</h1>
 
-                        <button on:click={loadQuestion} 
-                                class={`w-full sm:w-auto px-8 py-4 rounded-2xl font-black text-lg md:text-xl text-white shadow-xl border-b-4 active:border-b-0 active:translate-y-1 transition-all shrink-0
-                                ${isCorrect ? 'bg-green-500 border-green-700' : 'bg-rose-500 border-rose-700'}`}>
-                            {isCorrect ? 'CONTINUAR' : 'PRÓXIMA'}
-                        </button>
-                    </div>
-                    <div class="h-[env(safe-area-inset-bottom)]"></div>
-                </div>
-            {/if}
-        {/if}
+				<div class="grid grid-cols-1 gap-3 pb-24">
+					{#each $rushStore.questionData.options as option}
+						<button
+							class="relative flex items-center justify-between rounded-2xl border-b-4 p-4 text-left font-bold transition-all
+                            {selectedOption === option && isCorrect === null
+								? 'border-purple-300 bg-purple-100 text-purple-900'
+								: selectedOption === option && isCorrect
+									? 'border-green-700 bg-green-500 text-white'
+									: selectedOption === option && !isCorrect
+										? 'border-rose-700 bg-rose-500 text-white'
+										: 'border-slate-200 bg-white text-slate-600 active:translate-y-1 active:border-b-0'}"
+							class:text-base={option.length > 30}
+							class:text-lg={option.length <= 30}
+							on:click={() => handleDiagnosticAnswer(option)}
+							disabled={!!selectedOption}
+						>
+							<span class="pr-2">{option}</span>
+							{#if selectedOption === option}
+								{#if isCorrect}<CheckCircle2 size={20} />{:else}<X size={20} />{/if}
+							{/if}
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{:else if $rushStore.currentState === 'PLAYING'}
+		{#if loading}
+			<div class="flex flex-1 flex-col items-center justify-center">
+				<div
+					class="mb-4 h-16 w-16 animate-spin rounded-full border-8 border-amber-200 border-t-amber-500"
+				></div>
+				<p class="animate-pulse text-lg font-black tracking-wide text-amber-400">A PREPARAR...</p>
+			</div>
+		{:else if $rushStore.questionData}
+			<div
+				class="animate-pop-in scrollbar-hide mx-auto flex w-full max-w-2xl flex-1 flex-col justify-start overflow-y-auto p-4 pb-40 md:p-6"
+				bind:this={optionsContainer}
+			>
+				<div class="mb-4 flex shrink-0 flex-wrap items-center justify-center gap-3 md:mb-6">
+					<span
+						class="flex items-center gap-2 rounded-full border-2 border-slate-100 bg-white px-3 py-1 text-xs font-bold tracking-wider text-slate-500 uppercase shadow-sm md:text-sm"
+					>
+						<Hash size={14} />
+						{$rushStore.selectedSubtopic}
+					</span>
+					{#if $rushStore.streak > 1}
+						<div
+							class="animate-pop-in flex items-center gap-1 rounded-full border-2 border-orange-200 bg-orange-100 px-3 py-1 text-orange-600 shadow-sm"
+						>
+							<Flame size={14} class="animate-pulse fill-orange-500" />
+							<span class="text-xs font-black md:text-sm">COMBO x{$rushStore.streak}</span>
+						</div>
+					{/if}
+				</div>
 
-    {:else if currentState === 'GAMEOVER'}
-        <div class="flex-1 flex flex-col items-center justify-center p-6 text-center animate-zoom-in">
-            <div class="mb-4 text-7xl md:text-8xl animate-bounce">
-                {#if isTimeUp} ⏰ {:else} 💔 {/if}
-            </div>
-            <h1 class="text-3xl md:text-5xl font-black text-slate-800 mb-4">
-                {#if isTimeUp} Tempo Esgotado! {:else} Acabaram as vidas! {/if}
-            </h1>
-            <p class="text-slate-500 text-base md:text-lg mb-6 max-w-xs mx-auto">
-                {#if isTimeUp} Bom trabalho hoje! Descansa. {:else} Tenta de novo! {/if}
-            </p>
-            <div class="bg-white p-6 rounded-3xl shadow-lg border-2 border-slate-100 mb-8 w-full max-w-sm">
-                <p class="text-slate-500 font-bold uppercase tracking-widest text-xs mb-2">XP Ganho</p>
-                <p class="text-5xl md:text-6xl font-black text-amber-500">{score}</p>
-            </div>
-            <button on:click={() => { if(isTimeUp) exitSession(); else { currentState = 'MENU'; isTimeUp = false; lives = 3; } }} 
-                class="w-full max-w-xs px-8 py-4 bg-blue-500 text-white rounded-2xl font-bold shadow-lg border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 text-lg">
-                {#if isTimeUp} Sair {:else} Voltar ao Menu {/if}
-            </button>
-        </div>
-    {/if}
+				<div
+					class="relative mb-6 shrink-0 rounded-3xl border-b-8 border-slate-100 bg-white p-5 shadow-xl md:p-8"
+				>
+					<div
+						class="absolute -top-3 -left-3 rotate-12 rounded-lg bg-yellow-400 p-1.5 text-white shadow-lg"
+					>
+						<Zap size={20} fill="currentColor" />
+					</div>
+					<h1 class="text-center text-xl leading-snug font-black text-slate-800 md:text-2xl">
+						{$rushStore.questionData.question}
+					</h1>
+				</div>
+
+				<div class="grid w-full grid-cols-1 gap-3 md:gap-4">
+					{#each $rushStore.questionData.options as option}
+						<button
+							class="group relative flex min-h-[60px] items-center justify-between rounded-2xl border-b-4 p-4 text-left font-bold transition-all
+                            {selectedOption === option && isCorrect === null
+								? 'border-amber-300 bg-amber-100 text-amber-800'
+								: selectedOption === option && isCorrect
+									? 'scale-[1.01] border-green-700 bg-green-500 text-white'
+									: selectedOption === option && !isCorrect
+										? 'border-rose-700 bg-rose-500 text-white'
+										: selectedOption && option === $rushStore.questionData.correct_answer
+											? 'border-green-700 bg-green-500 text-white opacity-100'
+											: 'border-slate-200 bg-white text-slate-600 active:translate-y-1 active:border-b-0'}"
+							class:text-base={option.length > 25}
+							class:text-lg={option.length <= 25}
+							on:click={() => handleAnswer(option)}
+							disabled={!!selectedOption}
+							style={selectedOption &&
+							option !== selectedOption &&
+							option !== $rushStore.questionData.correct_answer
+								? 'opacity: 0.5'
+								: ''}
+						>
+							<span class="pr-2 leading-tight">{option}</span>
+							{#if selectedOption === option}
+								{#if isCorrect}<CheckCircle2 size={24} class="shrink-0" />{:else}<X
+										size={24}
+										class="shrink-0"
+									/>{/if}
+							{/if}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			{#if selectedOption}
+				<div
+					class="animate-slide-up fixed inset-x-0 bottom-0 z-50 max-h-[60vh] overflow-y-auto rounded-t-3xl p-4 shadow-[0_-10px_50px_rgba(0,0,0,0.2)] md:p-6
+                            {isCorrect
+						? 'border-t-8 border-green-500 bg-green-100'
+						: 'border-t-8 border-rose-500 bg-rose-100'}"
+				>
+					<div
+						class="mx-auto flex max-w-3xl flex-col items-center justify-between gap-4 sm:flex-row md:gap-6"
+					>
+						<div class="w-full flex-1 text-center sm:text-left">
+							{#if isCorrect}
+								<div
+									class="mb-2 flex items-center justify-center gap-2 text-xl font-black text-green-700 sm:justify-start"
+								>
+									<CheckCircle2 class="fill-current" size={24} />
+									{#if $rushStore.streak > 2}
+										IMPARÁVEL! 🔥
+									{:else}
+										ACERTASTE!
+									{/if}
+								</div>
+								<p class="text-sm leading-relaxed font-medium text-green-800 md:text-base">
+									{$rushStore.questionData.explanation || 'Muito bem! Ganhaste XP.'}
+								</p>
+							{:else}
+								<div
+									class="mb-2 flex items-center justify-center gap-2 text-xl font-black text-rose-600 sm:justify-start"
+								>
+									<X class="fill-current" size={24} /> ERRADO
+								</div>
+								<div class="text-sm font-medium text-rose-800">
+									Resposta certa: <strong
+										class="rounded border border-rose-200 bg-white px-2 py-0.5"
+										>{$rushStore.questionData.correct_answer}</strong
+									>
+								</div>
+							{/if}
+						</div>
+
+						<button
+							on:click={loadQuestion}
+							class={`w-full shrink-0 rounded-2xl border-b-4 px-8 py-4 text-lg font-black text-white shadow-xl transition-all active:translate-y-1 active:border-b-0 sm:w-auto md:text-xl
+                                ${isCorrect ? 'border-green-700 bg-green-500' : 'border-rose-700 bg-rose-500'}`}
+						>
+							{isCorrect ? 'CONTINUAR' : 'PRÓXIMA'}
+						</button>
+					</div>
+					<div class="h-[env(safe-area-inset-bottom)]"></div>
+				</div>
+			{/if}
+		{/if}
+	{:else if $rushStore.currentState === 'GAMEOVER'}
+		<div class="animate-zoom-in flex flex-1 flex-col items-center justify-center p-6 text-center">
+			<div class="mb-4 animate-bounce text-7xl md:text-8xl">
+				{#if isTimeUp}
+					⏰
+				{:else}
+					💔
+				{/if}
+			</div>
+			<h1 class="mb-4 text-3xl font-black text-slate-800 md:text-5xl">
+				{#if isTimeUp}
+					Tempo Esgotado!
+				{:else}
+					Acabaram as vidas!
+				{/if}
+			</h1>
+			<p class="mx-auto mb-6 max-w-xs text-base text-slate-500 md:text-lg">
+				{#if isTimeUp}
+					Bom trabalho hoje! Descansa.
+				{:else}
+					Tenta de novo!
+				{/if}
+			</p>
+			<div
+				class="mb-8 w-full max-w-sm rounded-3xl border-2 border-slate-100 bg-white p-6 shadow-lg"
+			>
+				<p class="mb-2 text-xs font-bold tracking-widest text-slate-500 uppercase">XP Ganho</p>
+				<p class="text-5xl font-black text-amber-500 md:text-6xl">{$rushStore.xp}</p>
+			</div>
+			<button
+				on:click={() => {
+					if (isTimeUp) exitSession();
+					else {
+						rushStore.clear();
+						isTimeUp = false;
+					}
+				}}
+				class="w-full max-w-xs rounded-2xl border-b-4 border-blue-700 bg-blue-500 px-8 py-4 text-lg font-bold text-white shadow-lg active:translate-y-1 active:border-b-0"
+			>
+				{#if isTimeUp}
+					Sair
+				{:else}
+					Voltar ao Menu
+				{/if}
+			</button>
+		</div>
+	{/if}
 </div>
 
 <style>
-    @keyframes slide-up {
-        from { transform: translateY(100%); }
-        to { transform: translateY(0); }
-    }
-    .animate-slide-up { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-    
-    @keyframes popIn {
-        0% { opacity: 0; transform: scale(0.9); }
-        100% { opacity: 1; transform: scale(1); }
-    }
-    .animate-pop-in { animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+	@keyframes slide-up {
+		from {
+			transform: translateY(100%);
+		}
+		to {
+			transform: translateY(0);
+		}
+	}
+	.animate-slide-up {
+		animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+	}
 
-    @keyframes zoomIn {
-        from { opacity: 0; transform: scale(0.8); }
-        to { opacity: 1; transform: scale(1); }
-    }
-    .animate-zoom-in { animation: zoomIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+	@keyframes popIn {
+		0% {
+			opacity: 0;
+			transform: scale(0.9);
+		}
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+	.animate-pop-in {
+		animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
 
-    .animate-bounce-slow { animation: bounce 3s infinite; }
-    .animate-pulse-slow { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    
-    .scrollbar-hide::-webkit-scrollbar { display: none; }
-    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+	@keyframes zoomIn {
+		from {
+			opacity: 0;
+			transform: scale(0.8);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+	.animate-zoom-in {
+		animation: zoomIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	.animate-bounce-slow {
+		animation: bounce 3s infinite;
+	}
+	.animate-pulse-slow {
+		animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+	}
+
+	.scrollbar-hide::-webkit-scrollbar {
+		display: none;
+	}
+	.scrollbar-hide {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
 </style>

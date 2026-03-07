@@ -32,13 +32,14 @@ export class RushController {
   
   @Post('answer')
   async answer(@Body() dto: AnswerExerciseDto) {
+    console.log("fgj",dto)
     if (!dto.alunoId) {
       throw new BadRequestException('alunoId é obrigatório');
     }
     if (!dto.exercicioId) {
       throw new BadRequestException('exercicioId é obrigatório');
     }
-
+    
     // Recupera o exercício
     const exercicio = await this.rushService.findExercicio(dto.exercicioId);
 
@@ -60,16 +61,8 @@ export class RushController {
       dto.sessaoId // <--- Passar o que vem do frontend
     );
 
-    // Gera feedback
-    const feedback = await this.rushService.generateRushFeedback({
-      alunoId: dto.alunoId,
-      student_class: dto.classe || 5,
-      user_query: `Pergunta: ${exercicio.pergunta}. Resposta do aluno: ${dto.respostaAluno}. Correta: ${exercicio.resposta}. Acertou: ${acertou}`
-    });
-
     return {
       acertou,
-      feedback,
       savedResultId: saved.id,
       blocked: saved.blocked,
       blockedUntil: saved.blockedUntil,

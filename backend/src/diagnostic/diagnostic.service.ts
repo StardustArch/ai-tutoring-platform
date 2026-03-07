@@ -95,36 +95,38 @@ export class DiagnosticService {
       perguntasPorTopico = 2;
     }
 
-    const totalPromises: Promise<any>[] = [];
+      const perguntasFinal: any[] = [];
 
     // 🔥 USANDO PARALELISMO COM O CACHE
     for (const topico of topicosParaGerar) {
-      for (let i = 0; i < perguntasPorTopico; i++) {
-        totalPromises.push(
-          this.cacheService
-            .getQuestion({
-              classe,
-              disciplina: disciplina.toLowerCase(),
-              topicoId: topico.id,
-              dificuldade: 3, // Nível médio para diagnóstico
-              historicoRecente: [],
-            })
-            .then((res) => ({ topico: topico.nome, ...res }))
-            .catch(() => null),
-        );
-      }
+        // Esta lista vai crescendo a cada iteração para o mesmo tópico
+        const historicoDoTopico: string[] = []; 
+
+        for (let i = 0; i < perguntasPorTopico; i++) {
+            try {
+                const res = await this.cacheService.getQuestion({
+                    classe,
+                    disciplina: disciplina.toLowerCase(),
+                    topicoId: topico.id,
+                    dificuldade: 3, 
+                    historicoRecente: historicoDoTopico // Envia a lista das perguntas que JÁ saíram neste teste
+                });
+
+                if (res && res.question) {
+                    historicoDoTopico.push(res.question); // Adiciona a nova pergunta à "Lista Negra" temporária
+                    perguntasFinal.push({ topico: topico.nome, ...res });
+                }
+            } catch(err) {
+                this.logger.error(`Erro ao obter questão de diagnóstico para ${topico.nome}: ${err.message}`);
+            }
+        }
     }
 
-    const results = await Promise.all(totalPromises);
-    const perguntasFinal = results.filter((r) => r !== null);
-
     return {
-      alunoId,
-      disciplina,
-      classe,
+      alunoId, disciplina, classe,
       foco: topicoAlvo || 'Automático',
       totalPerguntas: perguntasFinal.length,
-      perguntas: perguntasFinal,
+      perguntas: perguntasFinal
     };
   }
 
@@ -169,12 +171,7 @@ export class DiagnosticService {
     else if (percentualAcerto < 90)
       nivelDiagnosticado = NivelDificuldade.DIFICIL;
     else nivelDiagnosticado = NivelDificuldade.MUITO_DIFICIL;
-    const recomendacoes = await this.generateRecommendations(
-      aluno.classe,
-      disciplina,
-      percentualAcerto,
-      detalhesTopicos,
-    );
+
     const validoAte = new Date();
     validoAte.setMonth(validoAte.getMonth() + 3);
     const diagnostic = await this.prisma.diagnosticoInicial.upsert({
@@ -187,7 +184,6 @@ export class DiagnosticService {
         percentualAcerto,
         nivelDiagnosticado,
         detalhesTopicos,
-        recomendacoes,
         validoAte,
       },
       update: {
@@ -196,11 +192,62 @@ export class DiagnosticService {
         percentualAcerto,
         nivelDiagnosticado,
         detalhesTopicos,
-        recomendacoes,
         realizadoEm: new Date(),
         validoAte,
       },
     });
+
+    // 1. Precisamos buscar os IDs dos tópicos para atualizar a tabela de proficiência
+    const nomesTopicos = Object.keys(detalhesTopicos);
+    const topicosDb = await this.prisma.topico.findMany({
+      where: {
+        nome: { in: nomesTopicos },
+        nivelClasse: aluno.classe,
+        disciplina: { 
+           nome: disciplina.toLowerCase() === 'matematica' ? 'Matemática' : 'Português' 
+        }
+      }
+    });
+
+    // 2. Para cada tópico, calculamos a % de acerto e atualizamos o nível do aluno
+    for (const t of topicosDb) {
+      const dadosTopico = detalhesTopicos[t.nome];
+      const percTopico = dadosTopico.total > 0 ? (dadosTopico.acertos / dadosTopico.total) * 100 : 0;
+
+      // Define o nível baseado no acerto do TÓPICO (ajuste as réguas como preferir)
+      let nivelNumerico = 1;
+      let nivelNome = 'INICIANTE';
+
+      if (percTopico >= 90) { 
+        nivelNumerico = 5; nivelNome = 'EXPERT'; // ou o nome do enum que você usa
+      } else if (percTopico >= 75) { 
+        nivelNumerico = 4; nivelNome = 'AVANCADO'; 
+      } else if (percTopico >= 60) { 
+        nivelNumerico = 3; nivelNome = 'NA_MEDIA'; 
+      } else if (percTopico >= 40) { 
+        nivelNumerico = 2; nivelNome = 'ABAIXO_MEDIA'; 
+      }
+  
+  
+
+      // 3. Salva a proficiência no banco
+      await this.prisma.alunoProficienciaTopico.upsert({
+         where: { 
+            // Verifique no seu schema.prisma o nome exato desse index único (geralmente alunoId_topicoId)
+            alunoId_topicoId: { alunoId, topicoId: t.id } 
+         }, 
+         create: {
+            alunoId,
+            nivel: nivelNome as any, 
+            topicoId: t.id,
+            vidasRestantes: 3
+         },
+         update: {
+            nivel: nivelNome as any
+         }
+      });
+    }
+
     return {
       diagnostic,
       analise: {
@@ -208,34 +255,10 @@ export class DiagnosticService {
         percentual: percentualAcerto,
         pontosFortes: this.identifyStrongPoints(detalhesTopicos),
         pontosFrageis: this.identifyWeakPoints(detalhesTopicos),
-        recomendacoes,
       },
     };
   }
-  private async generateRecommendations(
-    classe: number,
-    disciplina: string,
-    percentualAcerto: number,
-    detalhesTopicos: any,
-  ): Promise<string> {
-    try {
-      const payload = {
-        student_id: 0,
-        student_class: classe,
-        user_query: `Analise os resultados deste teste diagnóstico de ${disciplina}: - Taxa de acerto geral: ${percentualAcerto.toFixed(1)}% - Detalhes por tópico: ${JSON.stringify(detalhesTopicos)}`,
-        mode: 'tutor',
-        history: [],
-      };
-      const obs = this.http.post(
-        `${this.aiUrl}/generate-chat-response`,
-        payload,
-      );
-      const res = await firstValueFrom(obs.pipe(timeout(this.httpTimeoutMs)));
-      return res.data?.response_text || 'Continue a praticar regularmente!';
-    } catch (err) {
-      return 'Continue a estudar e a praticar.';
-    }
-  }
+
   private identifyStrongPoints(detalhesTopicos: any): string[] {
     return Object.entries(detalhesTopicos)
       .filter(([_, dados]: any) => dados.acertos / dados.total > 0.7)
