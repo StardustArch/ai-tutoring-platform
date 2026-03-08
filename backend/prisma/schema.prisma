@@ -120,6 +120,7 @@ model Aluno {
   alunoTurmas         AlunoTurma[]
   diagnosticos        DiagnosticoInicial[] // ✅ NOVO
   sessoesEstudo       SessaoEstudo[]
+  licaoProgressos     LicaoProgresso[]
 
   @@map("alunos")
 }
@@ -151,6 +152,7 @@ model Topico {
   proficienciaTopicos AlunoProficienciaTopico[]
   exercicios          Exercicio[]
   questoesNoCache     QuestaoCache[]
+  licaoProgressos     LicaoProgresso[]
 
   @@map("topicos")
 }
@@ -292,6 +294,7 @@ model AlunoTurma {
 enum ModoEstudo {
   TUTOR
   RUSH
+  LESSON
 }
 
 enum StatusSessao {
@@ -321,8 +324,9 @@ model SessaoEstudo {
   status          StatusSessao @default(EM_ANDAMENTO)
 
   // Conteúdo Gerado na Sessão (Relações)
-  mensagens  ChatMensagem[]
-  exercicios ExercicioResultado[]
+  mensagens       ChatMensagem[]
+  exercicios      ExercicioResultado[]
+  licaoProgressos LicaoProgresso?
 
   @@map("sessoes_estudo")
 }
@@ -347,4 +351,32 @@ model QuestaoCache {
 
   @@index([topicoId, dificuldade, classe])
   @@map("questao_cache")
+}
+
+model LicaoProgresso {
+  id       Int @id @default(autoincrement())
+
+  alunoId  Int
+  aluno    Aluno        @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+
+  topicoId Int
+  topico   Topico       @relation(fields: [topicoId], references: [id], onDelete: Cascade)
+
+  sessaoId Int?    @unique
+  sessao   SessaoEstudo? @relation(fields: [sessaoId], references: [id])
+
+  // Estado serializado (slots, fase, revisaoQueue, slotExercicioMap, ...)
+  estado   Json
+
+  concluida       Boolean @default(false)
+  tentativa       Int     @default(1)   // 1ª vez, 2ª vez, 3ª vez, ...
+  melhorPontuacao Int?                  // acertos na melhor tentativa concluída
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  // Sem @@unique em (alunoId, topicoId) — permite N tentativas concluídas
+  // A unicidade da lição ACTIVA é garantida pelo serviço (deleteMany antes de criar)
+  @@index([alunoId, topicoId])
+  @@map("licao_progressos")
 }

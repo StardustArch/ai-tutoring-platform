@@ -116,7 +116,7 @@
   function startSession(subject: string, topicName: string) {
       sessionContext = { subject, topic: topicName };
       viewState = 'CHAT';
-      const introMessages = [`Olá campeão! 🌟`, `Hoje vamos dominar **${topicName}**!`, "Estás pronto?"];
+      const introMessages = [`Olá campeão! 🌟`, `Hoje vamos dominar ${topicName}!`, "Estás pronto?"];
       handleAiResponse(JSON.stringify({
           messages: introMessages,
           emotion: "HAPPY",

@@ -43,7 +43,7 @@ async def generate_voice_audio(text_list):
         
         communicate = edge_tts.Communicate(
             clean_text, 
-            "pt-PT-RaquelNeural", 
+            "pt-BR-FranciscaNeural", 
             pitch="+20Hz", 
             rate="+5%"
         )

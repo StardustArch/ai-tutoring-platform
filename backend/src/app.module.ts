@@ -20,6 +20,8 @@ import { AdminModule } from './admin/admin.module';
 import { MailModule } from './mail/mail.module';
 import { HealthModule } from './health/health.module';
 import { QuestionCacheModule } from './common/question-cache/question-cache.module';
+import { RushModule } from './rush/rush.module';
+import { LessonModule } from './lesson/lesson.module';
 
 @Module({
   imports: [AuthModule,
@@ -39,7 +41,9 @@ import { QuestionCacheModule } from './common/question-cache/question-cache.modu
     AdminModule,
     MailModule, 
     HealthModule,
-    QuestionCacheModule
+    QuestionCacheModule,
+    RushModule,
+    LessonModule
     ],
   controllers: [AppController],
   providers: [AppService],

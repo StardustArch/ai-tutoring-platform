@@ -87,7 +87,7 @@ export class RushService {
       ? (await this.prisma.exercicioResultado.findMany({
         where: { alunoId, topicoId },
         orderBy: { timestamp: 'desc' },
-        take: 20,
+        take: 100,
         include: { exercicio: true }
       })).map(r => r.exercicio?.pergunta).filter(Boolean) as string[]
       : [];
@@ -137,14 +137,25 @@ export class RushService {
 
     } catch (err) {
       this.logger.error(`Erro no motor de questões: ${err.message}`);
-      return {
-        exercicioId: null,
-        topicoId,
-        question: 'Quanto é 2 + 2?',
-        options: ['3', '4', '5'],
-        correct_answer: '4',
-        explanation: 'Erro de conexão.'
-      };
+      
+      // 🔥 Fallback de emergência: Tenta buscar qualquer exercício deste tópico na BD
+      const fallbackExercicio = await this.prisma.exercicio.findFirst({
+         where: { topicoId, dificuldade }
+      });
+
+      if (fallbackExercicio) {
+          return {
+              exercicioId: fallbackExercicio.id,
+              topicoId,
+              question: fallbackExercicio.pergunta,
+              options: fallbackExercicio.opcoesJson,
+              correct_answer: fallbackExercicio.resposta,
+              explanation: "Recuperado da memória de emergência.",
+              cached: true
+          };
+      }
+      // Se tudo falhar, manda o erro e encerra
+      throw new Error("Não foi possível gerar mais questões no momento.");
     }
   }
 

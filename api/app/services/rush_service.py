@@ -60,16 +60,19 @@ DADOS JÁ CALCULADOS — NÃO ALTERES NENHUM VALOR:
 - Valor correto: {correct_value}
 - Opções (já incluem a correta): {options_json}
 
+CONTEXTO JÁ ESCOLHIDO (usa exatamente esta frase, não inventes outra):
+{narrative}
+
 INSTRUÇÕES:
-1. Inventa uma situação moçambicana curta (nome local + contexto: meticais, machamba, escola, mercado).
-2. A pergunta deve terminar com: "Quanto vale o {digit} no número {number_fmt}?"
+1. Usa o contexto acima — NÃO inventes outro.
+2. A pergunta deve ser: "{narrative} Quanto vale o {digit} no número {number_fmt}?"
 3. NÃO calcules nada. Usa EXATAMENTE os valores acima.
 4. SEM MARKDOWN. Só JSON puro.
 
 FORMATO OBRIGATÓRIO:
 {{
   "topico": "{subtopic}",
-  "question": "[frase de contexto curta]. Quanto vale o {digit} no número {number_fmt}?",
+  "question": "{narrative} Quanto vale o {digit} no número {number_fmt}?",
   "options": {options_json},
   "correct_answer": "{correct_value}",
   "explanation": "O {digit} está na casa dos {house_name}, por isso vale {correct_value}."
@@ -86,16 +89,19 @@ DADOS JÁ CALCULADOS — NÃO ALTERES NENHUM VALOR:
 - Dígito correto nessa casa: {digit}
 - Opções (já incluem o correto): {options_json}
 
+CONTEXTO JÁ ESCOLHIDO (usa exatamente esta frase, não inventes outra):
+{narrative}
+
 INSTRUÇÕES:
-1. Inventa uma situação moçambicana curta (nome local + contexto: meticais, machamba, escola, mercado).
-2. A pergunta deve terminar com: "Qual é o dígito que está na casa das {house_name} no número {number_fmt}?"
+1. Usa o contexto acima — NÃO inventes outro.
+2. A pergunta deve ser: "{narrative} Qual é o dígito que está na casa das {house_name} no número {number_fmt}?"
 3. NÃO calcules nada. Usa EXATAMENTE os valores acima.
 4. SEM MARKDOWN. Só JSON puro.
 
 FORMATO OBRIGATÓRIO:
 {{
   "topico": "{subtopic}",
-  "question": "[frase de contexto curta]. Qual é o dígito que está na casa das {house_name} no número {number_fmt}?",
+  "question": "{narrative} Qual é o dígito que está na casa das {house_name} no número {number_fmt}?",
   "options": {options_json},
   "correct_answer": "{digit}",
   "explanation": "No número {number_fmt}, o dígito {digit} está na casa das {house_name}."
@@ -112,16 +118,19 @@ DADOS JÁ CALCULADOS — NÃO ALTERES NENHUM VALOR:
 - Decomposição correta: {correct_answer}
 - Opções (já incluem a correta): {options_json}
 
+CONTEXTO JÁ ESCOLHIDO (usa exatamente esta frase, não inventes outra):
+{narrative}
+
 INSTRUÇÕES:
-1. Inventa uma situação moçambicana curta (nome local + contexto: meticais, machamba, escola, mercado).
-2. A pergunta deve ser: "Como se decompõe o número {number_fmt}?"
+1. Usa o contexto acima — NÃO inventes outro.
+2. A pergunta deve ser: "{narrative} Como se decompõe o número {number_fmt}?"
 3. NÃO calcules nada. Usa EXATAMENTE os valores acima.
 4. SEM MARKDOWN. Só JSON puro.
 
 FORMATO OBRIGATÓRIO:
 {{
   "topico": "{subtopic}",
-  "question": "[frase de contexto curta]. Como se decompõe o número {number_fmt}?",
+  "question": "{narrative} Como se decompõe o número {number_fmt}?",
   "options": {options_json},
   "correct_answer": "{correct_answer}",
   "explanation": "O número {number_fmt} decompõe-se assim: {correct_answer}."
@@ -131,6 +140,26 @@ FORMATO OBRIGATÓRIO:
 
 
 current_rush_client_index = 0
+
+# Contextos narrativos moçambicanos — sorteados pelo código para forçar variedade
+NARRATIVES = [
+    ("A {nome} tem {number_fmt} meticais na poupança.", ["Ana", "Fátima", "Rosa", "Lurdes", "Beatriz"]),
+    ("O {nome} colheu {number_fmt} espigas de milho na machamba.", ["Américo", "Feliciano", "Armando", "Custódio", "Hélder"]),
+    ("A escola de {nome} tem {number_fmt} livros na biblioteca.", ["Maputo", "Beira", "Nampula", "Quelimane", "Tete"]),
+    ("O {nome} vendeu {number_fmt} meticais de peixe no mercado.", ["João", "Carlos", "Tomás", "Rui", "Sérgio"]),
+    ("A {nome} recebeu {number_fmt} meticais de salário este mês.", ["Olívia", "Conceição", "Graça", "Esperança", "Vitória"]),
+    ("O hospital de {nome} atendeu {number_fmt} doentes este ano.", ["Maputo", "Chimoio", "Lichinga", "Inhambane", "Pemba"]),
+    ("A machamba do {nome} produziu {number_fmt} quilos de amendoim.", ["Zacarias", "Domingos", "Alfredo", "Ernesto", "Virgílio"]),
+    ("O autocarro da rota de {nome} percorreu {number_fmt} quilómetros.", ["Maputo", "Beira", "Nacala", "Xai-Xai", "Mocuba"]),
+    ("O {nome} guardou {number_fmt} meticais no banco.", ["pai do Ali", "tio da Maria", "avô do João", "irmão da Rute", "vizinho do Pedro"]),
+    ("A cooperativa de {nome} vendeu {number_fmt} sacos de arroz.", ["Zambezia", "Sofala", "Gaza", "Manica", "Cabo Delgado"]),
+]
+
+def _pick_narrative(number_fmt: str) -> str:
+    """Sorteia um contexto narrativo e substitui os placeholders."""
+    template, names = random.choice(NARRATIVES)
+    name = random.choice(names)
+    return template.format(nome=name, number_fmt=number_fmt)
 
 FALLBACK_STRUCTURES = {
     "número":        ["Escrita por extenso", "Valor de um dígito", "Identificar a casa do dígito", "Ordenar do menor para o maior", "Decompor o número em classes"],
@@ -532,18 +561,21 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
 
         if is_decomp:
             decomp = _build_decomposition_question(request.difficulty_level)
+            narrative = _pick_narrative(decomp["number_fmt"])
             prompt = PROMPT_POSICIONAL_DECOMP.format(
                 student_class=request.student_class,
                 subtopic=subtopic,
                 number_fmt=decomp["number_fmt"],
                 correct_answer=decomp["correct_answer"],
                 options_json=decomp["options_json"],
+                narrative=narrative,
             )
             math_data = decomp
-            print(f"🔢 [Decomposição] Número: {decomp['number_fmt']} | Resposta: {decomp['correct_answer']}", flush=True)
+            print(f"🔢 [Decomposição] Número: {decomp['number_fmt']} | Narrativa: {narrative}", flush=True)
         elif is_positional:
             positional = _build_positional_question(subtopic, request.difficulty_level)
             q_type = positional["type"]
+            narrative = _pick_narrative(positional["number_fmt"])
             if q_type == "valor":
                 prompt = PROMPT_POSICIONAL_VALOR.format(
                     student_class=request.student_class,
@@ -553,6 +585,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                     correct_value=positional["correct_value"],
                     house_name=positional["house_name"],
                     options_json=positional["options_json"],
+                    narrative=narrative,
                 )
             else:
                 prompt = PROMPT_POSICIONAL_CASA.format(
@@ -562,9 +595,10 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                     digit=positional["digit"],
                     house_name=positional["house_name"],
                     options_json=positional["options_json"],
+                    narrative=narrative,
                 )
             math_data = positional
-            print(f"🔢 [Posicional/{q_type}] Número: {positional['number_fmt']} | Dígito: {positional['digit']} | Casa: {positional['house_name']} | Resposta: {positional['correct_answer']}", flush=True)
+            print(f"🔢 [Posicional/{q_type}] Número: {positional['number_fmt']} | Narrativa: {narrative}", flush=True)
         else:
             prompt = PROMPT_RUSH_JSON.format(
                 student_class=request.student_class,

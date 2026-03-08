@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from typing import Any
 from openai import OpenAI, RateLimitError  # 🚨 Importante adicionar o RateLimitError
 from huggingface_hub import InferenceClient
@@ -120,7 +121,7 @@ async def generate_tutor_response(system_prompt, user_query, history=[]):
             )
 
             raw_text = response.choices[0].message.content
-            
+            print(raw_text, flush=True)
             # 🔥 SUBSTITUÍMOS O json.loads() PELO TEU EXTRATOR SEGURO
             obj = safe_load_json_object(raw_text)
             
