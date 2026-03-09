@@ -240,7 +240,40 @@ def _generate_smart_distractors(correct_value: int):
 
     return distractors[:3]
 
+import re
+
+emoji_pattern = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"  # emoticons
+    "\U0001F300-\U0001F5FF"  # symbols & pictographs
+    "\U0001F680-\U0001F6FF"  # transport
+    "\U0001F700-\U0001F77F"
+    "\U0001F780-\U0001F7FF"
+    "\U0001F800-\U0001F8FF"
+    "\U0001F900-\U0001F9FF"
+    "\U0001FA00-\U0001FA6F"
+    "\U0001FA70-\U0001FAFF"
+    "\U00002700-\U000027BF"
+    "\U000024C2-\U0001F251"
+    "]+",
+    flags=re.UNICODE,
+)
+
 def remove_emojis(text: str) -> str:
-    # Esta regex remove a maioria dos emojis e símbolos pictográficos do Unicode
-    # Mantém letras, acentos (essenciais para pt-MZ) e pontuação.
-    return re.sub(r'[^\x00-\x7F\u00C0-\u00FF\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF]', '', text)
+    return emoji_pattern.sub("", text)
+
+def remove_broken_emoji_codes(text: str) -> str:
+    # remove coisas tipo 1f44f ou 1f60e
+    return re.sub(r'\b1f[0-9a-f]{3,5}\b', '', text, flags=re.I)
+
+def remove_broken_emojis(text: str) -> str:
+    if not text:
+        return text
+
+    # remove códigos tipo 1f44f, 1f60e, etc
+    text = re.sub(r'\b1f[0-9a-f]{3,5}\b', '', text, flags=re.I)
+
+    # remove unicode corrompido tipo \u001f1f60e
+    text = re.sub(r'\\u001f[0-9a-f]{4}', '', text, flags=re.I)
+
+    return text

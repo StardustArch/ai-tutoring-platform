@@ -49,8 +49,7 @@ FORMATO ESPERADO:
 Gere agora O SEU objeto JSON válido:
 """
 
-# ─── PROMPT POSICIONAL (modelo só cria o contexto, não calcula nada) ──────────
-# Pergunta tipo A: "Quanto vale o X em N?"
+# ─── PROMPTS POSICIONAIS ──────────────────────────────────────────────────────
 PROMPT_POSICIONAL_VALOR = """
 Você é um professor criativo de Moçambique. O seu único trabalho é criar UMA frase de contexto moçambicano para esta pergunta já calculada.
 
@@ -79,7 +78,6 @@ FORMATO OBRIGATÓRIO:
 }}
 """
 
-# Pergunta tipo B: "Qual dígito está na casa das [X]?"
 PROMPT_POSICIONAL_CASA = """
 Você é um professor criativo de Moçambique. O seu único trabalho é criar UMA frase de contexto moçambicano para esta pergunta já calculada.
 
@@ -108,8 +106,6 @@ FORMATO OBRIGATÓRIO:
 }}
 """
 
-PROMPT_POSICIONAL = """"""
-
 PROMPT_POSICIONAL_DECOMP = """
 Você é um professor criativo de Moçambique. O seu único trabalho é criar UMA frase de contexto moçambicano para esta pergunta já calculada.
 
@@ -137,11 +133,67 @@ FORMATO OBRIGATÓRIO:
 }}
 """
 
+# ─── PROMPT TRUE/FALSE ────────────────────────────────────────────────────────
+PROMPT_TRUE_FALSE = """
+Você é um professor criativo de Moçambique, criando um quiz interativo para alunos da {student_class}ª classe.
+O seu objetivo é gerar UMA pergunta do tipo Verdadeiro ou Falso.
 
+Disciplina: {subject}
+Tópico Específico: {subtopic}
+Nível de Dificuldade: {difficulty_level} (1 a 5)
+
+🎯 TIPO OBRIGATÓRIO: "{forced_structure}"
+
+REGRAS DE OURO:
+1. Crie uma afirmação direta que o aluno deve avaliar. Contextualize com a realidade moçambicana (nomes, meticais, machamba).
+2. Siga rigorosamente estas restrições curriculares:
+{context_rules}
+3. A "correct_answer" DEVE ser exatamente "Verdadeiro" ou "Falso".
+4. As "options" DEVEM ser EXATAMENTE ["Verdadeiro", "Falso"].
+5. Não repita perguntas passadas: {exclude_list}
+
+FORMATO OBRIGATÓRIO (JSON PURO):
+{{
+  "type": "true_false",
+  "question": "O número 540.000 tem 5 dezenas de milhar.",
+  "options": ["Verdadeiro", "Falso"],
+  "correct_answer": "Verdadeiro",
+  "explanation": "Explicação clara do porquê."
+}}
+"""
+
+# ─── PROMPT CLOZE ─────────────────────────────────────────────────────────────
+PROMPT_CLOZE = """
+Você é um professor criativo de Moçambique, criando um quiz interativo para alunos da {student_class}ª classe.
+O seu objetivo é gerar UMA pergunta de "Completar a Lacuna".
+
+Disciplina: {subject}
+Tópico Específico: {subtopic}
+Nível de Dificuldade: {difficulty_level} (1 a 5)
+
+🎯 TIPO OBRIGATÓRIO: "{forced_structure}"
+
+REGRAS DE OURO:
+1. A "question" DEVE conter uma lacuna representada por três sublinhados: "___". Contextualize com Moçambique.
+2. Siga rigorosamente estas restrições curriculares:
+{context_rules}
+3. Gere exatamente 4 "options" únicas. Uma delas é a resposta que encaixa perfeitamente na lacuna.
+4. A "correct_answer" DEVE ser a opção correta.
+5. Não repita perguntas passadas: {exclude_list}
+
+FORMATO OBRIGATÓRIO (JSON PURO):
+{{
+  "type": "cloze",
+  "question": "O número que vem imediatamente depois de 999.999 é o ___.",
+  "options": ["1.000.000", "99.000", "10.000", "1.000.001"],
+  "correct_answer": "1.000.000",
+  "explanation": "Explicação clara."
+}}
+"""
 
 current_rush_client_index = 0
 
-# Contextos narrativos moçambicanos — sorteados pelo código para forçar variedade
+# ─── NARRATIVAS ──────────────────────────────────────────────────────────────
 NARRATIVES = [
     ("A {nome} tem {number_fmt} meticais na poupança.", ["Ana", "Fátima", "Rosa", "Lurdes", "Beatriz"]),
     ("O {nome} colheu {number_fmt} espigas de milho na machamba.", ["Américo", "Feliciano", "Armando", "Custódio", "Hélder"]),
@@ -155,28 +207,52 @@ NARRATIVES = [
     ("A cooperativa de {nome} vendeu {number_fmt} sacos de arroz.", ["Zambezia", "Sofala", "Gaza", "Manica", "Cabo Delgado"]),
 ]
 
+NARRATIVES_SIMPLE = [
+    ("O professor da {nome} diz:", ["Ana", "João", "Ali", "Maria", "Pedro"]),
+    ("No livro da escola de {nome} está escrito:", ["Maputo", "Beira", "Nampula"]),
+    ("A {nome} leu na sua aula de hoje:", ["Fátima", "Rosa", "Lurdes"]),
+    ("O {nome} aprendeu hoje na escola:", ["Américo", "Carlos", "Domingos"]),
+    ("Na aula de {nome}:", ["Chimoio", "Quelimane", "Tete"]),
+]
+
 def _pick_narrative(number_fmt: str) -> str:
-    """Sorteia um contexto narrativo e substitui os placeholders."""
     template, names = random.choice(NARRATIVES)
     name = random.choice(names)
     return template.format(nome=name, number_fmt=number_fmt)
 
+def _pick_narrative_simple() -> str:
+    template, names = random.choice(NARRATIVES_SIMPLE)
+    name = random.choice(names)
+    return template.format(nome=name)
+
 FALLBACK_STRUCTURES = {
-    "número":        ["Escrita por extenso", "Valor de um dígito", "Identificar a casa do dígito", "Ordenar do menor para o maior", "Decompor o número em classes"],
-    "fração":        ["Identificar a fração representada", "Comparar frações", "Soma de frações com mesmo denominador"],
+    "número":        ["Escrita por extenso", "Valor de um dígito", "Identificar a casa do dígito",
+                      "Ordenar do menor para o maior", "Decompor o número em classes",
+                      "Verdadeiro ou Falso sobre o número"],
+    "fração":        ["Identificar a fração representada", "Comparar frações",
+                      "Soma de frações com mesmo denominador", "Verdadeiro ou Falso sobre frações"],
     "decimal":       ["Identificar parte decimal", "Comparar decimais", "Escrever decimal por extenso"],
-    "adição":        ["Problema de história com soma", "Calcular resultado de adição", "Completar a operação"],
-    "subtração":     ["Problema de história com subtração", "Calcular resultado de subtração", "Completar a operação"],
-    "multiplicação": ["Problema de história com multiplicação", "Calcular resultado de tabuada", "Multiplicar por 10 ou 100"],
-    "divisão":       ["Problema de distribuição equitativa", "Calcular quociente e resto", "Divisão exata"],
-    "geometria":     ["Identificar a figura geométrica", "Contar lados e vértices", "Classificar o ângulo"],
-    "verbo":         ["Conjugar o verbo no tempo correto", "Identificar o verbo na frase", "Transformar para negativa"],
-    "sinónimo":      ["Encontrar o sinónimo", "Encontrar o antónimo", "Substituir a palavra no contexto"],
-    "frase":         ["Transformar para interrogativa", "Transformar para negativa", "Identificar o tipo de frase"],
-    "medida":        ["Escolher a unidade correta", "Comparar medidas", "Ler as horas no relógio"],
+    "adição":        ["Problema de história com soma", "Calcular resultado de adição",
+                      "Completar a lacuna na adição"],
+    "subtração":     ["Problema de história com subtração", "Calcular resultado de subtração",
+                      "Completar a lacuna na subtração"],
+    "multiplicação": ["Problema de história com multiplicação", "Calcular resultado de tabuada",
+                      "Multiplicar por 10 ou 100", "Completar a lacuna na multiplicação"],
+    "divisão":       ["Problema de distribuição equitativa", "Calcular quociente e resto",
+                      "Divisão exata", "Verdadeiro ou Falso sobre divisão"],
+    "geometria":     ["Identificar a figura geométrica", "Contar lados e vértices",
+                      "Classificar o ângulo", "Verdadeiro ou Falso sobre figuras"],
+    "verbo":         ["Conjugar o verbo no tempo correto", "Identificar o verbo na frase",
+                      "Transformar para negativa", "Completar a lacuna com o verbo correto"],
+    "sinónimo":      ["Encontrar o sinónimo", "Encontrar o antónimo",
+                      "Substituir a palavra no contexto", "Completar a lacuna com a palavra correta"],
+    "frase":         ["Transformar para interrogativa", "Transformar para negativa",
+                      "Identificar o tipo de frase", "Completar a lacuna na frase",
+                      "Verdadeiro ou Falso sobre a frase"],
+    "medida":        ["Escolher a unidade correta", "Comparar medidas",
+                      "Ler as horas no relógio", "Verdadeiro ou Falso sobre medidas"],
 }
 
-# Nomes das casas posicionais para números até 1 milhão
 PLACE_VALUES = [
     (100_000_0, "milhões"),
     (100_000,   "centenas de milhar"),
@@ -188,25 +264,33 @@ PLACE_VALUES = [
 ]
 
 
-# ─── VALOR POSICIONAL CALCULADO PELO CÓDIGO ──────────────────────────────────
+# ─── DETECTORES ──────────────────────────────────────────────────────────────
 
 def _is_positional_structure(structure: str) -> bool:
-    keywords = [
-        "valor posicional", "identificar a casa", "decomposição",
-        "milhar", "centena", "dezena", "unidade de milhar"
-    ]
-    s = structure.lower()
-    return any(k in s for k in keywords)
+    keywords = ["valor posicional", "identificar a casa", "decomposição",
+                "milhar", "centena", "dezena", "unidade de milhar"]
+    return any(k in structure.lower() for k in keywords)
 
+def _is_true_false_structure(structure: str) -> bool:
+    keywords = ["verdadeiro ou falso", "verdadeiro/falso", "true/false", "v ou f", "v/f"]
+    return any(k in structure.lower() for k in keywords)
+
+def _is_cloze_structure(structure: str) -> bool:
+    keywords = ["completar a lacuna", "completar a frase", "preencher a lacuna",
+                "completar com", "lacuna", "cloze", "completar o espaço"]
+    return any(k in structure.lower() for k in keywords)
+
+
+# ─── CONSTRUTOR TRUE/FALSE ────────────────────────────────────────────────────
+
+
+
+# ─── CONSTRUTOR CLOZE ────────────────────────────────────────────────────────
+
+
+# ─── CONSTRUTOR POSICIONAL ───────────────────────────────────────────────────
 
 def _build_positional_question(subtopic: str, difficulty: int) -> dict:
-    """
-    Gera dados para pergunta de valor posicional.
-    Sorteia entre dois tipos:
-      "valor" → Quanto vale o X em N?
-      "casa"  → Qual dígito está na casa das X em N?
-    Garante dígito único no número (sem ambiguidade).
-    """
     number = random.randint(
         10_000 if difficulty <= 2 else 100_000,
         99_999 if difficulty <= 2 else 999_999
@@ -242,7 +326,6 @@ def _build_positional_question(subtopic: str, difficulty: int) -> dict:
     def fmt(n):
         return f"{n:,}".replace(",", ".")
 
-    # Opções para tipo "valor": outras casas do mesmo dígito
     wrong_powers = [p for p, _ in PLACE_VALUES if p != power and p <= 1_000_000]
     random.shuffle(wrong_powers)
     wrong_vals, seen = [], {correct_value}
@@ -256,7 +339,6 @@ def _build_positional_question(subtopic: str, difficulty: int) -> dict:
     options_valor = [fmt(correct_value)] + [fmt(w) for w in wrong_vals]
     random.shuffle(options_valor)
 
-    # Opções para tipo "casa": outros dígitos do número
     other_digits = list({int(d) for d in digits_str if d != "0" and int(d) != digit})
     random.shuffle(other_digits)
     wrong_digits = [str(d) for d in other_digits[:3]]
@@ -284,11 +366,6 @@ def _build_positional_question(subtopic: str, difficulty: int) -> dict:
 
 
 def _build_decomposition_question(difficulty: int) -> dict:
-    """
-    Gera pergunta de decomposição: dado N, qual a decomposição correta?
-    Ex: 345.678 = 300.000 + 40.000 + 5.000 + 600 + 70 + 8
-    O código gera o número e calcula a decomposição — o modelo só cria o contexto.
-    """
     number = random.randint(
         10_000 if difficulty <= 2 else 100_000,
         99_999 if difficulty <= 2 else 999_999
@@ -296,7 +373,6 @@ def _build_decomposition_question(difficulty: int) -> dict:
     digits_str = str(number)
     n = len(digits_str)
 
-    # Decomposição correcta
     parts = []
     for i, d in enumerate(digits_str):
         if d != "0":
@@ -304,19 +380,17 @@ def _build_decomposition_question(difficulty: int) -> dict:
             parts.append(f"{val:,}".replace(",", "."))
     correct_decomp = " + ".join(parts)
 
-    # 3 decomposições erradas: troca dois dígitos
     def make_wrong():
         lst = list(digits_str)
         i, j = random.sample(range(n), 2)
         lst[i], lst[j] = lst[j], lst[i]
-        wrong_num = int("".join(lst))
         wp = [int(c) * (10 ** (n - 1 - k)) for k, c in enumerate(lst) if c != "0"]
-        return " + ".join(f"{v:,}".replace(",", ".") for v in wp), wrong_num
+        return " + ".join(f"{v:,}".replace(",", ".") for v in wp)
 
     wrong_options = set()
     attempts = 0
     while len(wrong_options) < 3 and attempts < 30:
-        w, _ = make_wrong()
+        w = make_wrong()
         if w != correct_decomp:
             wrong_options.add(w)
         attempts += 1
@@ -334,10 +408,50 @@ def _build_decomposition_question(difficulty: int) -> dict:
     }
 
 
-# ─── ESTRUTURA FORÇADA ────────────────────────────────────────────────────────
+# ─── _pick_forced_structure ───────────────────────────────────────────────────
+#
+# PROBLEMA ANTERIOR: _was_recently_used comparava palavras das PERGUNTAS com
+# as ESTRUTURAS → eliminava quase tudo porque as perguntas contêm palavras
+# como "número", "valor", "maior" que batem nas estruturas. Resultado: só
+# sobrava multiple_choice.
+#
+# SOLUÇÃO: separar completamente a lógica de "variedade de tipos" da lógica
+# de "evitar perguntas repetidas". A variedade é garantida por um roulette
+# com pesos que olha para os TIPOS das últimas perguntas (not o texto).
+#
+# PESOS:
+#   - multiple_choice : peso base 5
+#   - true_false      : peso base 3  (mas aumenta +4 se a última foi MC)
+#   - cloze           : peso base 3  (mas aumenta +4 se as últimas 2 foram MC)
+#
+# Efeito prático: a cada 10 perguntas teremos ~3 TF e ~2 Cloze garantidos,
+# sem nunca bloquear por causa do texto das perguntas.
+
+def _classify_recent_types(recent_questions: list[str]) -> list[str]:
+    """
+    Infere os tipos das últimas perguntas pelo seu texto, já que o
+    RushRequest só passa os textos e não os tipos.
+    """
+    types = []
+    for q in recent_questions[-5:]:
+        ql = q.lower()
+        if "verdadeiro" in ql or "falso" in ql or "v ou f" in ql:
+            types.append("true_false")
+        elif "___" in ql or "completa" in ql or "lacuna" in ql:
+            types.append("cloze")
+        else:
+            types.append("multiple_choice")
+    return types
+
 
 def _pick_forced_structure(subtopic: str, context_rules: str, recent_questions: list[str]) -> str:
-    structures = []
+
+    # ── 1. Colecta as estruturas disponíveis ──────────────────────────────────
+    structures_mc   = []   # estruturas que geram multiple_choice
+    structures_tf   = []   # estruturas que geram true_false
+    structures_cloze = []  # estruturas que geram cloze
+
+    raw_structures = []
     in_permitido = False
     for line in context_rules.splitlines():
         line = line.strip()
@@ -350,50 +464,111 @@ def _pick_forced_structure(subtopic: str, context_rules: str, recent_questions: 
         if in_permitido and line.startswith("-"):
             s = line.lstrip("- ").strip()
             if s:
-                structures.append(s)
+                raw_structures.append(s)
 
-    if not structures:
+    if not raw_structures:
         sub = subtopic.lower()
         for key, vals in FALLBACK_STRUCTURES.items():
             if key in sub:
-                structures = vals
+                raw_structures = list(vals)
                 break
-        if not structures:
-            structures = ["Escrita por extenso", "Valor de um dígito", "Comparação e ordenação", "Identificar a casa do dígito", "Decompor o número"]
+        if not raw_structures:
+            raw_structures = [
+                "Escrita por extenso",
+                "Valor de um dígito",
+                "Identificar a casa do dígito",
+                "Decompor o número",
+                "Verdadeiro ou Falso sobre o número",
+                "Completar a lacuna",
+            ]
 
-    last_3 = recent_questions[-3:] if recent_questions else []
-    history_text = " ".join(last_3).lower()
-
-    def _was_recently_used(structure: str) -> bool:
-        keywords = [w for w in structure.lower().split() if len(w) > 4]
-        return any(kw in history_text for kw in keywords)
-
-    unused = [s for s in structures if not _was_recently_used(s)]
-    pool = unused if unused else structures
-
-    # Mapeia estruturas vagas do livro para subtipos concretos que o código sabe executar
+    # Mapeia estruturas vagas para concretas
     VAGUE_MAP = {
-        "leitura e compreensão": ["Escrita por extenso", "Decomposição do número em classes"],
+        "leitura e compreensão":    ["Escrita por extenso", "Decomposição do número"],
         "identificação de classes": ["Valor posicional", "Identificar a casa do dígito"],
-        "identificação de ordens": ["Valor posicional", "Identificar a casa do dígito"],
+        "identificação de ordens":  ["Valor posicional", "Identificar a casa do dígito"],
     }
-    expanded = []
-    for s in pool:
+    expanded: list[str] = []
+    seen: set = set()
+    for s in raw_structures:
         replaced = False
         for vague_key, concretes in VAGUE_MAP.items():
             if vague_key in s.lower():
-                expanded.extend(concretes)
+                for c in concretes:
+                    if c not in seen:
+                        expanded.append(c)
+                        seen.add(c)
                 replaced = True
                 break
-        if not replaced:
+        if not replaced and s not in seen:
             expanded.append(s)
+            seen.add(s)
 
-    # Remove duplicados mantendo ordem
-    seen_pool = set()
-    pool = [s for s in expanded if not (s in seen_pool or seen_pool.add(s))]
+    # Separa por tipo
+    for s in expanded:
+        if _is_true_false_structure(s):
+            structures_tf.append(s)
+        elif _is_cloze_structure(s):
+            structures_cloze.append(s)
+        else:
+            structures_mc.append(s)
 
-    chosen = random.choice(pool)
-    print(f"🎯 [ForcedStructure] Escolhida: '{chosen}' | Pool: {pool}", flush=True)
+    # Garante que TF e Cloze têm sempre pelo menos uma opção genérica
+    if not structures_tf:
+        structures_tf = [f"Verdadeiro ou Falso sobre {subtopic.split()[0].lower() if subtopic else 'o tema'}"]
+    if not structures_cloze:
+        structures_cloze = [f"Completar a lacuna sobre {subtopic.split()[0].lower() if subtopic else 'o tema'}"]
+    if not structures_mc:
+        structures_mc = ["Escolha múltipla sobre o tópico"]
+
+    # ── 2. Roulette com pesos baseado nos tipos recentes ─────────────────────
+    recent_types = _classify_recent_types(recent_questions)
+    last_type    = recent_types[-1] if recent_types else "multiple_choice"
+    last_2_types = recent_types[-2:] if len(recent_types) >= 2 else recent_types
+
+    # Pesos base
+    weight_mc    = 5
+    weight_tf    = 3
+    weight_cloze = 3
+
+    # Se a última foi MC, aumenta a probabilidade de TF ou Cloze
+    if last_type == "multiple_choice":
+        weight_tf    += 4
+        weight_cloze += 3
+
+    # Se as últimas 2 foram MC, força ainda mais a variedade
+    if all(t == "multiple_choice" for t in last_2_types) and len(last_2_types) == 2:
+        weight_tf    += 5
+        weight_cloze += 5
+
+    # Se a última foi TF, reduz TF para não repetir
+    if last_type == "true_false":
+        weight_tf    = max(1, weight_tf - 6)
+
+    # Se a última foi Cloze, reduz Cloze para não repetir
+    if last_type == "cloze":
+        weight_cloze = max(1, weight_cloze - 6)
+
+    # Sorteia o tipo
+    type_pool = (
+        ["mc"]    * weight_mc +
+        ["tf"]    * weight_tf +
+        ["cloze"] * weight_cloze
+    )
+    chosen_type = random.choice(type_pool)
+
+    if chosen_type == "tf":
+        chosen = random.choice(structures_tf)
+    elif chosen_type == "cloze":
+        chosen = random.choice(structures_cloze)
+    else:
+        chosen = random.choice(structures_mc)
+
+    print(
+        f"🎯 [ForcedStructure] tipo={chosen_type} (w_mc={weight_mc} w_tf={weight_tf} w_cloze={weight_cloze}) "
+        f"| últimos={recent_types[-3:]} | escolhida='{chosen}'",
+        flush=True
+    )
     return chosen
 
 
@@ -406,7 +581,7 @@ def safe_load_json_object(text: str) -> Any | None:
     clean_text = re.sub(r"```json\s*", "", text, flags=re.IGNORECASE)
     clean_text = re.sub(r"```", "", clean_text)
     start = clean_text.find('{')
-    end = clean_text.rfind('}')
+    end   = clean_text.rfind('}')
     if start != -1 and end != -1:
         candidate = clean_text[start:end+1]
         try:
@@ -418,8 +593,9 @@ def safe_load_json_object(text: str) -> Any | None:
 
 def _is_math_strict_topic(subtopic: str) -> bool:
     math_keywords = [
-        "adição", "subtração", "soma", "multiplicação", "divisão", "expressões", "cálculo", "operações",
-        "número", "números", "milhão", "milhões", "milhares", "fração", "frações", "decimal", "decimais"
+        "adição", "subtração", "soma", "multiplicação", "divisão", "expressões", "cálculo",
+        "operações", "número", "números", "milhão", "milhões", "milhares",
+        "fração", "frações", "decimal", "decimais"
     ]
     return any(k in subtopic.lower() for k in math_keywords)
 
@@ -453,11 +629,11 @@ def _is_duplicate(new_question: str, recent_questions: list[str]) -> bool:
     def normalize(text: str) -> str:
         return re.sub(r'[\d\.,]+', 'N', text.lower().strip())
 
-    new_norm = normalize(new_question)
+    new_norm  = normalize(new_question)
     new_start = " ".join(new_question.lower().split()[:8])
 
     for prev in recent_questions:
-        prev_norm = normalize(prev)
+        prev_norm  = normalize(prev)
         prev_start = " ".join(prev.lower().split()[:8])
         if new_start == prev_start:
             print(f"🔁 [DuplicateCheck] Início idêntico: '{prev[:70]}'", flush=True)
@@ -472,15 +648,44 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
     if not isinstance(raw_obj, dict):
         raise ValueError("Payload inválido")
 
-    question = str(raw_obj.get("question", "")).strip()
-    explanation = str(raw_obj.get("explanation", "")).strip()
-    raw_correct = str(raw_obj.get("correct_answer", "")).strip()
+    question    = str(raw_obj.get("question",      "")).strip()
+    explanation = str(raw_obj.get("explanation",   "")).strip()
+    raw_correct = str(raw_obj.get("correct_answer","")).strip()
+    q_type      = str(raw_obj.get("type", "multiple_choice")).strip()
 
+    # ── TRUE/FALSE ────────────────────────────────────────────────────────────
+    if q_type == "true_false":
+        options       = ["Verdadeiro", "Falso"]
+        clean_correct = raw_correct if raw_correct in options else "Verdadeiro"
+        if not question or not explanation:
+            raise ValueError("Pergunta ou explicação vazia (true_false)")
+        return {"type": "true_false", "question": question, "options": options,
+                "correct_answer": clean_correct, "explanation": explanation}
+
+    # ── CLOZE ─────────────────────────────────────────────────────────────────
+    if q_type == "cloze":
+        if "___" not in question:
+            raise ValueError("Pergunta cloze sem lacuna ___")
+        raw_options = raw_obj.get("options", [])
+        options = list(dict.fromkeys([
+            str(opt).strip().strip('"').strip("'").strip(".")
+            for opt in raw_options if str(opt).strip()
+        ]))
+        clean_correct = raw_correct.strip('"').strip("'").strip(".")
+        if clean_correct not in options:
+            raise ValueError("Resposta cloze não corresponde às opções")
+        if not question or not explanation:
+            raise ValueError("Pergunta ou explicação vazia (cloze)")
+        return {"type": "cloze", "question": question, "options": options,
+                "correct_answer": clean_correct, "explanation": explanation}
+
+    # ── MULTIPLE CHOICE (caminho original) ────────────────────────────────────
     if len(question.split()) < 6 and not _is_math_strict_topic(subtopic):
         raise ValueError("Pergunta demasiado simples (< 6 palavras)")
 
     if subject == "matematica" and not _is_math_strict_topic(subtopic):
-        if re.search(r'\d+\s*[+\-x×÷]\s*\d+', question) or " vezes " in question.lower() or " a multiplicar " in question.lower():
+        if re.search(r'\d+\s*[+\-x×÷]\s*\d+', question) or \
+           " vezes " in question.lower() or " a multiplicar " in question.lower():
             raise ValueError("Operações não permitidas neste tópico conceitual")
 
     raw_options = raw_obj.get("options", [])
@@ -499,10 +704,10 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
     if clean_correct not in options:
         raise ValueError("Resposta correta não corresponde às opções")
 
-    q_type = _detect_question_type(question)
-    if subject == "matematica" and q_type == "explicit_arithmetic":
+    detected = _detect_question_type(question)
+    if subject == "matematica" and detected == "explicit_arithmetic":
         try:
-            correct_number = int(re.findall(r'\d+', clean_correct)[0])
+            correct_number  = int(re.findall(r'\d+', clean_correct)[0])
             smart_distractors = _generate_smart_distractors(correct_number)
             options = [str(correct_number)] + [str(d) for d in smart_distractors]
             random.shuffle(options)
@@ -514,10 +719,11 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
         raise ValueError("Pergunta ou explicação vazia")
 
     return {
+        "type": "multiple_choice",
         "question": question,
         "options": options,
         "correct_answer": clean_correct,
-        "explanation": explanation
+        "explanation": explanation,
     }
 
 
@@ -525,7 +731,7 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
 
 async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
 
-    print(f"\n🚀 [RushService] Chamado! A iniciar processo... \n {request}", flush=True)
+    print(f"\n🚀 [RushService] Chamado!\n{request}", flush=True)
 
     global current_rush_client_index
 
@@ -533,21 +739,22 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
     if not clients:
         raise Exception("Nenhum cliente Groq configurado.")
 
-    subject = request.subject.lower()
+    subject  = request.subject.lower()
     if subject not in ("matematica", "portugues"):
         subject = "matematica"
 
-    subtopic = request.subtopic if request.subtopic else "Geral"
-    last_3 = request.recent_questions[-3:] if request.recent_questions else []
+    subtopic     = request.subtopic if request.subtopic else "Geral"
+    last_3       = request.recent_questions[-3:] if request.recent_questions else []
     exclude_list = "\n- ".join(last_3) if last_3 else "Nenhuma pergunta anterior."
 
-    is_math_operation = _is_math_strict_topic(subtopic)
-    dynamic_temperature = 0.4 if is_math_operation else 0.85
+    is_math_operation    = _is_math_strict_topic(subtopic)
+    dynamic_temperature  = 0.4 if is_math_operation else 0.85
 
+    # 🔥 Modelos actualizados — os anteriores davam 404
     FREE_MODELS = [
         "llama-3.3-70b-versatile",
-        "qwen/qwen3-vl-235b-a22b-thinking",
-        "arcee-ai/trinity-large-preview:free",
+        "llama-3.1-8b-instant",
+        "gemma2-9b-it",
     ]
 
     for tentativa in range(5):
@@ -555,12 +762,45 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
             subtopic, request.context_rules, request.recent_questions
         )
 
-        # ── CAMINHO ESPECIAL: matemática calculada pelo código ──────────────
-        is_decomp = "decomposição" in forced_structure.lower() or "decomp" in forced_structure.lower()
+        is_decomp     = "decomposição" in forced_structure.lower() or "decomp" in forced_structure.lower()
         is_positional = _is_positional_structure(forced_structure)
+        is_tf         = _is_true_false_structure(forced_structure)
+        is_cloze_q    = _is_cloze_structure(forced_structure)
 
-        if is_decomp:
-            decomp = _build_decomposition_question(request.difficulty_level)
+        math_data     = None
+        override_type = "multiple_choice"
+
+       # ── TRUE/FALSE ────────────────────────────────────────────────────────
+        if is_tf:
+            override_type = "true_false"
+            prompt = PROMPT_TRUE_FALSE.format(
+                student_class=request.student_class,
+                subject=subject,
+                subtopic=subtopic,
+                difficulty_level=request.difficulty_level,
+                context_rules=request.context_rules,
+                forced_structure=forced_structure,
+                exclude_list=exclude_list,
+            )
+            # NOTA: math_data continua = None para deixar a IA brilhar
+
+        # ── CLOZE ─────────────────────────────────────────────────────────────
+        elif is_cloze_q:
+            override_type = "cloze"
+            prompt = PROMPT_CLOZE.format(
+                student_class=request.student_class,
+                subject=subject,
+                subtopic=subtopic,
+                difficulty_level=request.difficulty_level,
+                context_rules=request.context_rules,
+                forced_structure=forced_structure,
+                exclude_list=exclude_list,
+            )
+            # NOTA: math_data continua = None
+            
+        # ── DECOMPOSIÇÃO ──────────────────────────────────────────────────────
+        elif is_decomp:
+            decomp    = _build_decomposition_question(request.difficulty_level)
             narrative = _pick_narrative(decomp["number_fmt"])
             prompt = PROMPT_POSICIONAL_DECOMP.format(
                 student_class=request.student_class,
@@ -571,11 +811,13 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                 narrative=narrative,
             )
             math_data = decomp
-            print(f"🔢 [Decomposição] Número: {decomp['number_fmt']} | Narrativa: {narrative}", flush=True)
+            print(f"🔢 [Decomposição] {decomp['number_fmt']}", flush=True)
+
+        # ── POSICIONAL ────────────────────────────────────────────────────────
         elif is_positional:
             positional = _build_positional_question(subtopic, request.difficulty_level)
-            q_type = positional["type"]
-            narrative = _pick_narrative(positional["number_fmt"])
+            q_type     = positional["type"]
+            narrative  = _pick_narrative(positional["number_fmt"])
             if q_type == "valor":
                 prompt = PROMPT_POSICIONAL_VALOR.format(
                     student_class=request.student_class,
@@ -598,7 +840,9 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                     narrative=narrative,
                 )
             math_data = positional
-            print(f"🔢 [Posicional/{q_type}] Número: {positional['number_fmt']} | Narrativa: {narrative}", flush=True)
+            print(f"🔢 [Posicional/{q_type}] {positional['number_fmt']}", flush=True)
+
+        # ── MÚLTIPLA ESCOLHA GERAL ────────────────────────────────────────────
         else:
             prompt = PROMPT_RUSH_JSON.format(
                 student_class=request.student_class,
@@ -610,13 +854,13 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                 forced_structure=forced_structure,
             )
 
-        client = clients[current_rush_client_index]
-        used_index = current_rush_client_index
+        client      = clients[current_rush_client_index]
+        used_index  = current_rush_client_index
         current_rush_client_index = (current_rush_client_index + 1) % len(clients)
         chosen_model = FREE_MODELS[tentativa % len(FREE_MODELS)]
 
         try:
-            print(f"🔄 Rush: Chave #{used_index + 1} | Modelo: {chosen_model} | Estrutura: '{forced_structure}'...")
+            print(f"🔄 Rush #{used_index+1} | {chosen_model} | {forced_structure} | {override_type}")
 
             completion = client.chat.completions.create(
                 model=chosen_model,
@@ -630,36 +874,37 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
             )
 
             raw = completion.choices[0].message.content
-            print(f"👀 RAW DA IA ({chosen_model}): {raw}", flush=True)
+            print(f"👀 RAW ({chosen_model}): {raw}", flush=True)
 
             obj = safe_load_json_object(raw)
             if not obj:
-                raise ValueError("JSON inválido gerado pela IA.")
+                raise ValueError("JSON inválido.")
 
-            # Sobrescreve sempre com os valores calculados pelo código
-            if is_decomp or is_positional:
+            # Sobrescreve SEMPRE com os valores calculados pelo código
+            if math_data:
                 obj["correct_answer"] = math_data["correct_answer"]
-                obj["options"] = math_data["options"]
+                obj["options"]        = math_data["options"]
+            obj["type"] = override_type
 
             clean_data = _sanitize_rush_payload(obj, subject, subtopic)
 
             if _is_duplicate(clean_data["question"], request.recent_questions):
-                raise ValueError("Pergunta duplicada. A tentar novamente...")
+                raise ValueError("Pergunta duplicada.")
 
-            print(f"✅ SUCESSO com o modelo: {chosen_model}")
+            print(f"✅ [{override_type}] SUCESSO com {chosen_model}")
             return RushResponse(**clean_data)
 
         except RateLimitError:
-            print(f"⚠️ Rate limit no modelo {chosen_model}. A rodar...")
+            print(f"⚠️ Rate limit em {chosen_model}.")
             await asyncio.sleep(1)
             continue
-
         except Exception as e:
-            print(f"⚠️ Erro no modelo {chosen_model}: {e}")
+            print(f"⚠️ Erro em {chosen_model}: {e}")
             await asyncio.sleep(1)
             continue
 
     return RushResponse(
+        type="multiple_choice",
         question="Ocorreu uma pequena falha técnica. Qual é a capital de Moçambique?",
         options=["Beira", "Maputo", "Nampula", "Tete"],
         correct_answer="Maputo",

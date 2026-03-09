@@ -2,7 +2,7 @@ import edge_tts
 import uuid
 import os
 import time
-from app.utils.text_helpers import remove_emojis
+from app.utils.text_helpers import remove_emojis, remove_broken_emoji_codes
 
 STORAGE_PATH = "static/audio_cache"
 
@@ -37,6 +37,7 @@ async def generate_voice_audio(text_list):
         full_text = " ".join(text_list)
         # O segredo para o áudio limpo:
         clean_text = remove_emojis(full_text)
+        clean_text = remove_broken_emoji_codes(clean_text)
         
         file_name = f"voice_{uuid.uuid4().hex}.mp3"
         file_path = os.path.join(STORAGE_PATH, file_name)

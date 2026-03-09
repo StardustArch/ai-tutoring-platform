@@ -696,137 +696,190 @@
 				</div>
 			{/if}
 		</div>
-	{:else if $rushStore.currentState === 'PLAYING'}
-		{#if loading}
-			<div class="flex flex-1 flex-col items-center justify-center">
-				<div
-					class="mb-4 h-16 w-16 animate-spin rounded-full border-8 border-amber-200 border-t-amber-500"
-				></div>
-				<p class="animate-pulse text-lg font-black tracking-wide text-amber-400">A PREPARAR...</p>
-			</div>
-		{:else if $rushStore.questionData}
-			<div
-				class="animate-pop-in scrollbar-hide mx-auto flex w-full max-w-2xl flex-1 flex-col justify-start overflow-y-auto p-4 pb-40 md:p-6"
-				bind:this={optionsContainer}
-			>
-				<div class="mb-4 flex shrink-0 flex-wrap items-center justify-center gap-3 md:mb-6">
-					<span
-						class="flex items-center gap-2 rounded-full border-2 border-slate-100 bg-white px-3 py-1 text-xs font-bold tracking-wider text-slate-500 uppercase shadow-sm md:text-sm"
-					>
-						<Hash size={14} />
-						{$rushStore.selectedSubtopic}
-					</span>
-					{#if $rushStore.streak > 1}
-						<div
-							class="animate-pop-in flex items-center gap-1 rounded-full border-2 border-orange-200 bg-orange-100 px-3 py-1 text-orange-600 shadow-sm"
-						>
-							<Flame size={14} class="animate-pulse fill-orange-500" />
-							<span class="text-xs font-black md:text-sm">COMBO x{$rushStore.streak}</span>
-						</div>
-					{/if}
-				</div>
 
-				<div
-					class="relative mb-6 shrink-0 rounded-3xl border-b-8 border-slate-100 bg-white p-5 shadow-xl md:p-8"
-				>
-					<div
-						class="absolute -top-3 -left-3 rotate-12 rounded-lg bg-yellow-400 p-1.5 text-white shadow-lg"
-					>
-						<Zap size={20} fill="currentColor" />
-					</div>
-					<h1 class="text-center text-xl leading-snug font-black text-slate-800 md:text-2xl">
-						{$rushStore.questionData.question}
-					</h1>
-				</div>
+{:else if $rushStore.currentState === 'PLAYING'}
+  {#if loading}
+    <div class="flex flex-1 flex-col items-center justify-center">
+      <div class="mb-4 h-16 w-16 animate-spin rounded-full border-8 border-amber-200 border-t-amber-500"></div>
+      <p class="animate-pulse text-lg font-black tracking-wide text-amber-400">A PREPARAR...</p>
+    </div>
 
-				<div class="grid w-full grid-cols-1 gap-3 md:gap-4">
-					{#each $rushStore.questionData.options as option}
-						<button
-							class="group relative flex min-h-[60px] items-center justify-between rounded-2xl border-b-4 p-4 text-left font-bold transition-all
-                            {selectedOption === option && isCorrect === null
-								? 'border-amber-300 bg-amber-100 text-amber-800'
-								: selectedOption === option && isCorrect
-									? 'scale-[1.01] border-green-700 bg-green-500 text-white'
-									: selectedOption === option && !isCorrect
-										? 'border-rose-700 bg-rose-500 text-white'
-										: selectedOption && option === $rushStore.questionData.correct_answer
-											? 'border-green-700 bg-green-500 text-white opacity-100'
-											: 'border-slate-200 bg-white text-slate-600 active:translate-y-1 active:border-b-0'}"
-							class:text-base={option.length > 25}
-							class:text-lg={option.length <= 25}
-							on:click={() => handleAnswer(option)}
-							disabled={!!selectedOption}
-							style={selectedOption &&
-							option !== selectedOption &&
-							option !== $rushStore.questionData.correct_answer
-								? 'opacity: 0.5'
-								: ''}
-						>
-							<span class="pr-2 leading-tight">{option}</span>
-							{#if selectedOption === option}
-								{#if isCorrect}<CheckCircle2 size={24} class="shrink-0" />{:else}<X
-										size={24}
-										class="shrink-0"
-									/>{/if}
-							{/if}
-						</button>
-					{/each}
-				</div>
-			</div>
+  {:else if $rushStore.questionData}
+    <div
+      class="animate-pop-in scrollbar-hide mx-auto flex w-full max-w-2xl flex-1 flex-col justify-start overflow-y-auto p-4 pb-40 md:p-6"
+      bind:this={optionsContainer}
+    >
+      <!-- badges de tópico e streak -->
+      <div class="mb-4 flex shrink-0 flex-wrap items-center justify-center gap-3 md:mb-6">
+        <span class="flex items-center gap-2 rounded-full border-2 border-slate-100 bg-white px-3 py-1 text-xs font-bold tracking-wider text-slate-500 uppercase shadow-sm md:text-sm">
+          <Hash size={14} />
+          {$rushStore.selectedSubtopic}
+        </span>
+        {#if $rushStore.streak > 1}
+          <div class="animate-pop-in flex items-center gap-1 rounded-full border-2 border-orange-200 bg-orange-100 px-3 py-1 text-orange-600 shadow-sm">
+            <Flame size={14} class="animate-pulse fill-orange-500" />
+            <span class="text-xs font-black md:text-sm">COMBO x{$rushStore.streak}</span>
+          </div>
+        {/if}
 
-			{#if selectedOption}
-				<div
-					class="animate-slide-up fixed inset-x-0 bottom-0 z-50 max-h-[60vh] overflow-y-auto rounded-t-3xl p-4 shadow-[0_-10px_50px_rgba(0,0,0,0.2)] md:p-6
-                            {isCorrect
-						? 'border-t-8 border-green-500 bg-green-100'
-						: 'border-t-8 border-rose-500 bg-rose-100'}"
-				>
-					<div
-						class="mx-auto flex max-w-3xl flex-col items-center justify-between gap-4 sm:flex-row md:gap-6"
-					>
-						<div class="w-full flex-1 text-center sm:text-left">
-							{#if isCorrect}
-								<div
-									class="mb-2 flex items-center justify-center gap-2 text-xl font-black text-green-700 sm:justify-start"
-								>
-									<CheckCircle2 class="fill-current" size={24} />
-									{#if $rushStore.streak > 2}
-										IMPARÁVEL! 🔥
-									{:else}
-										ACERTASTE!
-									{/if}
-								</div>
-								<p class="text-sm leading-relaxed font-medium text-green-800 md:text-base">
-									{$rushStore.questionData.explanation || 'Muito bem! Ganhaste XP.'}
-								</p>
-							{:else}
-								<div
-									class="mb-2 flex items-center justify-center gap-2 text-xl font-black text-rose-600 sm:justify-start"
-								>
-									<X class="fill-current" size={24} /> ERRADO
-								</div>
-								<div class="text-sm font-medium text-rose-800">
-									Resposta certa: <strong
-										class="rounded border border-rose-200 bg-white px-2 py-0.5"
-										>{$rushStore.questionData.correct_answer}</strong
-									>
-								</div>
-							{/if}
-						</div>
+        <!-- 🆕 badge de tipo de pergunta -->
+        {#if $rushStore.questionData.type === 'true_false'}
+          <span class="flex items-center gap-1 rounded-full border-2 border-violet-200 bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
+            ✅❌ V / F
+          </span>
+        {:else if $rushStore.questionData.type === 'cloze'}
+          <span class="flex items-center gap-1 rounded-full border-2 border-teal-200 bg-teal-100 px-3 py-1 text-xs font-black text-teal-700">
+            📝 Completa
+          </span>
+        {/if}
+      </div>
 
-						<button
-							on:click={loadQuestion}
-							class={`w-full shrink-0 rounded-2xl border-b-4 px-8 py-4 text-lg font-black text-white shadow-xl transition-all active:translate-y-1 active:border-b-0 sm:w-auto md:text-xl
-                                ${isCorrect ? 'border-green-700 bg-green-500' : 'border-rose-700 bg-rose-500'}`}
-						>
-							{isCorrect ? 'CONTINUAR' : 'PRÓXIMA'}
-						</button>
-					</div>
-					<div class="h-[env(safe-area-inset-bottom)]"></div>
-				</div>
-			{/if}
-		{/if}
-	{:else if $rushStore.currentState === 'GAMEOVER'}
+      <!-- card da pergunta -->
+      <div class="relative mb-6 shrink-0 rounded-3xl border-b-8 border-slate-100 bg-white p-5 shadow-xl md:p-8">
+        <div class="absolute -top-3 -left-3 rotate-12 rounded-lg bg-yellow-400 p-1.5 text-white shadow-lg">
+          <Zap size={20} fill="currentColor" />
+        </div>
+
+        <!-- 🆕 Para Cloze: destaca o ___ na pergunta com cor -->
+        {#if $rushStore.questionData.type === 'cloze'}
+          <h1 class="text-center text-xl leading-snug font-black text-slate-800 md:text-2xl">
+            {#each $rushStore.questionData.question.split('___') as part, i}
+              {part}{#if i < $rushStore.questionData.question.split('___').length - 1}<span class="inline-block mx-1 min-w-[60px] border-b-4 border-teal-500 text-teal-500 text-center">___</span>{/if}
+            {/each}
+          </h1>
+        {:else}
+          <h1 class="text-center text-xl leading-snug font-black text-slate-800 md:text-2xl">
+            {$rushStore.questionData.question}
+          </h1>
+        {/if}
+      </div>
+
+      <!-- ── OPÇÕES: 3 variantes ────────────────────────────────────────── -->
+
+      <!-- TRUE / FALSE: 2 botões grandes lado a lado -->
+      {#if $rushStore.questionData.type === 'true_false'}
+        <div class="grid grid-cols-2 gap-4">
+          {#each ['Verdadeiro', 'Falso'] as option}
+            {@const isSelected = selectedOption === option}
+            {@const isRight    = isSelected && isCorrect}
+            {@const isWrong    = isSelected && !isCorrect}
+            {@const showGreen  = selectedOption && option === $rushStore.questionData.correct_answer}
+            <button
+              class="flex min-h-[90px] flex-col items-center justify-center gap-2 rounded-3xl border-b-4 p-5 font-black text-lg transition-all
+                {isRight  ? 'scale-[1.02] border-green-700 bg-green-500 text-white'
+                : isWrong  ? 'border-rose-700 bg-rose-500 text-white'
+                : showGreen ? 'border-green-700 bg-green-500 text-white'
+                : option === 'Verdadeiro'
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 active:translate-y-1 active:border-b-0'
+                  : 'border-rose-300 bg-rose-50 text-rose-700 active:translate-y-1 active:border-b-0'}"
+              on:click={() => handleAnswer(option)}
+              disabled={!!selectedOption}
+              style={selectedOption && !isSelected && option !== $rushStore.questionData.correct_answer ? 'opacity:0.4' : ''}
+            >
+              <span class="text-3xl">{option === 'Verdadeiro' ? '✅' : '❌'}</span>
+              <span>{option}</span>
+            </button>
+          {/each}
+        </div>
+
+      <!-- CLOZE: 4 opções normais mas menores (a lacuna já está na pergunta) -->
+      {:else if $rushStore.questionData.type === 'cloze'}
+        <div class="grid w-full grid-cols-2 gap-3 md:gap-4">
+          {#each $rushStore.questionData.options as option}
+            {@const isSelected = selectedOption === option}
+            {@const isRight    = isSelected && isCorrect}
+            {@const isWrong    = isSelected && !isCorrect}
+            {@const showGreen  = selectedOption && option === $rushStore.questionData.correct_answer}
+            <button
+              class="group relative flex min-h-[60px] items-center justify-center rounded-2xl border-b-4 p-4 text-center font-bold transition-all
+                {isRight  ? 'scale-[1.01] border-green-700 bg-green-500 text-white'
+                : isWrong  ? 'border-rose-700 bg-rose-500 text-white'
+                : showGreen ? 'border-green-700 bg-green-500 text-white'
+                : 'border-teal-200 bg-teal-50 text-teal-800 active:translate-y-1 active:border-b-0'}"
+              class:text-base={option.length > 15}
+              class:text-lg={option.length <= 15}
+              on:click={() => handleAnswer(option)}
+              disabled={!!selectedOption}
+              style={selectedOption && !isSelected && option !== $rushStore.questionData.correct_answer ? 'opacity:0.45' : ''}
+            >
+              {option}
+              {#if isSelected}
+                {#if isCorrect}<CheckCircle2 size={18} class="ml-1 shrink-0" />{:else}<X size={18} class="ml-1 shrink-0" />{/if}
+              {/if}
+            </button>
+          {/each}
+        </div>
+
+      <!-- MULTIPLE CHOICE: comportamento original -->
+      {:else}
+        <div class="grid w-full grid-cols-1 gap-3 md:gap-4">
+          {#each $rushStore.questionData.options as option}
+            <button
+              class="group relative flex min-h-[60px] items-center justify-between rounded-2xl border-b-4 p-4 text-left font-bold transition-all
+                {selectedOption === option && isCorrect
+                  ? 'scale-[1.01] border-green-700 bg-green-500 text-white'
+                  : selectedOption === option && !isCorrect
+                    ? 'border-rose-700 bg-rose-500 text-white'
+                    : selectedOption && option === $rushStore.questionData.correct_answer
+                      ? 'border-green-700 bg-green-500 text-white opacity-100'
+                      : 'border-slate-200 bg-white text-slate-600 active:translate-y-1 active:border-b-0'}"
+              class:text-base={option.length > 25}
+              class:text-lg={option.length <= 25}
+              on:click={() => handleAnswer(option)}
+              disabled={!!selectedOption}
+              style={selectedOption && option !== selectedOption && option !== $rushStore.questionData.correct_answer ? 'opacity: 0.5' : ''}
+            >
+              <span class="pr-2 leading-tight">{option}</span>
+              {#if selectedOption === option}
+                {#if isCorrect}<CheckCircle2 size={24} class="shrink-0" />{:else}<X size={24} class="shrink-0" />{/if}
+              {/if}
+            </button>
+          {/each}
+        </div>
+      {/if}
+      <!-- ── FIM OPÇÕES ─────────────────────────────────────────────────── -->
+
+    </div>
+
+    <!-- painel de feedback (igual para todos os tipos) -->
+    {#if selectedOption}
+      <div
+        class="animate-slide-up fixed inset-x-0 bottom-0 z-50 max-h-[60vh] overflow-y-auto rounded-t-3xl p-4 shadow-[0_-10px_50px_rgba(0,0,0,0.2)] md:p-6
+          {isCorrect ? 'border-t-8 border-green-500 bg-green-100' : 'border-t-8 border-rose-500 bg-rose-100'}"
+      >
+        <div class="mx-auto flex max-w-3xl flex-col items-center justify-between gap-4 sm:flex-row md:gap-6">
+          <div class="w-full flex-1 text-center sm:text-left">
+            {#if isCorrect}
+              <div class="mb-2 flex items-center justify-center gap-2 text-xl font-black text-green-700 sm:justify-start">
+                <CheckCircle2 class="fill-current" size={24} />
+                {#if $rushStore.streak > 2}IMPARÁVEL! 🔥{:else}ACERTASTE!{/if}
+              </div>
+              <p class="text-sm leading-relaxed font-medium text-green-800 md:text-base">
+                {$rushStore.questionData.explanation || 'Muito bem! Ganhaste XP.'}
+              </p>
+            {:else}
+              <div class="mb-2 flex items-center justify-center gap-2 text-xl font-black text-rose-600 sm:justify-start">
+                <X class="fill-current" size={24} /> ERRADO
+              </div>
+              <div class="text-sm font-medium text-rose-800">
+                Resposta certa: <strong class="rounded border border-rose-200 bg-white px-2 py-0.5">{$rushStore.questionData.correct_answer}</strong>
+              </div>
+            {/if}
+          </div>
+
+          <button
+            on:click={loadQuestion}
+            class="w-full shrink-0 rounded-2xl border-b-4 px-8 py-4 text-lg font-black text-white shadow-xl transition-all active:translate-y-1 active:border-b-0 sm:w-auto md:text-xl
+              {isCorrect ? 'border-green-700 bg-green-500' : 'border-rose-700 bg-rose-500'}"
+          >
+            {isCorrect ? 'CONTINUAR' : 'PRÓXIMA'}
+          </button>
+        </div>
+        <div class="h-[env(safe-area-inset-bottom)]"></div>
+      </div>
+    {/if}
+  {/if}
+  {:else if $rushStore.currentState === 'GAMEOVER'}
 		<div class="animate-zoom-in flex flex-1 flex-col items-center justify-center p-6 text-center">
 			<div class="mb-4 animate-bounce text-7xl md:text-8xl">
 				{#if isTimeUp}

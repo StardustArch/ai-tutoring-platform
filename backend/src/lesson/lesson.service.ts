@@ -13,49 +13,62 @@ interface LicaoSlot {
 interface LicaoEstado {
   slots: LicaoSlot[];
   currentSlotIndex: number;
-  // mapa slotIndex → exercicioId gerado nesse slot (para reusar na revisão)
   slotExercicioMap: Record<number, number>;
-  errados: number[];           // índices dos slots que o aluno errou
+  errados: number[];
   fase: 'normal' | 'revisao';
-  // Na revisão, queue é lista de slotIndex a rever; iteramos sempre no [0] e removemos quando acerta
   revisaoQueue: number[];
   perguntasRespondidas: string[];
-  // Contagem de acertos nesta tentativa (para calcular pontuação no fim)
   acertosNestaTentativa: number;
 }
 
-// O que o controller devolve ao frontend a cada pergunta
+// 🆕 Tipos de pergunta suportados
+export type QuestionType = 'multiple_choice' | 'true_false' | 'cloze' | 'direct_input';
+
 export interface LicaoQuestionResponse {
   sessaoId: number;
   progressoId: number;
   slotIndex: number;
   totalSlots: number;
   fase: 'normal' | 'revisao';
-  isLast: boolean;             // último slot desta fase
+  isLast: boolean;
   exercicioId: number;
   question: string;
   options: string[];
   correct_answer: string;
   explanation: string;
-  // contexto de repetição (para mostrar "Tentativa 3 · Melhor: 7/8")
+  questionType: QuestionType;   // 🆕
   tentativa: number;
-  melhorPontuacao: number | null;  // melhor nº de acertos em tentativas anteriores
-  totalSlotsPlan: number;          // total de slots do plano (denominador da pontuação)
+  melhorPontuacao: number | null;
+  totalSlotsPlan: number;
 }
 
 export interface LicaoAnswerResponse {
   acertou: boolean;
   explanation: string;
-  // O que vem a seguir
-  done: boolean;               // lição 100% concluída
-  revisaoCount: number;        // quantos slots ainda na revisão
-  nextReady: boolean;          // há próxima pergunta imediata
-  // Só preenchido quando done=true
-  pontuacao?: number;          // acertos nesta tentativa
-  melhorPontuacao?: number;    // melhor de sempre (inclui esta se for recorde)
+  done: boolean;
+  revisaoCount: number;
+  nextReady: boolean;
+  pontuacao?: number;
+  melhorPontuacao?: number;
   totalSlotsPlan?: number;
   tentativa?: number;
   isRecorde?: boolean;
+}
+
+// ─── Keywords que implicam Direct Input ──────────────────────────────────────
+// Adiciona aqui as strings que usas nos lesson_plan do seed quando quiseres
+// que um slot específico use input de texto livre em vez de botões.
+const DIRECT_INPUT_KEYWORDS = [
+  'escrever por extenso',
+  'escrita por extenso',
+  'escrever o número',
+  'resposta aberta',
+  'direct_input',
+];
+
+function _isDirectInputStructure(structure: string): boolean {
+  const s = structure.toLowerCase();
+  return DIRECT_INPUT_KEYWORDS.some(k => s.includes(k));
 }
 
 // ─── Serviço ─────────────────────────────────────────────────────────────────
@@ -78,15 +91,13 @@ export class LessonService {
     const meta = topico.metadata as any;
     const lessonPlan: LicaoSlot[] = meta?.lesson_plan;
     if (!lessonPlan || lessonPlan.length === 0) {
-      throw new BadRequestException('Este tópico não tem plano de lição configurado (lesson_plan no metadata).');
+      throw new BadRequestException('Este tópico não tem plano de lição configurado.');
     }
 
-    // Cancela só lições em curso (não concluídas) — lições concluídas ficam para histórico
     await this.prisma.licaoProgresso.deleteMany({
       where: { alunoId, topicoId, concluida: false }
     });
 
-    // Calcula o número desta tentativa e o melhor recorde anterior
     const historico = await this.prisma.licaoProgresso.findMany({
       where: { alunoId, topicoId, concluida: true },
       select: { tentativa: true, melhorPontuacao: true },
@@ -97,12 +108,11 @@ export class LessonService {
       ? Math.max(...historico.map(h => h.melhorPontuacao ?? 0))
       : null;
 
-    // Cria sessão de estudo
     const sessao = await this.prisma.sessaoEstudo.create({
       data: {
         alunoId,
         turmaId: turmaId || null,
-        modo: 'LICAO' as any,
+        modo: 'LESSON' as any,
         topicosAlvo: [topicoId],
         status: 'EM_ANDAMENTO',
       }
@@ -131,15 +141,10 @@ export class LessonService {
       }
     });
 
-return await this._gerarPerguntaParaSlot(
-      progresso.id, 
-      sessao.id, 
-      estadoInicial, 
-      topico, 
-      0, 
-      tentativa, 
-      melhorAnterior
-    );  }
+    return await this._gerarPerguntaParaSlot(
+      progresso.id, sessao.id, estadoInicial, topico, 0, tentativa, melhorAnterior,
+    );
+  }
 
   // ── 2. RESPONDER E AVANÇAR ──────────────────────────────────────────────────
   async answerSlot(
@@ -158,10 +163,14 @@ return await this._gerarPerguntaParaSlot(
     const exercicio = await this.prisma.exercicio.findUnique({ where: { id: exercicioId } });
     if (!exercicio) throw new NotFoundException('Exercício não encontrado');
 
-    const acertou = String(respostaAluno).trim() === String(exercicio.resposta).trim();
+    // 🆕 Comparação normalizada — essencial para Direct Input
+    // "540 000" == "540.000" == "540000"
+    const normalizar = (s: string) =>
+      s.trim().toLowerCase().replace(/[\s.,]/g, '');
+    const acertou = normalizar(respostaAluno) === normalizar(exercicio.resposta);
+
     const estado = progresso.estado as unknown as LicaoEstado;
 
-    // Guarda resultado na BD (para relatórios)
     await this.prisma.exercicioResultado.create({
       data: {
         alunoId: progresso.alunoId,
@@ -179,25 +188,18 @@ return await this._gerarPerguntaParaSlot(
         where: { id: progresso.alunoId },
         data: { xp: { increment: 15 } }
       });
-      // Conta acertos na fase normal (os da revisão não contam — já foram contados como erros)
       if (estado.fase === 'normal') {
         estado.acertosNestaTentativa = (estado.acertosNestaTentativa || 0) + 1;
       }
     }
 
-    // ── Qual slot acabou de ser respondido? ──────────────────────────────────
-    // Na fase normal: é currentSlotIndex
-    // Na fase revisão: é sempre o primeiro da queue (revisaoQueue[0])
     const slotRespondido = estado.fase === 'normal'
       ? estado.currentSlotIndex
       : estado.revisaoQueue[0];
 
-    // ── Actualizar estado consoante acerto/erro ──────────────────────────────
     if (estado.fase === 'normal') {
-      if (!acertou) {
-        if (!estado.errados.includes(slotRespondido)) {
-          estado.errados.push(slotRespondido);
-        }
+      if (!acertou && !estado.errados.includes(slotRespondido)) {
+        estado.errados.push(slotRespondido);
       }
       estado.currentSlotIndex++;
 
@@ -213,7 +215,6 @@ return await this._gerarPerguntaParaSlot(
           estado.currentSlotIndex = 0;
         }
       }
-
     } else {
       if (acertou) {
         estado.revisaoQueue.shift();
@@ -223,14 +224,12 @@ return await this._gerarPerguntaParaSlot(
           estado.revisaoQueue.push(slotRespondido);
         }
       }
-
       if (estado.revisaoQueue.length === 0) {
         const stats = await this._concluirLicao(progressoId, progresso.sessaoId!, estado);
         return { acertou, explanation: exercicio.resposta, done: true, revisaoCount: 0, nextReady: false, ...stats };
       }
     }
 
-    // Guarda estado actualizado
     await this.prisma.licaoProgresso.update({
       where: { id: progressoId },
       data: { estado: estado as any }
@@ -245,25 +244,24 @@ return await this._gerarPerguntaParaSlot(
     };
   }
 
-  // helper privado para fechar a lição e devolver stats finais
+  // ── HELPER: concluir lição ──────────────────────────────────────────────────
   private async _concluirLicao(
     progressoId: number,
     sessaoId: number,
     estado: LicaoEstado,
   ): Promise<{ pontuacao: number; melhorPontuacao: number; tentativa: number; totalSlotsPlan: number; isRecorde: boolean }> {
 
-    const pontuacao = estado.acertosNestaTentativa;
+    const pontuacao      = estado.acertosNestaTentativa;
     const totalSlotsPlan = estado.slots.length;
 
-    // Vai buscar o melhor anterior (sem esta tentativa ainda)
     const progresso = await this.prisma.licaoProgresso.findUnique({
       where: { id: progressoId },
       select: { tentativa: true, melhorPontuacao: true }
     });
-    const tentativa = progresso?.tentativa ?? 1;
+    const tentativa      = progresso?.tentativa ?? 1;
     const melhorAnterior = progresso?.melhorPontuacao ?? 0;
-    const novaMelhor = Math.max(melhorAnterior, pontuacao);
-    const isRecorde = pontuacao > melhorAnterior;
+    const novaMelhor     = Math.max(melhorAnterior, pontuacao);
+    const isRecorde      = pontuacao > melhorAnterior;
 
     await this.prisma.sessaoEstudo.update({
       where: { id: sessaoId },
@@ -290,15 +288,15 @@ return await this._gerarPerguntaParaSlot(
     const estado = progresso.estado as unknown as LicaoEstado;
 
     if (estado.fase === 'revisao') {
-      // Na revisão: o slot a rever é sempre o primeiro da queue
-      const slotIndex = estado.revisaoQueue[0];
-
-      // Reutiliza o exercício original que o aluno errou
+      const slotIndex   = estado.revisaoQueue[0];
       const exercicioId = estado.slotExercicioMap[slotIndex];
+
       if (exercicioId) {
         const exercicio = await this.prisma.exercicio.findUnique({ where: { id: exercicioId } });
         if (exercicio) {
-          const totalSlots = estado.revisaoQueue.length;
+          const totalSlots  = estado.revisaoQueue.length;
+          const slot        = estado.slots[slotIndex];
+          const questionType = this._resolveQuestionType(slot, exercicio.tipo);
           return {
             sessaoId: progresso.sessaoId!,
             progressoId,
@@ -311,50 +309,48 @@ return await this._gerarPerguntaParaSlot(
             options: exercicio.opcoesJson as string[],
             correct_answer: exercicio.resposta,
             explanation: '',
+            questionType,
             tentativa: progresso.tentativa,
             melhorPontuacao: progresso.melhorPontuacao,
             totalSlotsPlan: estado.slots.length,
           };
         }
       }
-      // fallback: gera nova (não devia acontecer)
-return this._gerarPerguntaParaSlot(progresso.id, progresso.sessaoId!, estado, progresso.topico, slotIndex, progresso.tentativa, progresso.melhorPontuacao);    }
+      return this._gerarPerguntaParaSlot(
+        progresso.id, progresso.sessaoId!, estado, progresso.topico,
+        slotIndex, progresso.tentativa, progresso.melhorPontuacao,
+      );
+    }
 
-    // Fase normal
     const slotIndex = estado.currentSlotIndex;
     return this._gerarPerguntaParaSlot(
-      progresso.id,
-      progresso.sessaoId!,
-      estado,
-      progresso.topico,
-      slotIndex,
-      progresso.tentativa,       // 🔥 NOVO
-      progresso.melhorPontuacao  // 🔥 NOVO
+      progresso.id, progresso.sessaoId!, estado, progresso.topico,
+      slotIndex, progresso.tentativa, progresso.melhorPontuacao,
     );
   }
 
-  // ── HELPER: gera pergunta para um slot específico ───────────────────────────
+  // ── HELPER: resolve tipo ────────────────────────────────────────────────────
+  private _resolveQuestionType(slot: LicaoSlot, tipoNaBd?: string): QuestionType {
+    const validos: QuestionType[] = ['true_false', 'cloze', 'direct_input', 'multiple_choice'];
+    if (tipoNaBd && validos.includes(tipoNaBd as QuestionType)) {
+      return tipoNaBd as QuestionType;
+    }
+    if (_isDirectInputStructure(slot.structure)) return 'direct_input';
+    return 'multiple_choice';
+  }
+
+  // ── HELPER: gera pergunta para um slot ──────────────────────────────────────
   private async _gerarPerguntaParaSlot(
     progressoId: number,
     sessaoId: number,
     estado: LicaoEstado,
     topico: any,
     slotIndex: number,
-    tentativa: number,               // 🔥 NOVO
-    melhorPontuacao: number | null,  // 🔥 NOVO
+    tentativa: number = 1,
+    melhorPontuacao: number | null = null,
   ): Promise<LicaoQuestionResponse> {
 
     const slot = estado.slots[slotIndex];
-    const meta = topico.metadata as any;
-
-    // Constrói context_rules só com a estrutura deste slot (força o motor)
-    const rulesParaSlot = `
-PERMITIDO:
-- ${slot.structure}
-
-PROIBIDO:
-- QUALQUER operação matemática (+, -, x, ÷)
-`;
 
     const pergunta = await this.cache.getQuestion({
       classe: topico.nivelClasse,
@@ -364,14 +360,18 @@ PROIBIDO:
       historicoRecente: estado.perguntasRespondidas,
     });
 
-    // Guarda no histórico para não repetir
     estado.perguntasRespondidas.push(pergunta.question);
     await this.prisma.licaoProgresso.update({
       where: { id: progressoId },
       data: { estado: estado as any }
     });
 
-    // Cria/reaproveita exercício na BD
+    // Tipo: usa o que a IA devolveu se existir, senão infere pelo structure
+    const questionType: QuestionType =
+      (pergunta as any).type && (pergunta as any).type !== 'multiple_choice'
+        ? (pergunta as any).type as QuestionType
+        : this._resolveQuestionType(slot);
+
     let exercicioDb = await this.prisma.exercicio.findFirst({
       where: { topicoId: topico.id, pergunta: pergunta.question }
     });
@@ -379,7 +379,7 @@ PROIBIDO:
       exercicioDb = await this.prisma.exercicio.create({
         data: {
           topicoId: topico.id,
-          tipo: 'multiple_choice',
+          tipo: questionType,           // 🆕 guarda o tipo para reutilizar na revisão
           pergunta: pergunta.question,
           opcoesJson: pergunta.options,
           resposta: pergunta.correct_answer,
@@ -388,7 +388,6 @@ PROIBIDO:
       });
     }
 
-    // Guarda o exercicioId neste slot para reutilizar na revisão
     if (!estado.slotExercicioMap) estado.slotExercicioMap = {};
     estado.slotExercicioMap[slotIndex] = exercicioDb.id;
     await this.prisma.licaoProgresso.update({
@@ -400,22 +399,19 @@ PROIBIDO:
       ? estado.slots.length
       : estado.revisaoQueue.length;
 
-    const currentPos = estado.fase === 'normal'
-      ? estado.currentSlotIndex
-      : estado.currentSlotIndex;
-
     return {
       sessaoId,
       progressoId,
       slotIndex,
       totalSlots,
       fase: estado.fase,
-      isLast: currentPos === totalSlots - 1,
+      isLast: estado.currentSlotIndex === totalSlots - 1,
       exercicioId: exercicioDb.id,
       question: pergunta.question,
       options: pergunta.options as string[],
       correct_answer: pergunta.correct_answer,
       explanation: pergunta.explanation || '',
+      questionType,
       tentativa,
       melhorPontuacao,
       totalSlotsPlan: estado.slots.length,

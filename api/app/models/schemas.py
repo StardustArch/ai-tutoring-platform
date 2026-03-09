@@ -10,10 +10,12 @@ class RushRequest(BaseModel):
     context_rules: str = ""
 
 class RushResponse(BaseModel):
+    type: str = "multiple_choice"   # "multiple_choice" | "true_false" | "cloze"
     question: str
     options: List[str]
     correct_answer: str
     explanation: str
+
 
 class ChatRequest(BaseModel):
     student_id: int
