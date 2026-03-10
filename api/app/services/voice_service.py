@@ -49,7 +49,7 @@ async def generate_voice_audio(text_list):
         await communicate.save(file_path)
         
         # Devolve o caminho relativo para o Svelte juntar ao domínio
-        return f"/static/audio_cache/{file_name}" 
+        return file_name
         
     except Exception as e:
         print(f"Erro no TTS: {e}")
