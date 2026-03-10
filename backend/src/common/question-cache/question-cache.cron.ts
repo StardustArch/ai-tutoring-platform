@@ -55,7 +55,7 @@ export class QuestionCacheCron {
     const deadlineMs = startTime + this.MAX_DURATION_MS; // A hora exata em que TEM de parar!
 
     const aiUrl =
-      process.env.IA_API_URL || 'https://ai-tutoring-platform.onrender.com';
+      process.env.IA_API_URL || 'https://ai-tutoring-platform-17je.onrender.com';
 
     // 1. Acordar o Python
     const isAwake = await this.waitForAiToWakeUp(aiUrl);
