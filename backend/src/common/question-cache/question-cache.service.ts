@@ -65,7 +65,7 @@ this.logger.debug(`🔍 Procurando: Topico ${topicoId}, Level ${dificuldade}, Cl
   /**
    * 🚀 FUNÇÃO DE REPOSIÇÃO EM MASSA (O Momento do Worker)
    */
-  async refillStock(topicId: number, targetAmount = 20, isBackground = true) {
+  async refillStock(topicId: number, targetAmount = 20, isBackground = true, deadlineMs?: number) {
     const topico = await this.prisma.topico.findUnique({ 
         where: { id: topicId },
         include: { disciplina: true } 
@@ -77,7 +77,12 @@ this.logger.debug(`🔍 Procurando: Topico ${topicoId}, Level ${dificuldade}, Cl
     const signature = this.generateSignature(contextRules);
 
     for (let nivel = 1; nivel <= 5; nivel++) {
-      // Pega todas as perguntas que JÁ ESTÃO no armazém para este nível
+      // ⏱️ O NOVO GUARDA-COSTAS DO TEMPO
+      if (deadlineMs && Date.now() >= deadlineMs) {
+        this.logger.warn(`🛑 [FIM DE TURNO] O tempo esgotou a meio do tópico ${topico.nome} (Nível ${nivel}). Abortando refill...`);
+        return; // Sai IMEDIATAMENTE da função inteira!
+      }
+
       const existentes = await this.prisma.questaoCache.findMany({
         where: { topicoId: topicId, dificuldade: nivel, signatureHash: signature },
         select: { pergunta: true }
@@ -89,27 +94,29 @@ this.logger.debug(`🔍 Procurando: Topico ${topicoId}, Level ${dificuldade}, Cl
       if (needs > 0) {
         this.logger.log(`📦 Repondo estoque: Tópico ${topico.nome} | Nível ${nivel} | Faltam ${needs}`);
         
-        // A nossa "Lista Negra" inicial é o que já está na BD
         const historicoAtualizado = existentes.map(e => e.pergunta);
-        const iteracoes = Math.min(needs, 5); // Limita a 5 por ciclo para não sobrecarregar a API
+        const iteracoes = Math.min(needs, 5);
 
-        // 🔥 SEQUENCIAL: Evita race conditions e permite à IA saber o que acabou de gerar
         for (let i = 0; i < iteracoes; i++) {
             try {
+                // ⏱️ VERIFICAÇÃO FINAL ANTES DE PEDIR À IA
+                if (deadlineMs && Date.now() >= deadlineMs) {
+                   this.logger.warn(`🛑 Tempo limite atingido antes de gerar nova questão. Saindo...`);
+                   return;
+                }
+
                 const gerada = await this.generateAndCache({
                     classe: topico.nivelClasse,
                     disciplina: topico.disciplina.nome.toLowerCase(),
                     topicoId: topicId,
                     dificuldade: nivel,
-                    historicoRecente: historicoAtualizado // Envia a lista negra para a IA
+                    historicoRecente: historicoAtualizado
                 }, signature, contextRules, topico.nome, isBackground);
 
-                // Adiciona a pergunta recém-gerada à lista negra para a PRÓXIMA iteração do loop
                 if (gerada && gerada.question) {
                     historicoAtualizado.push(gerada.question);
                 }
                 
-                // Pequeno respiro entre pedidos para aliviar a API
                 await new Promise(resolve => setTimeout(resolve, 800));
 
             } catch (err) {
