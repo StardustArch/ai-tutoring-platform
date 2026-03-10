@@ -22,6 +22,7 @@ import { HealthModule } from './health/health.module';
 import { QuestionCacheModule } from './common/question-cache/question-cache.module';
 import { RushModule } from './rush/rush.module';
 import { LessonModule } from './lesson/lesson.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [AuthModule,
@@ -43,9 +44,11 @@ import { LessonModule } from './lesson/lesson.module';
     HealthModule,
     QuestionCacheModule,
     RushModule,
-    LessonModule
+    LessonModule,
+    ScheduleModule.forRoot()
     ],
   controllers: [AppController],
   providers: [AppService],
 })
+
 export class AppModule {}
