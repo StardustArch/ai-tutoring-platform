@@ -31,7 +31,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# 1. Caminho absoluto à prova de falhas no Render
+ROOT_DIR = os.getcwd()
+STATIC_DIR = os.path.join(ROOT_DIR, "static")
+
+# 2. Garante que as pastas existem ANTES de montar
+os.makedirs(os.path.join(STATIC_DIR, "audio_cache"), exist_ok=True)
+
+# 3. A LINHA MÁGICA: Monta a pasta para a internet ver (Se faltar isto, dá o tal JSON de erro!)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 
 @app.post("/generate-rush-question", response_model=RushResponse)
 async def generate_rush_question(request: RushRequest):

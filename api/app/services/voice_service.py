@@ -4,11 +4,11 @@ import os
 import time
 from app.utils.text_helpers import remove_emojis, remove_broken_emoji_codes
 
-STORAGE_PATH = "static/audio_cache"
+# Força o caminho absoluto igual ao do main.py
+ROOT_DIR = os.getcwd()
+STORAGE_PATH = os.path.join(ROOT_DIR, "static", "audio_cache")
 
 def cleanup_old_audio(max_age_seconds=600):
-    """Remove ficheiros .mp3 antigos para não encher o disco."""
-    # 🚨 FIX: Se a pasta não existe, não há nada para limpar
     if not os.path.exists(STORAGE_PATH):
         return
 
@@ -26,7 +26,6 @@ async def generate_voice_audio(text_list):
     if not text_list:
         return None
         
-    # 🚨 PASSO CRÍTICO: Garante que a pasta existe antes de tentar gravar
     if not os.path.exists(STORAGE_PATH):
         os.makedirs(STORAGE_PATH, exist_ok=True)
         print(f"📁 Pasta {STORAGE_PATH} criada no Render.")
@@ -35,7 +34,6 @@ async def generate_voice_audio(text_list):
 
     try:
         full_text = " ".join(text_list)
-        # O segredo para o áudio limpo:
         clean_text = remove_emojis(full_text)
         clean_text = remove_broken_emoji_codes(clean_text)
         
@@ -50,7 +48,9 @@ async def generate_voice_audio(text_list):
         )
         await communicate.save(file_path)
         
-        return file_name
+        # Devolve o caminho relativo para o Svelte juntar ao domínio
+        return f"/static/audio_cache/{file_name}" 
+        
     except Exception as e:
         print(f"Erro no TTS: {e}")
         return None
