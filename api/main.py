@@ -41,7 +41,7 @@ async def generate_rush_question(request: RushRequest):
 async def generate_chat_response(request: ChatRequest):
     return await generate_chat_response_logic(request)
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD", "POST", "OPTIONS"])
 def health_check():
     return {"status": "ok", "service": "KMind-ai"}
 
