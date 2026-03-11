@@ -1,3 +1,4 @@
+
 import json
 import re
 import random
@@ -38,6 +39,7 @@ Check the [STATE: TYPE] tag in the chat history.
    - **User Wrong:** -> Give a Hint, SET "assessment": "INCORRECT" & Retry ([TESTING]).
    - **User Correct:** -> DO NOT EXPLAIN NEW TOPIC IMMEDIATELY.
      - **ACTION:** Praise the student ("Boa!", "Fantástico!") & SET "assessment": "CORRECT".
+        - **CRITICAL REQUIREMENT:** YOU MUST SET "assessment": "CORRECT" IN THE JSON. DO NOT LEAVE IT NULL.
      - **DECISION:** Ask if they want a harder challenge or move on.
      - **OUTPUT:** "interaction_type": "CHIPS", "interaction_data": {{ "options": ["Mais um desafio!", "Avançar matéria"] }}
 
@@ -84,15 +86,35 @@ K:
 1. **TEST WHAT YOU TAUGHT:** The question in [TESTING] MUST be answerable ONLY using the information given in the previous [EXPLANATION].
 2. **SCAFFOLDING:** If the topic is grammar (Verbs), TEACH the forms (conjugation) visually in the [EXPLANATION] bubble before asking about them.
 3. **MATH ACCURACY (STRICT FACT-CHECKING):** Double-check ALL math calculations and place values before outputting. 
-   Use ONLY this exact nomenclature for place values (from right to left):
-   - 1 = unidades
-   - 10 = dezenas
-   - 100 = centenas
-   - 1.000 = unidades de milhar
-   - 10.000 = dezenas de milhar
-   - 100.000 = centenas de milhar
-   - 1.000.000 = milhões
-   (Example: In 87.654, 4=unidades, 5=dezenas, 6=centenas, 7=unidades de milhar, 8=dezenas de milhar). DO NOT hallucinate incorrect facts.
+   🧠 PLACE VALUE ALGORITHM (MANDATORY BEFORE ANSWERING):
+
+    When asked about the place value of a digit:
+
+    1. Remove dots from the number.
+    2. Count positions from right to left.
+    3. Use this table:
+
+    1 → unidades
+    10 → dezenas
+    100 → centenas
+    1.000 → unidades de milhar
+    10.000 → dezenas de milhar
+    100.000 → centenas de milhar
+    1.000.000 → milhões
+
+    Example:
+    Number: 540000
+    Positions:
+    0 = unidades
+    0 = dezenas
+    0 = centenas
+    0 = unidades de milhar
+    4 = dezenas de milhar
+    5 = centenas de milhar
+
+    So the digit 5 is in "centenas de milhar".
+
+    You MUST perform this reasoning before answering.
 
 ⛔ ANTI-SPOILER RULE (CRITICAL):
 In [TESTING] mode (Quizzes):
@@ -153,7 +175,7 @@ OUTPUT JSON ONLY:
   ],
   "emotion": "HAPPY" | "INTERESTED" | "THOUGHTFUL",
   "interaction_type": "EXPLANATION" | "CHIPS" | "TRUE_FALSE" | "CLOZE" | "DRAG_DROP" | "DIRECT_INPUT",  
-  "assessment": "CORRECT" | "INCORRECT" | null,
+  "assessment": "CORRECT" | "INCORRECT" | null, // CRITICAL: If you praise an answer, MUST be "CORRECT". If you correct an error, MUST be "INCORRECT". ONLY use null for pure EXPLANATION.
   "interaction_data": {{
       "options": ["Option A", "Option B"]
   }}
@@ -248,9 +270,71 @@ def _sanitize_tutor_response(obj: dict) -> dict:
             obj["interaction_type"] = "CHIPS"
             obj["interaction_data"] = {"options": ["Continuar"]}
         return obj
+    if obj.get("assessment") is None:
+        text = " ".join(messages).lower()
+
+        if any(word in text for word in [
+            "muito bem", "boa", "fantástico", "correto", "certo", "👏", "🎉"
+        ]):
+            obj["assessment"] = "CORRECT"
+
+        elif any(word in text for word in [
+            "quase", "tenta novamente", "não", "errado"
+        ]):
+            obj["assessment"] = "INCORRECT"
 
     return obj
 
+
+
+PLACE_VALUES = {
+    0: "unidades",
+    1: "dezenas",
+    2: "centenas",
+    3: "unidades de milhar",
+    4: "dezenas de milhar",
+    5: "centenas de milhar",
+    6: "milhões"
+}
+
+def correct_place_value(messages):
+    text = " ".join(messages)
+
+    # procura padrão tipo: "5 em 540.000"
+    match = re.search(r"(\d)\s+em\s+([\d\.]+)", text)
+
+    if not match:
+        return messages
+
+    digit = match.group(1)
+    number = match.group(2).replace(".", "")
+
+    number_str = str(number)
+
+    for i, d in enumerate(number_str):
+        if d == digit:
+            pos = len(number_str) - i - 1
+            correct_value = PLACE_VALUES.get(pos)
+
+            if not correct_value:
+                return messages
+
+            # corrige se o LLM escreveu errado
+            new_messages = []
+            for m in messages:
+
+                if "casa" in m.lower():
+                    m = re.sub(
+                        r"casa das [a-zA-Z\s]+",
+                        f"casa das {correct_value}",
+                        m
+                    )
+
+                new_messages.append(m)
+
+            return new_messages
+
+    return messages
 
 # ==============================================================================
 # LÓGICA PRINCIPAL
@@ -297,7 +381,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
 
         # 🔥 FIX 2: Sanitiza o response ANTES de gerar o áudio
         json_obj = _sanitize_tutor_response(json_obj)
-
+        json_obj["messages"] = correct_place_value(json_obj.get("messages", []))
         json_obj["messages"] = [
             remove_broken_emojis(clean_unicode(m))
             for m in json_obj.get("messages", [])
