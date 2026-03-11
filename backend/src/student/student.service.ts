@@ -3,22 +3,73 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 
+// ─── Helper: extrai dados úteis do JSON guardado pela IA ─────────────────────
+// O GPT-4o às vezes serializa sem espaços ("assessment":"CORRECT") e outras
+// vezes com espaços ("assessment": "CORRECT"). Para não depender de contains
+// exacto, parsemos o JSON e lemos os campos directamente.
+function _parseRespostaIa(raw: string): {
+  acertou: boolean | null;
+  pergunta: string | null;
+  tipoInteracao: string | null;
+} {
+  try {
+    const obj = JSON.parse(raw);
+    const assessment: string | null = obj.assessment ?? null;
+    const acertou = assessment === 'CORRECT' ? true
+                  : assessment === 'INCORRECT' ? false
+                  : null;
+
+    // A última mensagem do array é normalmente a pergunta feita ao aluno
+    const msgs: string[] = obj.messages ?? [];
+    const pergunta = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+
+    const tipoInteracao: string | null = obj.interaction_type ?? null;
+    return { acertou, pergunta, tipoInteracao };
+  } catch {
+    return { acertou: null, pergunta: null, tipoInteracao: null };
+  }
+}
+
+// ─── Helper: formata o tipo de interação de forma legível ─────────────────────
+function _formatarTipoAtividade(
+  tipoInteracao: string | null,
+  acertou: boolean | null,
+  tipoDb: string
+): string {
+  // Se foi uma avaliação (o Kani esperava uma resposta)
+  if (acertou !== null) {
+    const TIPO_LABEL: Record<string, string> = {
+      CHIPS:        'Escolha múltipla',
+      TRUE_FALSE:   'Verdadeiro/Falso',
+      CLOZE:        'Completar a frase',
+      DIRECT_INPUT: 'Resposta aberta',
+      DRAG_DROP:    'Ordenar itens',
+    };
+    const label = TIPO_LABEL[tipoInteracao ?? ''] ?? 'Exercício';
+    return acertou ? `${label} — Acertou ✅` : `${label} — Errou ❌`;
+  }
+
+  // Se não foi avaliação, classifica pela intenção
+  const DE_PARA: Record<string, string> = {
+    EXPLANATION: 'Solicitou explicação',
+    EXERCICIO:   'Resolveu exercício',
+    PERGUNTA:    'Tirou dúvida',
+    EXPLICACAO:  'Solicitou explicação',
+    RUSH:        'Desafio rápido',
+    SAUDACAO:    'Conversa inicial',
+  };
+  return DE_PARA[tipoDb] ?? DE_PARA[tipoInteracao ?? ''] ?? 'Interação';
+}
+
 @Injectable()
 export class StudentService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   // --- CRIAR ALUNO ---
   async create(usuarioId: number, dto: CreateStudentDto) {
-    // 1. Obter o ID do perfil de Encarregado
-    const encarregado = await this.prisma.encarregado.findUnique({
-      where: { usuarioId },
-    });
+    const encarregado = await this.prisma.encarregado.findUnique({ where: { usuarioId } });
+    if (!encarregado) throw new ForbiddenException('Apenas encarregados podem registar alunos.');
 
-    if (!encarregado) {
-      throw new ForbiddenException('Apenas encarregados podem registar alunos.');
-    }
-
-    // 2. Criar o aluno ligado ao Encarregado
     const aluno = await this.prisma.aluno.create({
       data: {
         nome: dto.nome,
@@ -28,11 +79,7 @@ export class StudentService {
         encarregadoId: encarregado.id,
       },
     });
-
-    return {
-      message: 'Educando registado com sucesso!',
-      aluno,
-    };
+    return { message: 'Educando registado com sucesso!', aluno };
   }
 
   // --- LISTAR MEUS ALUNOS ---
@@ -42,414 +89,250 @@ export class StudentService {
       include: {
         alunos: {
           orderBy: { nome: 'asc' },
-          include: {
-            _count: { select: { alunoTurmas: true } } // Contar em quantas turmas está
-          }
+          include: { _count: { select: { alunoTurmas: true } } }
         }
       }
     });
-
     if (!encarregado) return [];
-
     return encarregado.alunos;
   }
 
   // --- OBTER UM ALUNO ---
   async findOne(id: number, usuarioId: number) {
     await this.validarPropriedade(id, usuarioId);
-
-const aluno = await this.prisma.aluno.findUnique({
+    return this.prisma.aluno.findUnique({
       where: { id },
       include: {
         alunoTurmas: {
           include: {
             turma: {
-              include: { 
+              include: {
                 disciplina: true,
-                professor: {          // 1. Inclui a relação com o Professor
-                  include: {
-                    usuario: true     // 2. Inclui a relação com o Usuário para apanhar o nome
-                  }
-                }
+                professor: { include: { usuario: true } }
               }
             }
           }
         }
       }
     });
-
-    return aluno;
   }
 
   // --- ATUALIZAR ALUNO ---
   async update(id: number, usuarioId: number, dto: UpdateStudentDto) {
     await this.validarPropriedade(id, usuarioId);
-
     const dataUpdate: any = { ...dto };
-
-    // Converter data se existir
-    if (dto.dataNascimento) {
-      dataUpdate.dataNascimento = new Date(dto.dataNascimento);
-    }
-
-    const aluno = await this.prisma.aluno.update({
-      where: { id },
-      data: dataUpdate,
-    });
-
-    return {
-      message: 'Dados atualizados com sucesso',
-      aluno
-    };
+    if (dto.dataNascimento) dataUpdate.dataNascimento = new Date(dto.dataNascimento);
+    const aluno = await this.prisma.aluno.update({ where: { id }, data: dataUpdate });
+    return { message: 'Dados atualizados com sucesso', aluno };
   }
 
   // --- REMOVER ALUNO ---
   async remove(id: number, usuarioId: number) {
     await this.validarPropriedade(id, usuarioId);
-
-    // Nota: O `onDelete: Cascade` no Prisma Schema tratará de limpar as relações
-    await this.prisma.aluno.delete({
-      where: { id },
-    });
-
+    await this.prisma.aluno.delete({ where: { id } });
     return { message: 'Educando removido com sucesso' };
   }
 
   // --- AUXILIAR DE SEGURANÇA ---
-  // Garante que o aluno pertence ao utilizador que está a fazer o pedido
   private async validarPropriedade(alunoId: number, usuarioId: number) {
     const aluno = await this.prisma.aluno.findFirst({
-      where: {
-        id: alunoId,
-        encarregado: { usuarioId }
-      }
+      where: { id: alunoId, encarregado: { usuarioId } }
     });
-
-    if (!aluno) {
-      throw new NotFoundException('Educando não encontrado ou sem permissão.');
-    }
+    if (!aluno) throw new NotFoundException('Educando não encontrado ou sem permissão.');
   }
-async getGuardianReport(alunoId: number, usuarioId: number) {
-    // ---------------------------------------------------------
-    // 1. VALIDAÇÃO DE SEGURANÇA
-    // ---------------------------------------------------------
+
+  // ==========================================
+  // 📊 RELATÓRIO PARA O ENCARREGADO
+  // ==========================================
+  async getGuardianReport(alunoId: number, usuarioId: number) {
     const aluno = await this.prisma.aluno.findFirst({
-      where: {
-        id: alunoId,
-        encarregado: {
-          usuarioId: usuarioId // Garante que o pai é dono do aluno
-        }
-      },
+      where: { id: alunoId, encarregado: { usuarioId } },
       select: { id: true, nome: true, classe: true }
     });
+    if (!aluno) throw new ForbiddenException('Não tem permissão para ver este relatório.');
 
-    if (!aluno) {
-      throw new ForbiddenException('Não tem permissão para ver este relatório.');
+    const chatStats = await this.prisma.chatMensagem.groupBy({
+      by: ['turmaId'], where: { alunoId }, _count: { id: true }
+    });
+
+    // 🔥 FIX: busca todas as mensagens com assessment e filtra em JS
+    // Evita falhas por diferenças de espaçamento no JSON guardado
+    const todasMensagensAvaliadas = await this.prisma.chatMensagem.findMany({
+      where: { alunoId, respostaIa: { contains: '"assessment"' } },
+      select: { turmaId: true, respostaIa: true }
+    });
+
+    const tutorCorrectStats: Record<string | 'null', number> = {};
+    const tutorTotalStats: Record<string | 'null', number> = {};
+
+    for (const m of todasMensagensAvaliadas) {
+      const key = m.turmaId?.toString() ?? 'null';
+      tutorTotalStats[key] = (tutorTotalStats[key] ?? 0) + 1;
+      const { acertou } = _parseRespostaIa(m.respostaIa);
+      if (acertou === true) tutorCorrectStats[key] = (tutorCorrectStats[key] ?? 0) + 1;
     }
 
-    // ---------------------------------------------------------
-    // 2. BUSCAR ESTATÍSTICAS DO CHAT (TUTOR)
-    // ---------------------------------------------------------
-    
-    // A. Volume Total (Quantas mensagens trocou?)
-    const chatStats = await this.prisma.chatMensagem.groupBy({
-      by: ['turmaId'],
-      where: { alunoId },
-      _count: { id: true }
-    });
-
-    // B. Acertos no Tutor (Eficiência Teórica)
-    // Procura mensagens onde a IA avaliou como "CORRECT"
-    const tutorCorrectStats = await this.prisma.chatMensagem.groupBy({
-        by: ['turmaId'],
-        where: { 
-            alunoId,
-            respostaIa: { contains: '"assessment": "CORRECT"' } 
-        },
-        _count: { id: true }
-    });
-
-    // C. Total de Avaliações no Tutor (Para calcular a %)
-    // Procura qualquer mensagem que tenha tido avaliação (CORRECT ou INCORRECT)
-    const tutorTotalStats = await this.prisma.chatMensagem.groupBy({
-        by: ['turmaId'],
-        where: { 
-            alunoId,
-            respostaIa: { contains: '"assessment":' } 
-        },
-        _count: { id: true }
-    });
-
-    // ---------------------------------------------------------
-    // 3. BUSCAR ESTATÍSTICAS DO RUSH (PRÁTICA)
-    // ---------------------------------------------------------
     const rushStats = await this.prisma.exercicioResultado.groupBy({
-      by: ['turmaId', 'acertou'],
-      where: { alunoId },
-      _count: { id: true }
+      by: ['turmaId', 'acertou'], where: { alunoId }, _count: { id: true }
     });
 
-    // ---------------------------------------------------------
-    // 4. PREPARAR DADOS DE TURMAS E DISCIPLINAS
-    // ---------------------------------------------------------
-    
-    // A. Identificar Turmas Escolares
-const turmaIds = new Set([
+    const turmaIds = new Set([
       ...chatStats.map(c => c.turmaId).filter((id): id is number => id !== null),
       ...rushStats.map(r => r.turmaId).filter((id): id is number => id !== null)
-    ])
+    ]);
 
     const turmasEscola = await this.prisma.turma.findMany({
-      where: { id: { in: Array.from(turmaIds) as number[] } },
+      where: { id: { in: Array.from(turmaIds) } },
       select: { id: true, nome: true, disciplina: { select: { nome: true } } }
     });
 
-    // B. Identificar Disciplinas Praticadas em Casa (Sem Turma)
-    // Buscamos tópicos usados em contexto standalone para saber que disciplina mostrar
     const casaTopicIdsRush = await this.prisma.exercicioResultado.findMany({
-        where: { alunoId, turmaId: null },
-        distinct: ['topicoId'], select: { topicoId: true }
+      where: { alunoId, turmaId: null }, distinct: ['topicoId'], select: { topicoId: true }
     });
     const casaTopicIdsChat = await this.prisma.chatMensagem.findMany({
-        where: { alunoId, turmaId: null, topicoId: { not: null } },
-        distinct: ['topicoId'], select: { topicoId: true }
+      where: { alunoId, turmaId: null, topicoId: { not: null } },
+      distinct: ['topicoId'], select: { topicoId: true }
     });
+    const validCasaTopicIds = Array.from(new Set([
+      ...casaTopicIdsRush.map(t => t.topicoId),
+      ...casaTopicIdsChat.map(t => t.topicoId)
+    ])).filter((id): id is number => id !== null);
 
-    const allCasaTopicIds = new Set([
-        ...casaTopicIdsRush.map(t => t.topicoId),
-        ...casaTopicIdsChat.map(t => t.topicoId)
-    ]);
-    const validCasaTopicIds = Array.from(allCasaTopicIds).filter((id): id is number => id !== null);
-
-const disciplinasCasa = await this.prisma.topico.findMany({
-        where: { id: { in: validCasaTopicIds } }, // Agora usa o array limpo
-        select: { disciplina: { select: { nome: true } } }
+    const disciplinasCasa = await this.prisma.topico.findMany({
+      where: { id: { in: validCasaTopicIds } },
+      select: { disciplina: { select: { nome: true } } }
     });
+    const disciplinasCasaStr = Array.from(new Set(disciplinasCasa.map(d => d.disciplina.nome))).join(', ');
 
-    // Cria string única ex: "Matemática, Português"
-    const disciplinasCasaStr = Array.from(new Set(disciplinasCasa.map(d => d.disciplina.nome))).join(", ");
-
-
-    // ---------------------------------------------------------
-    // 5. ANÁLISE DE PONTOS FORTES E FRACOS (GLOBAL UNIFICADO)
-    // ---------------------------------------------------------
-    
-    const topicMap = new Map<number, { total: number, acertos: number }>();
-
-    // A. Adicionar dados do RUSH ao mapa
+    // Análise por tópico
+    const topicMap = new Map<number, { total: number; acertos: number }>();
     const rushTopicStats = await this.prisma.exercicioResultado.groupBy({
-        by: ['topicoId', 'acertou'],
-        where: { alunoId },
-        _count: { id: true }
+      by: ['topicoId', 'acertou'], where: { alunoId }, _count: { id: true }
     });
-
     rushTopicStats.forEach(stat => {
-        const current = topicMap.get(stat.topicoId) || { total: 0, acertos: 0 };
-        current.total += stat._count.id;
-        if (stat.acertou) current.acertos += stat._count.id;
-        topicMap.set(stat.topicoId, current);
+      const cur = topicMap.get(stat.topicoId) ?? { total: 0, acertos: 0 };
+      cur.total += stat._count.id;
+      if (stat.acertou) cur.acertos += stat._count.id;
+      topicMap.set(stat.topicoId, cur);
     });
 
-    // B. Adicionar dados do TUTOR ao mapa
-    // Precisamos de queries agrupadas por tópico para o Tutor
-    const tutorCorrectByTopic = await this.prisma.chatMensagem.groupBy({
-        by: ['topicoId'],
-        where: { alunoId, topicoId: { not: null }, respostaIa: { contains: '"assessment": "CORRECT"' } },
-        _count: { id: true }
+    for (const m of todasMensagensAvaliadas) {
+      if (!m.respostaIa) continue;
+      // topicoId não está neste select — usamos groupBy separado abaixo
+    }
+    const tutorByTopic = await this.prisma.chatMensagem.findMany({
+      where: { alunoId, topicoId: { not: null }, respostaIa: { contains: '"assessment"' } },
+      select: { topicoId: true, respostaIa: true }
     });
-    const tutorTotalByTopic = await this.prisma.chatMensagem.groupBy({
-        by: ['topicoId'],
-        where: { alunoId, topicoId: { not: null }, respostaIa: { contains: '"assessment":' } },
-        _count: { id: true }
-    });
+    for (const m of tutorByTopic) {
+      if (!m.topicoId) continue;
+      const cur = topicMap.get(m.topicoId) ?? { total: 0, acertos: 0 };
+      cur.total++;
+      if (_parseRespostaIa(m.respostaIa).acertou === true) cur.acertos++;
+      topicMap.set(m.topicoId, cur);
+    }
 
-    tutorTotalByTopic.forEach(stat => {
-        const current = topicMap.get(stat.topicoId!) || { total: 0, acertos: 0 };
-        const totalAdd = stat._count.id;
-        const acertosAdd = tutorCorrectByTopic.find(t => t.topicoId === stat.topicoId)?._count.id || 0;
-        
-        current.total += totalAdd;
-        current.acertos += acertosAdd;
-        topicMap.set(stat.topicoId!, current);
-    });
-
-    // C. Calcular Ranking
     const allTopicIds = Array.from(topicMap.keys());
     const topicsDetails = await this.prisma.topico.findMany({
-        where: { id: { in: allTopicIds } },
-        select: { id: true, nome: true, disciplina: { select: { nome: true } } }
+      where: { id: { in: allTopicIds } },
+      select: { id: true, nome: true, disciplina: { select: { nome: true } } }
     });
-
     const rankedTopics = topicsDetails.map(t => {
-        const stats = topicMap.get(t.id)!;
-        return {
-            id: t.id,
-            nome: t.nome,
-            disciplina: t.disciplina.nome,
-            total: stats.total,
-            taxa: stats.total > 0 ? Math.round((stats.acertos / stats.total) * 100) : 0
-        };
-    })
-    .filter(t => t.total >= 2) // Mínimo 2 interações para contar
-    .sort((a, b) => b.taxa - a.taxa);
+      const s = topicMap.get(t.id)!;
+      return { id: t.id, nome: t.nome, disciplina: t.disciplina.nome, total: s.total, taxa: s.total > 0 ? Math.round((s.acertos / s.total) * 100) : 0 };
+    }).filter(t => t.total >= 2).sort((a, b) => b.taxa - a.taxa);
 
     const pontosFortes = rankedTopics.slice(0, 3).filter(t => t.taxa >= 70);
-    const pontosFracos = rankedTopics.reverse().slice(0, 3).filter(t => t.taxa < 60);
+    const pontosFracos = [...rankedTopics].reverse().slice(0, 3).filter(t => t.taxa < 60);
 
-    // ---------------------------------------------------------
-    // 6. PROCESSAMENTO DE TOTAIS E RETORNO
-    // ---------------------------------------------------------
-
-    // Helper de cálculo
     const getTutorEfficiency = (tId: number | null) => {
-        const acertos = tutorCorrectStats.find(t => t.turmaId === tId)?._count.id || 0;
-        const total = tutorTotalStats.find(t => t.turmaId === tId)?._count.id || 0;
-        return { avaliacoes: total, taxaAcerto: total > 0 ? Math.round((acertos / total) * 100) : 0 };
+      const key = tId?.toString() ?? 'null';
+      const acertos = tutorCorrectStats[key] ?? 0;
+      const total   = tutorTotalStats[key] ?? 0;
+      return { avaliacoes: total, taxaAcerto: total > 0 ? Math.round((acertos / total) * 100) : 0 };
     };
 
-    // --- Totais CASA ---
-    const chatCasaTotal = chatStats.find(c => c.turmaId === null)?._count.id || 0;
+    const chatCasaTotal = chatStats.find(c => c.turmaId === null)?._count.id ?? 0;
     const tutorCasa = getTutorEfficiency(null);
-    const rushCasaAcertos = rushStats.find(r => r.turmaId === null && r.acertou)?._count.id || 0;
-    const rushCasaTotal = (rushCasaAcertos) + (rushStats.find(r => r.turmaId === null && !r.acertou)?._count.id || 0);
+    const rushCasaAcertos = rushStats.find(r => r.turmaId === null && r.acertou)?._count.id ?? 0;
+    const rushCasaTotal = rushCasaAcertos + (rushStats.find(r => r.turmaId === null && !r.acertou)?._count.id ?? 0);
 
-    // --- Totais ESCOLA ---
-    const chatEscolaTotal = chatStats.filter(c => c.turmaId !== null).reduce((acc, curr) => acc + curr._count.id, 0);
-    const tutorEscolaAcertos = tutorCorrectStats.filter(t => t.turmaId !== null).reduce((a, c) => a + c._count.id, 0);
-    const tutorEscolaTotal = tutorTotalStats.filter(t => t.turmaId !== null).reduce((a, c) => a + c._count.id, 0);
-    const rushEscolaAcertos = rushStats.filter(r => r.turmaId !== null && r.acertou).reduce((a, c) => a + c._count.id, 0);
-    const rushEscolaTotal = rushEscolaAcertos + rushStats.filter(r => r.turmaId !== null && !r.acertou).reduce((a, c) => a + c._count.id, 0);
+    const chatEscolaTotal = chatStats.filter(c => c.turmaId !== null).reduce((a, c) => a + c._count.id, 0);
+    const tutorEscolaAcertos = Object.entries(tutorCorrectStats).filter(([k]) => k !== 'null').reduce((a, [, v]) => a + v, 0);
+    const tutorEscolaTotal   = Object.entries(tutorTotalStats).filter(([k]) => k !== 'null').reduce((a, [, v]) => a + v, 0);
+    const rushEscolaAcertos  = rushStats.filter(r => r.turmaId !== null && r.acertou).reduce((a, c) => a + c._count.id, 0);
+    const rushEscolaTotal    = rushEscolaAcertos + rushStats.filter(r => r.turmaId !== null && !r.acertou).reduce((a, c) => a + c._count.id, 0);
 
-    // --- Construção da Lista de Detalhes (Escola + Casa) ---
-    
-    // 1. Turmas Reais
     const listaFinal = turmasEscola.map(t => {
-      const msgs = chatStats.find(c => c.turmaId === t.id)?._count.id || 0;
-      const acertos = rushStats.find(r => r.turmaId === t.id && r.acertou)?._count.id || 0;
-      const totalRush = rushStats.filter(r => r.turmaId === t.id).reduce((acc, curr) => acc + curr._count.id, 0);
+      const msgs     = chatStats.find(c => c.turmaId === t.id)?._count.id ?? 0;
+      const acertos  = rushStats.find(r => r.turmaId === t.id && r.acertou)?._count.id ?? 0;
+      const totalRush = rushStats.filter(r => r.turmaId === t.id).reduce((a, c) => a + c._count.id, 0);
       const tutorMetric = getTutorEfficiency(t.id);
-
       return {
-        nome: t.nome,
-        disciplina: t.disciplina.nome,
-        interacoesChat: msgs,
+        nome: t.nome, disciplina: t.disciplina.nome, interacoesChat: msgs,
         desempenho: {
-            rush: totalRush > 0 ? Math.round((acertos / totalRush) * 100) : 0,
-            rushTotal: totalRush,
-            tutor: tutorMetric.taxaAcerto,
-            tutorTotal: tutorMetric.avaliacoes
+          rush: totalRush > 0 ? Math.round((acertos / totalRush) * 100) : 0, rushTotal: totalRush,
+          tutor: tutorMetric.taxaAcerto, tutorTotal: tutorMetric.avaliacoes
         }
       };
     });
 
-    // 2. Turma Virtual "Casa" (Adiciona se houver atividade)
     if (chatCasaTotal > 0 || rushCasaTotal > 0) {
-        listaFinal.push({
-            nome: "Estudo Autónomo (Casa)",
-            disciplina: disciplinasCasaStr || "Geral",
-            interacoesChat: chatCasaTotal,
-            desempenho: {
-                rush: rushCasaTotal > 0 ? Math.round((rushCasaAcertos / rushCasaTotal) * 100) : 0,
-                rushTotal: rushCasaTotal,
-                tutor: tutorCasa.taxaAcerto,
-                tutorTotal: tutorCasa.avaliacoes
-            }
-        });
+      listaFinal.push({
+        nome: 'Estudo Autónomo (Casa)', disciplina: disciplinasCasaStr || 'Geral',
+        interacoesChat: chatCasaTotal,
+        desempenho: {
+          rush: rushCasaTotal > 0 ? Math.round((rushCasaAcertos / rushCasaTotal) * 100) : 0, rushTotal: rushCasaTotal,
+          tutor: tutorCasa.taxaAcerto, tutorTotal: tutorCasa.avaliacoes
+        }
+      });
     }
 
     return {
-      aluno,
+      aluno, pontosFortes, pontosFracos, turmas: listaFinal,
       geral: {
-        casa: {
-          chatVolume: chatCasaTotal,
-          rushVolume: rushCasaTotal,
-          tutorVolume: tutorCasa.avaliacoes, // Volume de avaliações
-          tutorEfficiency: tutorCasa.taxaAcerto,
-          rushEfficiency: rushCasaTotal > 0 ? Math.round((rushCasaAcertos / rushCasaTotal) * 100) : 0
-        },
-        escola: {
-          chatVolume: chatEscolaTotal,
-          rushVolume: rushEscolaTotal,
-          tutorVolume: tutorEscolaTotal, // Volume de avaliações
-          tutorEfficiency: tutorEscolaTotal > 0 ? Math.round((tutorEscolaAcertos / tutorEscolaTotal) * 100) : 0,
-          rushEfficiency: rushEscolaTotal > 0 ? Math.round((rushEscolaAcertos / rushEscolaTotal) * 100) : 0
-        }
-      },
-      pontosFortes,
-      pontosFracos,
-      turmas: listaFinal // Contém Turmas Reais + Casa
+        casa: { chatVolume: chatCasaTotal, rushVolume: rushCasaTotal, tutorVolume: tutorCasa.avaliacoes, tutorEfficiency: tutorCasa.taxaAcerto, rushEfficiency: rushCasaTotal > 0 ? Math.round((rushCasaAcertos / rushCasaTotal) * 100) : 0 },
+        escola: { chatVolume: chatEscolaTotal, rushVolume: rushEscolaTotal, tutorVolume: tutorEscolaTotal, tutorEfficiency: tutorEscolaTotal > 0 ? Math.round((tutorEscolaAcertos / tutorEscolaTotal) * 100) : 0, rushEfficiency: rushEscolaTotal > 0 ? Math.round((rushEscolaAcertos / rushEscolaTotal) * 100) : 0 }
+      }
     };
   }
 
+  // ==========================================
+  // 👨‍👩‍👦 VISÃO GERAL DO ENCARREGADO
+  // ==========================================
   async getGuardianOverview(usuarioId: number) {
     const encarregado = await this.prisma.encarregado.findUnique({
-      where: { usuarioId },
-      include: { alunos: { select: { id: true } } }
+      where: { usuarioId }, include: { alunos: { select: { id: true } } }
     });
-
     if (!encarregado) throw new ForbiddenException('Perfil não encontrado.');
     const alunoIds = encarregado.alunos.map(a => a.id);
-
     if (alunoIds.length === 0) return { totalAlunos: 0, totalAtividades: 0, mediaAcerto: 0, topicosExplorados: 0 };
 
-    const [
-        totalChat, 
-        totalRush, 
-        rushAcertos, 
-        chatTopics, 
-        rushTopics,
-        // 🆕 Novas Queries para o Tutor
-        tutorAcertos,
-        tutorTotalAvaliacoes
-    ] = await Promise.all([
-        // A. Chat Volume
-        this.prisma.chatMensagem.count({ where: { alunoId: { in: alunoIds } } }),
-
-        // B. Rush Total
-        this.prisma.exercicioResultado.count({ where: { alunoId: { in: alunoIds } } }),
-
-        // C. Rush Acertos
-        this.prisma.exercicioResultado.count({ where: { alunoId: { in: alunoIds }, acertou: true } }),
-
-        // D. Tópicos
-        this.prisma.chatMensagem.findMany({ where: { alunoId: { in: alunoIds }, topicoId: { not: null } }, distinct: ['topicoId'], select: { topicoId: true } }),
-        this.prisma.exercicioResultado.findMany({ where: { alunoId: { in: alunoIds } }, distinct: ['topicoId'], select: { topicoId: true } }),
-
-        // 🆕 E. Tutor Acertos (Via String search)
-        this.prisma.chatMensagem.count({
-            where: { 
-                alunoId: { in: alunoIds },
-                respostaIa: { contains: '"assessment": "CORRECT"' }
-            }
-        }),
-
-        // 🆕 F. Tutor Total Tentativas (Via String search)
-        this.prisma.chatMensagem.count({
-            where: { 
-                alunoId: { in: alunoIds },
-                respostaIa: { contains: '"assessment":' } // Conta CORRECT e INCORRECT
-            }
-        })
+    const [totalChat, totalRush, rushAcertos, chatTopics, rushTopics] = await Promise.all([
+      this.prisma.chatMensagem.count({ where: { alunoId: { in: alunoIds } } }),
+      this.prisma.exercicioResultado.count({ where: { alunoId: { in: alunoIds } } }),
+      this.prisma.exercicioResultado.count({ where: { alunoId: { in: alunoIds }, acertou: true } }),
+      this.prisma.chatMensagem.findMany({ where: { alunoId: { in: alunoIds }, topicoId: { not: null } }, distinct: ['topicoId'], select: { topicoId: true } }),
+      this.prisma.exercicioResultado.findMany({ where: { alunoId: { in: alunoIds } }, distinct: ['topicoId'], select: { topicoId: true } }),
     ]);
 
-    // 3. Processar Dados
-    const uniqueTopicIds = new Set([...chatTopics.map(t => t.topicoId), ...rushTopics.map(t => t.topicoId)]);
-    
-    // Total de Atividades (Conversas + Exercícios Rush)
-    const totalAtividades = totalChat + totalRush;
+    // 🔥 FIX: filtra em JS para não depender de espaçamento
+    const mensagensAvaliadas = await this.prisma.chatMensagem.findMany({
+      where: { alunoId: { in: alunoIds }, respostaIa: { contains: '"assessment"' } },
+      select: { respostaIa: true }
+    });
+    const tutorTotalAvaliacoes = mensagensAvaliadas.length;
+    const tutorAcertos = mensagensAvaliadas.filter(m => _parseRespostaIa(m.respostaIa).acertou === true).length;
 
-    // 🆕 Cálculo Unificado de Precisão (Rush + Tutor)
+    const uniqueTopicIds = new Set([...chatTopics.map(t => t.topicoId), ...rushTopics.map(t => t.topicoId)]);
     const totalTentativasValidas = totalRush + tutorTotalAvaliacoes;
     const totalSucessos = rushAcertos + tutorAcertos;
-    
-    const taxaAcertoGlobal = totalTentativasValidas > 0 
-        ? Math.round((totalSucessos / totalTentativasValidas) * 100) 
-        : 0;
+    const taxaAcertoGlobal = totalTentativasValidas > 0 ? Math.round((totalSucessos / totalTentativasValidas) * 100) : 0;
 
     return {
       totalAlunos: alunoIds.length,
-      totalAtividades,
-      mediaAcerto: taxaAcertoGlobal, // Agora inclui a performance no chat!
+      totalAtividades: totalChat + totalRush,
+      mediaAcerto: taxaAcertoGlobal,
       topicosExplorados: uniqueTopicIds.size
     };
   }
@@ -457,193 +340,114 @@ const disciplinasCasa = await this.prisma.topico.findMany({
   // ==========================================
   // 👨‍🏫 RELATÓRIO PARA O PROFESSOR
   // ==========================================
-/**
-   * Gera um relatório detalhado do aluno para o professor.
-   * Suporta filtragem por período (7d, 30d, all).
-   */
-  
-  async getStudentReportForTeacher(
-    alunoId: number,
-    professorUsuarioId: number,
-    timeRange: string
-  ) {
-    // 1. LÓGICA DE FILTRO TEMPORAL
-    let filtroData: { gte: Date } | undefined;
-    const agora = new Date();
+  async getStudentReportForTeacher(alunoId: number, professorUsuarioId: number, timeRange: string) {
 
+    // 1. Filtro temporal
+    let filtroData: { gte: Date } | undefined;
     if (timeRange === '7d') {
-      const dataSeteDias = new Date();
-      dataSeteDias.setDate(agora.getDate() - 7);
-      filtroData = { gte: dataSeteDias };
+      const d = new Date(); d.setDate(d.getDate() - 7); filtroData = { gte: d };
     } else if (timeRange === '30d') {
-      const dataTrintaDias = new Date();
-      dataTrintaDias.setDate(agora.getDate() - 30);
-      filtroData = { gte: dataTrintaDias };
+      const d = new Date(); d.setDate(d.getDate() - 30); filtroData = { gte: d };
     }
 
-    // 2. SEGURANÇA E CONTEXTO: Pegar as Turmas do Professor
+    // 2. Segurança: turmas em comum
     const professor = await this.prisma.professor.findUnique({
-      where: { usuarioId: professorUsuarioId },
-      select: { id: true }
+      where: { usuarioId: professorUsuarioId }, select: { id: true }
     });
-
     if (!professor) throw new ForbiddenException('Acesso negado.');
 
-    // BUSCAR IDs DAS TURMAS EM COMUM (Professor <-> Aluno)
     const turmasDoProfessor = await this.prisma.alunoTurma.findMany({
-      where: {
-        alunoId,
-        turma: { professorId: professor.id }
-      },
+      where: { alunoId, turma: { professorId: professor.id } },
       select: { turmaId: true }
     });
+    if (turmasDoProfessor.length === 0) throw new ForbiddenException('Este aluno não pertence a nenhuma das suas turmas.');
 
-    if (turmasDoProfessor.length === 0) {
-      throw new ForbiddenException('Este aluno não pertence a nenhuma das suas turmas.');
-    }
-
-    // Criamos uma lista de IDs para filtrar as queries
     const turmaIds = turmasDoProfessor.map(t => t.turmaId);
 
-    // 3. DADOS BÁSICOS
+    // 3. Dados básicos
     const aluno = await this.prisma.aluno.findUnique({
       where: { id: alunoId },
       select: { id: true, nome: true, sobrenome: true, classe: true, xp: true }
     });
-
     if (!aluno) throw new NotFoundException('Aluno não encontrado.');
 
-    // 4. ESTATÍSTICAS GLOBAIS (Filtradas pela Turma do Professor)
+    // 4. Stats globais — 🔥 FIX: filtra em JS (resolve 0% por espaçamento)
     const rushAcertos = await this.prisma.exercicioResultado.count({
-      where: {
-        alunoId,
-        turmaId: { in: turmaIds }, // <--- FILTRO ADICIONADO
-        acertou: true,
-        timestamp: filtroData
-      }
+      where: { alunoId, turmaId: { in: turmaIds }, acertou: true, timestamp: filtroData }
     });
-
     const rushTotal = await this.prisma.exercicioResultado.count({
-      where: {
-        alunoId,
-        turmaId: { in: turmaIds }, // <--- FILTRO ADICIONADO
-        timestamp: filtroData
-      }
+      where: { alunoId, turmaId: { in: turmaIds }, timestamp: filtroData }
     });
 
-    const tutorAcertos = await this.prisma.chatMensagem.count({
-      where: {
-        alunoId,
-        turmaId: { in: turmaIds }, // <--- FILTRO ADICIONADO
-        timestamp: filtroData,
-        respostaIa: { contains: '"assessment": "CORRECT"' }
-      }
+    const mensagensAvaliadas = await this.prisma.chatMensagem.findMany({
+      where: { alunoId, turmaId: { in: turmaIds }, timestamp: filtroData, respostaIa: { contains: '"assessment"' } },
+      select: { respostaIa: true }
     });
-
-    const tutorTotal = await this.prisma.chatMensagem.count({
-      where: {
-        alunoId,
-        turmaId: { in: turmaIds }, // <--- FILTRO ADICIONADO
-        timestamp: filtroData,
-        respostaIa: { contains: '"assessment":' }
-      }
-    });
+    const tutorTotal   = mensagensAvaliadas.length;
+    const tutorAcertos = mensagensAvaliadas.filter(m => _parseRespostaIa(m.respostaIa).acertou === true).length;
 
     const totalTentativas = rushTotal + tutorTotal;
-    const totalSucessos = rushAcertos + tutorAcertos;
-    const taxaGlobal = totalTentativas > 0 ? Math.round((totalSucessos / totalTentativas) * 100) : 0;
+    const taxaGlobal = totalTentativas > 0 ? Math.round(((rushAcertos + tutorAcertos) / totalTentativas) * 100) : 0;
 
-    // 5. ANÁLISE POR DISCIPLINA (Filtrada)
+    // 5. Análise por disciplina
     const exerciciosResults = await this.prisma.exercicioResultado.findMany({
-      where: {
-        alunoId,
-        turmaId: { in: turmaIds }, // <--- FILTRO ADICIONADO
-        timestamp: filtroData
-      },
+      where: { alunoId, turmaId: { in: turmaIds }, timestamp: filtroData },
       include: { topico: { include: { disciplina: true } } }
     });
-
     const chatResults = await this.prisma.chatMensagem.findMany({
-      where: {
-        alunoId,
-        turmaId: { in: turmaIds }, // <--- FILTRO ADICIONADO
-        timestamp: filtroData,
-        respostaIa: { contains: '"assessment":' }
-      },
+      where: { alunoId, turmaId: { in: turmaIds }, timestamp: filtroData, respostaIa: { contains: '"assessment"' } },
       include: { topico: { include: { disciplina: true } } }
     });
 
-    const disciplinaMap = new Map<string, { total: number, acertos: number }>();
-
-    // Processar Exercícios
+    const disciplinaMap = new Map<string, { total: number; acertos: number }>();
     exerciciosResults.forEach(r => {
-      const discNome = r.topico.disciplina.nome;
-      const current = disciplinaMap.get(discNome) || { total: 0, acertos: 0 };
-      current.total++;
-      if (r.acertou) current.acertos++;
-      disciplinaMap.set(discNome, current);
+      const d = r.topico.disciplina.nome;
+      const cur = disciplinaMap.get(d) ?? { total: 0, acertos: 0 };
+      cur.total++;
+      if (r.acertou) cur.acertos++;
+      disciplinaMap.set(d, cur);
     });
-
-    // Processar Chat
     chatResults.forEach(m => {
-      if (m.topico?.disciplina) {
-        const discNome = m.topico.disciplina.nome;
-        const current = disciplinaMap.get(discNome) || { total: 0, acertos: 0 };
-        current.total++;
-        if (m.respostaIa.includes('"assessment": "CORRECT"')) {
-          current.acertos++;
-        }
-        disciplinaMap.set(discNome, current);
-      }
+      if (!m.topico?.disciplina) return;
+      const d = m.topico.disciplina.nome;
+      const cur = disciplinaMap.get(d) ?? { total: 0, acertos: 0 };
+      cur.total++;
+      if (_parseRespostaIa(m.respostaIa).acertou === true) cur.acertos++;
+      disciplinaMap.set(d, cur);
     });
 
-    const performancePorDisciplina = Array.from(disciplinaMap.entries()).map(([nome, stats]) => ({
-      disciplina: nome,
-      total: stats.total,
-      taxa: stats.total > 0 ? Math.round((stats.acertos / stats.total) * 100) : 0
+    const performancePorDisciplina = Array.from(disciplinaMap.entries()).map(([nome, s]) => ({
+      disciplina: nome, total: s.total,
+      taxa: s.total > 0 ? Math.round((s.acertos / s.total) * 100) : 0
     }));
 
-    // 6. TÓPICOS CRÍTICOS (Filtrado)
-    const topicoMapCalc = new Map<number, { total: number, acertos: number }>();
-
+    // 6. Tópicos críticos
+    const topicoMapCalc = new Map<number, { total: number; acertos: number }>();
     exerciciosResults.forEach(r => {
-      const current = topicoMapCalc.get(r.topicoId) || { total: 0, acertos: 0 };
-      current.total++;
-      if (r.acertou) current.acertos++;
-      topicoMapCalc.set(r.topicoId, current);
+      const cur = topicoMapCalc.get(r.topicoId) ?? { total: 0, acertos: 0 };
+      cur.total++; if (r.acertou) cur.acertos++;
+      topicoMapCalc.set(r.topicoId, cur);
     });
-
     chatResults.forEach(m => {
-        // Verificação de segurança (Null Check)
-        if (m.topicoId && m.topico?.disciplina) {
-            const current = topicoMapCalc.get(m.topicoId) || { total: 0, acertos: 0 };
-            current.total++;
-            if (m.respostaIa.includes('"assessment": "CORRECT"')) {
-                current.acertos++;
-            }
-            topicoMapCalc.set(m.topicoId, current);
-        }
+      if (!m.topicoId) return;
+      const cur = topicoMapCalc.get(m.topicoId) ?? { total: 0, acertos: 0 };
+      cur.total++;
+      if (_parseRespostaIa(m.respostaIa).acertou === true) cur.acertos++;
+      topicoMapCalc.set(m.topicoId, cur);
     });
 
     const problemTopicIds: number[] = [];
     topicoMapCalc.forEach((val, key) => {
-      if (val.total >= 3 && (val.acertos / val.total) < 0.6) {
-        problemTopicIds.push(key);
-      }
+      if (val.total >= 3 && (val.acertos / val.total) < 0.6) problemTopicIds.push(key);
     });
-
     const topicosAtencao = await this.prisma.topico.findMany({
       where: { id: { in: problemTopicIds } },
       select: { nome: true, disciplina: { select: { nome: true } } }
     });
 
-    // 7. HISTÓRICO RECENTE (Filtrado)
+    // 7. Histórico recente — 🔥 FIX: legível com pergunta real + tipo concreto
     const ultimasAtividadesChat = await this.prisma.chatMensagem.findMany({
-      where: {
-        alunoId,
-        turmaId: { in: turmaIds }, // <--- FILTRO ADICIONADO
-        timestamp: filtroData
-      },
+      where: { alunoId, turmaId: { in: turmaIds }, timestamp: filtroData },
       orderBy: { timestamp: 'desc' },
       take: 10,
       select: {
@@ -654,78 +458,51 @@ const disciplinasCasa = await this.prisma.topico.findMany({
       }
     });
 
-    // Mapeamento do histórico (igual ao anterior...)
     const historicoRecente = ultimasAtividadesChat.map(a => {
-        // Forçamos o tipo para string para permitir frases personalizadas
-        let tipoFormatado: string = a.tipoInteracao.toString(); 
-
-        if (a.respostaIa.includes('"assessment":')) {
-            if (a.respostaIa.includes('"assessment": "CORRECT"')) {
-                tipoFormatado = 'Tirou dúvida (Acertou)';
-            } else {
-                tipoFormatado = 'Tirou dúvida (Precisa revisar)';
-            }
-        } else {
-            const dePara: any = {
-                'EXERCICIO': 'Resolveu Exercício no Tutor',
-                'PERGUNTA': 'Tirou dúvida teórica',
-                'EXPLICACAO': 'Solicitou explicação',
-                'RUSH': 'Desafio Rápido',
-                'SAUDACAO': 'Conversa inicial'
-            };
-            tipoFormatado = dePara[a.tipoInteracao] || a.tipoInteracao;
-        }
-
-        return {
-            data: a.timestamp,
-            topico: a.topico?.nome || 'Geral',
-            tipo: tipoFormatado
-        };
+      const { acertou, pergunta, tipoInteracao } = _parseRespostaIa(a.respostaIa);
+      const tipo = _formatarTipoAtividade(tipoInteracao, acertou, a.tipoInteracao.toString());
+      return {
+        data: a.timestamp,
+        topico: a.topico?.nome ?? 'Geral',
+        // 🆕 pergunta real que o Kani fez ao aluno (última mensagem do array)
+        pergunta: pergunta ?? null,
+        tipo,
+        acertou,
+      };
     });
 
+    // Complementar com exercícios Rush se < 10
     if (historicoRecente.length < 10) {
       const ultimosExercicios = await this.prisma.exercicioResultado.findMany({
-        where: {
-          alunoId,
-          turmaId: { in: turmaIds }, // <--- FILTRO ADICIONADO
-          timestamp: filtroData
-        },
+        where: { alunoId, turmaId: { in: turmaIds }, timestamp: filtroData },
         orderBy: { timestamp: 'desc' },
         take: 10 - historicoRecente.length,
-        select: {
-          timestamp: true,
-          topico: { select: { nome: true } },
-          acertou: true
-        }
+        include: { topico: { select: { nome: true } }, exercicio: { select: { pergunta: true } } }
       });
-
       ultimosExercicios.forEach(e => {
         historicoRecente.push({
           data: e.timestamp,
-          topico: e.topico?.nome || 'Geral',
-          tipo: e.acertou ? 'Resolveu Exercício (Acertou)' : 'Resolveu Exercício (Errou)'
+          topico: e.topico?.nome ?? 'Geral',
+          pergunta: e.exercicio?.pergunta ?? null,   // 🆕 pergunta real do exercício
+          tipo: e.acertou ? 'Rush — Acertou ✅' : 'Rush — Errou ❌',
+          acertou: e.acertou,
         });
       });
     }
 
     return {
-      aluno,
-      turmaIds, // <--- EXPORTANDO PARA USAR NO PDF
+      aluno, turmaIds,
       stats: {
-        taxaGlobal,
-        totalInteracoes: totalTentativas,
-        xp: aluno.xp,
+        taxaGlobal, totalInteracoes: totalTentativas, xp: aluno.xp,
         rush: { acertos: rushAcertos, total: rushTotal },
         tutor: { acertos: tutorAcertos, total: tutorTotal }
       },
       disciplinas: performancePorDisciplina,
-      atencaoNecessaria: topicosAtencao.map(t => ({
-        topico: t.nome,
-        disciplina: t.disciplina.nome
-      })),
-      historicoRecente: historicoRecente.sort((a, b) => b.data.getTime() - a.data.getTime()).slice(0, 10),
+      atencaoNecessaria: topicosAtencao.map(t => ({ topico: t.nome, disciplina: t.disciplina.nome })),
+      historicoRecente: historicoRecente
+        .sort((a, b) => b.data.getTime() - a.data.getTime())
+        .slice(0, 10),
       filtroData
     };
   }
-
 }

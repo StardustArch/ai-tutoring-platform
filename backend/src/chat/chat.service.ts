@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, Logger, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Logger,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SendChatDto, MicroserviceChatRequestDto } from './dto/send-chat.dto';
 import { firstValueFrom } from 'rxjs';
@@ -12,7 +17,7 @@ export class ChatService {
 
   constructor(
     private prisma: PrismaService,
-    private httpService: HttpService
+    private httpService: HttpService,
   ) {
     const baseUrl = process.env.IA_API_URL || 'http://localhost:8000';
     this.aiServiceUrl = `${baseUrl}/generate-chat-response`;
@@ -22,19 +27,20 @@ export class ChatService {
     // 1. Validar Aluno
     const aluno = await this.prisma.aluno.findFirst({
       where: { id: dto.alunoId, encarregado: { usuarioId } },
-      select: { id: true, classe: true }
+      select: { id: true, classe: true },
     });
     if (!aluno) throw new NotFoundException('Aluno não encontrado.');
 
     if (dto.turmaId) {
       const pertence = await this.prisma.alunoTurma.findFirst({
-        where: { alunoId: dto.alunoId, turmaId: dto.turmaId }
+        where: { alunoId: dto.alunoId, turmaId: dto.turmaId },
       });
-      if (!pertence) throw new ForbiddenException("Aluno não pertence a esta turma.");
+      if (!pertence)
+        throw new ForbiddenException('Aluno não pertence a esta turma.');
     }
 
     // 2. Resolver Tópico
-    let aiContextRules = "";
+    let aiContextRules = '';
     let currentTopicoId: number | null = null;
 
     if (dto.topic && dto.subject) {
@@ -42,9 +48,9 @@ export class ChatService {
         where: {
           nome: dto.topic,
           nivelClasse: aluno.classe,
-          disciplina: { nome: dto.subject }
+          disciplina: { nome: dto.subject },
         },
-        select: { id: true, metadata: true }
+        select: { id: true, metadata: true },
       });
       if (topicoDb) {
         currentTopicoId = topicoDb.id;
@@ -66,7 +72,7 @@ export class ChatService {
       },
       orderBy: { timestamp: 'desc' },
       take: 20,
-      select: { topico: { select: { nome: true } } }
+      select: { topico: { select: { nome: true } } },
     });
 
     // Conta quantas vezes errou em cada tópico → ordena pelos mais problemáticos
@@ -81,27 +87,29 @@ export class ChatService {
       .map(([nome]) => nome);
 
     // Constrói o bloco de contexto que vai ser injectado nas context_rules
-    let memoriaContexto = "";
+    let memoriaContexto = '';
     if (topicosProblematicos.length > 0) {
-      memoriaContexto = `\n\n📊 CONTEXTO DO ALUNO (usa com naturalidade, não reveles os números):\n`
-        + `O aluno teve dificuldades recentes em: ${topicosProblematicos.join(', ')}.\n`
-        + `Se o tópico actual for um destes, começa por reconhecer que é uma área difícil e encoraja-o.\n`
-        + `Se for um tópico diferente, não precisas de mencionar os outros.`;
+      memoriaContexto =
+        `\n\n📊 CONTEXTO DO ALUNO (usa com naturalidade, não reveles os números):\n` +
+        `O aluno teve dificuldades recentes em: ${topicosProblematicos.join(', ')}.\n` +
+        `Se o tópico actual for um destes, começa por reconhecer que é uma área difícil e encoraja-o.\n` +
+        `Se for um tópico diferente, não precisas de mencionar os outros.`;
     }
 
     // 4. Buscar Histórico
     const rawHistory = await this.prisma.chatMensagem.findMany({
       where: {
         alunoId: aluno.id,
-        ...(currentTopicoId ? { topicoId: currentTopicoId } : {})
+        ...(currentTopicoId ? { topicoId: currentTopicoId } : {}),
+        turmaId: dto.turmaId || null, // ← isola o contexto por turma
       },
       orderBy: { timestamp: 'desc' },
       take: 6,
       select: {
         mensagemAluno: true,
         respostaIa: true,
-        tipoInteracao: true
-      }
+        tipoInteracao: true,
+      },
     });
     const chronologicalHistory = rawHistory.reverse();
     const formattedHistory = this.formatarHistoricoParaIA(chronologicalHistory);
@@ -113,9 +121,9 @@ export class ChatService {
       user_query: dto.userQuery,
       mode: 'tutor',
       history: formattedHistory,
-      subject: dto.subject || "Geral",
-      topic: dto.topic || "Geral",
-      context_rules: aiContextRules + memoriaContexto  // ← injecção da memória
+      subject: dto.subject || 'Geral',
+      topic: dto.topic || 'Geral',
+      context_rules: aiContextRules + memoriaContexto, // ← injecção da memória
     };
 
     let finalResponse: string;
@@ -123,16 +131,16 @@ export class ChatService {
     // 6. Chamada ao Python
     try {
       const response = await firstValueFrom(
-        this.httpService.post(this.aiServiceUrl, aiRequest)
+        this.httpService.post(this.aiServiceUrl, aiRequest),
       );
       finalResponse = response.data.response_text;
     } catch (error) {
       this.logger.error(`ERRO IA: ${error.message}`);
       finalResponse = JSON.stringify({
-        text: "O KMind está a pensar... Podes tentar de novo?",
-        emotion: "THOUGHTFUL",
-        interaction_type: "CHIPS",
-        interaction_data: { options: ["Tentar"] }
+        text: 'O KMind está a pensar... Podes tentar de novo?',
+        emotion: 'THOUGHTFUL',
+        interaction_type: 'CHIPS',
+        interaction_data: { options: ['Tentar'] },
       });
     }
 
@@ -147,7 +155,9 @@ export class ChatService {
       } else if (['RUSH_DRILL'].includes(jsonResp.interaction_type)) {
         tipoSalvo = 'RUSH';
       }
-    } catch (e) { /* assume EXPLICACAO */ }
+    } catch (e) {
+      /* assume EXPLICACAO */
+    }
 
     await this.prisma.chatMensagem.create({
       data: {
@@ -157,8 +167,8 @@ export class ChatService {
         tipoInteracao: tipoSalvo,
         topicoId: topicoIdSalvo,
         turmaId: dto.turmaId || null,
-        sessaoId: dto.sessaoId || null
-      }
+        sessaoId: dto.sessaoId || null,
+      },
     });
 
     return { message: 'Sucesso', response: finalResponse };
@@ -168,13 +178,13 @@ export class ChatService {
     const history: Array<{ role: string; text: string; type?: string }> = [];
     for (const entry of rawHistory) {
       if (entry.mensagemAluno) {
-        history.push({ role: "user", text: entry.mensagemAluno });
+        history.push({ role: 'user', text: entry.mensagemAluno });
       }
       if (entry.respostaIa) {
         history.push({
-          role: "model",
+          role: 'model',
           text: entry.respostaIa,
-          type: entry.tipoInteracao
+          type: entry.tipoInteracao,
         });
       }
     }
