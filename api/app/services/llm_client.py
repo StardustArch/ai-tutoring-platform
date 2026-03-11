@@ -3,7 +3,6 @@ import json
 import re
 from typing import Any
 from openai import OpenAI, RateLimitError
-from huggingface_hub import InferenceClient
 from app.config import OPENROUTER_API_KEY, BASE_URL, GOOGLE_API_KEY, HF_TOKEN, GITHUB_TOKEN
 from app.utils.text_helpers import clean_json_text
 
@@ -40,7 +39,7 @@ raw_tokens = os.environ.get("GITHUB_TOKENS", os.environ.get("GITHUB_TOKEN", ""))
 GITHUB_TOKENS_LIST = [t.strip() for t in raw_tokens.split(",") if t.strip()]
 
 tutor_clients = []
-current_tutor_index = 0  # 🔥 FIX: nome consistente (era current_client_index)
+current_tutor_index = 0
 
 if GITHUB_TOKENS_LIST:
     print(f"✅ ROTAÇÃO TUTOR ATIVADA: Carregados {len(GITHUB_TOKENS_LIST)} tokens do GitHub.")
@@ -64,7 +63,7 @@ current_groq_index = 0
 
 if GROQ_TOKENS_LIST:
     print(f"🚀 ROTAÇÃO GROQ ATIVADA: Carregadas {len(GROQ_TOKENS_LIST)} chaves do Groq.")
-    for idx, token in enumerate(GROQ_TOKENS_LIST):
+    for token in GROQ_TOKENS_LIST:
         client = OpenAI(
             base_url="https://api.groq.com/openai/v1",
             api_key=token
@@ -83,9 +82,8 @@ def safe_load_json_object(text: str) -> Any | None:
     if not text:
         return None
 
-    # 🔥 remove control characters (incluindo \u0000)
+    # Remove control characters (incluindo \u0000)
     text = re.sub(r'[\x00-\x1F\x7F]', '', text)
-
     text = text.replace('\u201c', '"').replace('\u201d', '"')
     text = text.replace('\r\n', '\n')
 
@@ -93,11 +91,10 @@ def safe_load_json_object(text: str) -> Any | None:
     clean_text = re.sub(r"```", "", clean_text)
 
     start = clean_text.find('{')
-    end = clean_text.rfind('}')
+    end   = clean_text.rfind('}')
 
     if start != -1 and end != -1:
         candidate = clean_text[start:end+1]
-
         try:
             return json.loads(candidate)
         except json.JSONDecodeError:
@@ -125,7 +122,7 @@ async def generate_tutor_response(system_prompt: str, user_query: str, history: 
     attempts = 0
 
     while attempts < max_attempts:
-        client = tutor_clients[current_tutor_index]
+        client     = tutor_clients[current_tutor_index]
         used_index = current_tutor_index
         current_tutor_index = (current_tutor_index + 1) % len(tutor_clients)
 
@@ -135,7 +132,12 @@ async def generate_tutor_response(system_prompt: str, user_query: str, history: 
                 model="gpt-4o-mini",
                 messages=messages,
                 temperature=0.7,
-                # response_format={"type": "json_object"}
+                # 🔥 FIX: response_format activado.
+                # Anteriormente estava comentado — o modelo devolvia às vezes texto
+                # antes/depois do JSON, causando: "A IA devolveu um JSON vazio ou
+                # incompreensível" mesmo quando o JSON estava correcto nos logs.
+                # Com json_object, o modelo é forçado a devolver APENAS JSON válido.
+                response_format={"type": "json_object"},
             )
             raw_text = response.choices[0].message.content
             print(raw_text, flush=True)
@@ -162,14 +164,14 @@ async def generate_tutor_response(system_prompt: str, user_query: str, history: 
         "interaction_data": {"options": ["Tentar novamente"]}
     }
 
+
 # ==========================================
-# GROQ: generate_groq_response — 🔥 BUG CORRIGIDO
-# Antes usava `rush_client` (não definido). Agora usa rush_groq_clients com rotação.
+# GROQ: generate_groq_response
 # ==========================================
 GROQ_MODEL = "llama-3.3-70b-versatile"
 
 async def generate_groq_response(system_prompt: str, user_query: str, history: list = []) -> dict:
-    global current_groq_index  # 🔥 FIX: usa o índice correcto
+    global current_groq_index
 
     if not rush_groq_clients:
         print("⚠️ generate_groq_response: sem clientes Groq configurados.")
@@ -188,8 +190,7 @@ async def generate_groq_response(system_prompt: str, user_query: str, history: l
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": user_query})
 
-    # 🔥 FIX: rotação correcta em vez de variável inexistente
-    client = rush_groq_clients[current_groq_index]
+    client     = rush_groq_clients[current_groq_index]
     used_index = current_groq_index
     current_groq_index = (current_groq_index + 1) % len(rush_groq_clients)
 
@@ -208,7 +209,6 @@ async def generate_groq_response(system_prompt: str, user_query: str, history: l
 
     except RateLimitError:
         print(f"⚠️ Groq rate limit na chave #{used_index + 1}")
-        # tenta a próxima chave se existir
         if len(rush_groq_clients) > 1:
             next_idx = current_groq_index
             current_groq_index = (current_groq_index + 1) % len(rush_groq_clients)
