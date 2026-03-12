@@ -103,8 +103,14 @@ OUTPUT JSON:
   "emotion": "INTERESTED",
   "interaction_type": "CHIPS" | "TRUE_FALSE" | "CLOZE" | "DIRECT_INPUT" | "DRAG_DROP",
   "assessment": null,
-  "interaction_data": {{"options": ["A", "B", "C"]}}
+  "correct_answer": "the exact correct answer string",
+  "interaction_data": {{"options": ["correct_answer", "wrong1", "wrong2"]}}
 }}
+
+CRITICAL — "correct_answer" field is MANDATORY:
+- CHIPS/CLOZE/TRUE_FALSE: must exactly match one option string.
+- DIRECT_INPUT: write the ideal/expected answer (used for grading).
+- DRAG_DROP: items joined by space in correct order.
 """
 
 # ==============================================================================
@@ -199,25 +205,73 @@ PLACE_VALUES = {
     5: "centenas de milhar", 6: "milhões"
 }
 
-def correct_place_value(messages: list) -> list:
-    text = " ".join(messages)
-    match = re.search(r"(\d)\s+em\s+([\d\.]+)", text)
-    if not match:
+# Padrão ordenado por comprimento decrescente para evitar substituições parciais
+# ("centenas de milhar" deve ser apanhado antes de "centenas")
+_PLACE_NAMES_SORTED = sorted(PLACE_VALUES.values(), key=len, reverse=True)
+_PLACE_PATTERN = re.compile(
+    r'\b(' + '|'.join(re.escape(name) for name in _PLACE_NAMES_SORTED) + r')\b',
+    re.IGNORECASE
+)
+_DIGIT_PATTERN = re.compile(r'\bo\s+(\d)\b|\bdo\s+(\d)\b|\bdígito\s+(\d)\b', re.IGNORECASE)
+
+
+def _build_place_map(number_str: str) -> dict:
+    """Devolve {dígito: nome_correcto} para todos os dígitos do número."""
+    digits = number_str.replace(".", "").replace(",", "")
+    result = {}
+    for i, d in enumerate(digits):
+        pos = len(digits) - i - 1
+        if pos in PLACE_VALUES and d not in result:
+            result[d] = PLACE_VALUES[pos]
+    return result
+
+
+def correct_place_value(messages: list, last_question: str = "") -> list:
+    """
+    Corrige deterministicamente valores posicionais errados no output do Kani.
+
+    Quando o modelo diz "o 7 está nas centenas de milhar" mas o 7 em 567.890
+    está nas unidades de milhar, esta função detecta e corrige automaticamente.
+
+    last_question: a última pergunta do Kani — usada para extrair o número de
+    referência quando as mensagens de feedback não repetem o número.
+
+    Versão 2 — fixes vs versão original:
+    - Substitui nomes compostos como unidade atómica (evita "de milhar de milhar")
+    - Usa last_question como contexto quando o número não está nas mensagens
+    - Procura o número mais longo (mais provável de ser o número do exercício)
+    """
+    all_text = " ".join(messages) + " " + (last_question or "")
+    numbers_found = re.findall(r'\b\d[\d\.]*\d\b', all_text)
+    if not numbers_found:
         return messages
-    digit = match.group(1)
-    number = match.group(2).replace(".", "")
-    for i, d in enumerate(number):
-        if d == digit:
-            pos = len(number) - i - 1
-            correct_value = PLACE_VALUES.get(pos)
-            if not correct_value:
-                return messages
-            return [
-                re.sub(r"casa das [a-zA-ZÀ-ú\s]+", f"casa das {correct_value}", m)
-                if "casa" in m.lower() else m
-                for m in messages
-            ]
-    return messages
+
+    ref_number = max(numbers_found, key=lambda n: len(n.replace(".", "")))
+    place_map = _build_place_map(ref_number)
+
+    corrected = []
+    for msg in messages:
+        digit_match = _DIGIT_PATTERN.search(msg)
+        if not digit_match:
+            corrected.append(msg)
+            continue
+
+        digit = next(g for g in digit_match.groups() if g)
+        correct_pv = place_map.get(digit)
+        if not correct_pv:
+            corrected.append(msg)
+            continue
+
+        def replace_pv(m, cpv=correct_pv, d=digit, ref=ref_number):
+            found = m.group(1).lower()
+            if found == cpv:
+                return m.group(0)  # já correcto
+            print(f"🔧 [PlaceValue] '{found}' → '{cpv}' (dígito {d} em {ref})")
+            return cpv
+
+        corrected.append(_PLACE_PATTERN.sub(replace_pv, msg))
+
+    return corrected
 
 
 def _sanitize_interaction(obj: dict) -> dict:
@@ -317,6 +371,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
         last_itype     = request.last_interaction_type or "CHIPS"
 
         if correct_answer and _norm(user_answer) == _norm(correct_answer):
+            # ✅ Resposta correcta — confirmado deterministicamente
             assessment_override = "CORRECT"
             system_text = PROMPT_FEEDBACK_CORRECT.format(
                 subject=subject, topic=topic,
@@ -325,13 +380,27 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
                 correct_answer=correct_answer,
                 last_question=request.last_question or "",
             )
-        else:
+        elif correct_answer:
+            # ❌ Resposta errada — confirmado deterministicamente
             assessment_override = "INCORRECT"
             system_text = PROMPT_FEEDBACK_INCORRECT.format(
                 subject=subject, topic=topic,
                 lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
                 user_answer=user_answer,
                 correct_answer=correct_answer,
+                last_question=request.last_question or "",
+                last_interaction_type=last_itype,
+            )
+        else:
+            # ⚠️ Sem correct_answer (DIRECT_INPUT aberto, ou frontend antigo)
+            # Não forçamos assessment — o modelo avalia pelo contexto do histórico.
+            # assessment_override fica None → modelo decide (melhor que forçar INCORRECT)
+            print(f"⚠️ [FEEDBACK] Sem correct_answer — modelo avalia livremente.")
+            system_text = PROMPT_FEEDBACK_INCORRECT.format(
+                subject=subject, topic=topic,
+                lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
+                user_answer=user_answer,
+                correct_answer="(avalia tu com base na pergunta e na resposta do aluno)",
                 last_question=request.last_question or "",
                 last_interaction_type=last_itype,
             )
@@ -363,7 +432,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
         json_obj = _sanitize_interaction(json_obj)
 
         # Correcção determinística de valor posicional
-        json_obj["messages"] = correct_place_value(json_obj.get("messages", []))
+        json_obj["messages"] = correct_place_value(json_obj.get("messages", []), request.last_question or "")
 
         # Limpeza de encoding
         json_obj["messages"] = [
@@ -377,6 +446,15 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
 
         # Devolve a fase ao NestJS para calcular a próxima transição
         json_obj["phase"] = phase
+
+        # Em fase TEST, garante que correct_answer existe no output para o frontend.
+        # O frontend guarda-o e reenvia no próximo pedido (fase FEEDBACK).
+        # Se o modelo não o devolveu, tenta extrair das options (1º elemento = correcto por convenção).
+        if phase == "TEST" and not json_obj.get("correct_answer"):
+            opts = json_obj.get("interaction_data", {}).get("options", [])
+            if opts:
+                json_obj["correct_answer"] = opts[0]
+                print(f"⚠️ [TEST] correct_answer em falta — inferido das options: '{opts[0]}'")
 
         return ChatResponse(response_text=json.dumps(json_obj, ensure_ascii=False))
 
