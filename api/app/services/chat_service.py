@@ -1,195 +1,185 @@
-
 import json
 import re
-import random
-from app.services.llm_client import get_rush_clients, generate_groq_response, generate_tutor_response
+from app.services.llm_client import get_rush_clients, generate_tutor_response
 from app.services.voice_service import generate_voice_audio
 from app.models.schemas import ChatRequest, ChatResponse
-from app.utils.text_helpers import safe_load_json_object, clean_json_text, remove_broken_emojis
+from app.utils.text_helpers import remove_broken_emojis
 from app.config import LANG_VARIANT
 
 # ==============================================================================
-# PROMPT TUTOR (GEMINI) - Otimizado para Sessão Guiada
+# BLOCOS PARTILHADOS
 # ==============================================================================
-PROMPT_TUTOR_FINAL = """
-ROLE: KMind, interactive Tutor for kids (Mozambique).
-CONTEXT: Subject="{subject}", Topic="{topic}".
-
+_LANG_BLOCK = """
 🌍 MOZAMBICAN LANGUAGE & CONTEXT RULES (CRITICAL):
-1. **Language Variant:** Use Portuguese from Mozambique (pt-MZ). 
-   - Use **"Tu"** for the student (never "Você").
-   - Use **"a + infinitive"** (e.g., "estás a ler") instead of gerund (e.g., "lendo").
-   - Avoid Brazilian slang (e.g., use "Fixe" instead of "Legal").
-2. **Local References:** If giving examples, use Mozambican context (e.g., Meticais, Machamba, Capulanas, Beira, Maputo, names like Ali, Joao, Neyma).
-3. **Tone:** Warm, encouraging, and protective (like a friendly teacher).
-4. **ENCODING (CRITICAL):** USE NATIVE UTF-8 CHARACTERS ONLY. DO NOT use unicode escapes for accents or emojis (e.g., NEVER use \\u00e9 or \\u1f60a). Write 'é', 'ç', '🚀' directly!
+1. Language: Portuguese from Mozambique (pt-MZ).
+   - Use "Tu" (never "Você"). Use "a + infinitive" (not gerund).
+   - Avoid Brazilian slang. Use "Fixe", "Maningue", "Eish" where natural.
+2. Local References: Meticais, Machamba, Beira, Maputo, names like Ali, Fatima, Joao.
+3. Tone: Warm, encouraging, protective — like a favourite teacher.
+4. ENCODING: Native UTF-8 ONLY. NEVER use unicode escapes. Write 'é', 'ç', '🚀' directly.
+5. FRAGMENTATION: Max 20 words per bubble. Use 2-3 short bubbles.
+6. OUTPUT: Valid JSON ONLY. No markdown, no text before or after.
+"""
 
-📋 SPECIFIC LESSON GUIDELINES:
+_MATH_BLOCK = """
+🧠 MATH ACCURACY (MANDATORY — run this before every answer):
+Place value: remove dots → count from right to left:
+  pos 0=unidades | pos 1=dezenas | pos 2=centenas
+  pos 3=unidades de milhar | pos 4=dezenas de milhar
+  pos 5=centenas de milhar | pos 6=milhões
+  Example: 540.000 → 540000 → digit 5 is at pos 5 → centenas de milhar.
+"""
+
+# ==============================================================================
+# PROMPT 1 — EXPLAIN
+# Kani explica o conceito. NÃO testa nesta fase.
+# ==============================================================================
+PROMPT_EXPLAIN = """
+ROLE: KMind (Kani), interactive Tutor for Mozambican kids, 3rd-4th grade.
+CONTEXT: Subject="{subject}", Topic="{topic}".
+YOUR TASK THIS TURN: EXPLAIN — teach one concept clearly. Do NOT test yet.
+{lang_block}
+{math_block}
+📋 LESSON GUIDELINES:
 {context_rules}
 
-🛑 STATE TRACKING & FLOW RULES:
-Check the [STATE: TYPE] tag in the chat history.
+RULES FOR THIS TURN:
+1. Explain using a short local analogy or example (Mozambican context).
+2. Split into 2-3 short bubbles (max 20 words each).
+3. LAST bubble MUST be a confirmation: "Ficou claro?", "Percebeste?".
+4. NEVER ask a quiz question — testing happens in the next phase.
+5. If history shows "Não percebi": use a COMPLETELY DIFFERENT analogy.
 
-1. **IF LAST STATE was [EXPLANATION]:**
-   - **User says "Entendi/Continuar":** -> SWITCH TO [TESTING]. Ask a simple question.
-   - **User says "Não entendi/Explica melhor":** -> STAY IN [EXPLANATION].
-     - ACTION: Explain again using a DIFFERENT analogy (simpler). DO NOT repeat text.
-
-2. **IF LAST STATE was [TESTING]:**
-   - **User Wrong:** -> Give a Hint, SET "assessment": "INCORRECT" & Retry ([TESTING]).
-   - **User Correct:** -> DO NOT EXPLAIN NEW TOPIC IMMEDIATELY.
-     - **ACTION:** Praise the student ("Boa!", "Fantástico!") & SET "assessment": "CORRECT".
-        - **CRITICAL REQUIREMENT:** YOU MUST SET "assessment": "CORRECT" IN THE JSON. DO NOT LEAVE IT NULL.
-     - **DECISION:** Ask if they want a harder challenge or move on.
-     - **OUTPUT:** "interaction_type": "CHIPS", "interaction_data": {{ "options": ["Mais um desafio!", "Avançar matéria"] }}
-
-3. **HANDLING TRANSITION (User Choice):**
-   - **User says "Mais um desafio" / "Desafio final":** - 🛑 CRITICAL: YOU MUST STAY ON THE EXACT SAME SUB-TOPIC.
-     - If user was doing "Comparison", give a COMPLEX word problem involving Comparison.
-     - DO NOT switch to "Decomposition" or "Writing" here.
-     - The challenge must be harder than the previous question.
-   
-   - **User says "Avançar" / "Aprender algo novo":** - Move to next Concept ([EXPLANATION]).
-   
-4. **IF NO HISTORY:**
-   - Start with [EXPLANATION] (Short Intro).
-
---- 🧠 STYLE EXAMPLES (IMITATE THIS!) ---
-
-User: Explica a gravidade.
-K:
+OUTPUT JSON:
 {{
-  "messages": [
-    "Eish, boa pergunta! 🚀", 
-    "Imagina que a Terra é um íman gigante.", 
-    "Ela puxa tudo para o chão para não voarmos para o espaço. Maningue fixe, né?"
-  ],
-  "emotion": "INTERESTED",
-  "interaction_type": "EXPLANATION",
-  "interaction_data": {{ "options": ["Entendi!", "Explica mais"] }}
-}}
-
-User: Entendi.
-K:
-{{
-  "messages": [
-    "Boa, campeão! Toca aqui! ✋", 
-    "Então diz-me lá...",
-    "Se soltares uma pedra, para onde ela vai?"
-  ],
-  "emotion": "HAPPY",
-  "interaction_type": "CHIPS",
-  "interaction_data": {{ "options": ["Sobe", "Cai no chão", "Fica parada"] }}
-}}
-
-🎓 PEDAGOGICAL ALIGNMENT (DO NOT FAIL THIS):
-1. **TEST WHAT YOU TAUGHT:** The question in [TESTING] MUST be answerable ONLY using the information given in the previous [EXPLANATION].
-2. **SCAFFOLDING:** If the topic is grammar (Verbs), TEACH the forms (conjugation) visually in the [EXPLANATION] bubble before asking about them.
-3. **MATH ACCURACY (STRICT FACT-CHECKING):** Double-check ALL math calculations and place values before outputting. 
-   🧠 PLACE VALUE ALGORITHM (MANDATORY BEFORE ANSWERING):
-
-    When asked about the place value of a digit:
-
-    1. Remove dots from the number.
-    2. Count positions from right to left.
-    3. Use this table:
-
-    1 → unidades
-    10 → dezenas
-    100 → centenas
-    1.000 → unidades de milhar
-    10.000 → dezenas de milhar
-    100.000 → centenas de milhar
-    1.000.000 → milhões
-
-    Example:
-    Number: 540000
-    Positions:
-    0 = unidades
-    0 = dezenas
-    0 = centenas
-    0 = unidades de milhar
-    4 = dezenas de milhar
-    5 = centenas de milhar
-
-    So the digit 5 is in "centenas de milhar".
-
-    You MUST perform this reasoning before answering.
-
-⛔ ANTI-SPOILER RULE (CRITICAL):
-In [TESTING] mode (Quizzes):
-1. **NEVER** reveal the answer inside the question bubbles.
-2. **TRUST THE STUDENT:** If you explained it in the previous turn, assume they know it.
-3. **HINTS:** Only give hints if the student fails (Assessment: INCORRECT). Do not give hints on the first try.
-
-⛔ ANTI-OVERLOADING RULE (STRICT):
-1. NEVER explain a topic and ask a test question (Quiz) in the same response.
-2. IF "interaction_type" is "EXPLANATION":
-   - The LAST bubble MUST be a confirmation check: "Ficou claro?", "Percebeste?", "Posso avançar?".
-   - The "options" MUST BE confirmation only: ["Entendi!", "Tenho dúvidas"].
-
-🛑 INTERACTION TYPE RULES — READ CAREFULLY (CRITICAL):
-
-You MUST choose the interaction_type based on these STRICT rules:
-
-**"EXPLANATION"** — Use when TEACHING (not testing).
-  → "interaction_data": {{"options": ["Entendi!", "Não percebi..."]}}
-
-**"CHIPS"** — Use for ANY question with 2–4 custom answer options.
-  → This is the DEFAULT for most quiz questions.
-  → "interaction_data": {{"options": ["Option A", "Option B", "Option C"]}}
-  → Example: "Qual é maior, 540.000 ou 500.000?" → CHIPS with ["540.000", "500.000"]
-
-**"TRUE_FALSE"** — Use ONLY when the question is a factual statement to validate.
-  → The options MUST ALWAYS be EXACTLY: ["Verdadeiro", "Falso"] — NO OTHER OPTIONS.
-  → ❌ WRONG: TRUE_FALSE with options ["540.000 é maior", "500.000 é maior"] → use CHIPS instead.
-  → ✅ RIGHT: TRUE_FALSE for "O número 540.000 tem 6 algarismos." → ["Verdadeiro", "Falso"]
-
-**"CLOZE"** — Use ONLY when the LAST message bubble contains the exact string "___".
-  → ❌ WRONG: CLOZE without ___ in the last message. Use CHIPS instead.
-  → ✅ RIGHT: "O 5 em 540.000 está na casa das ___." → CLOZE with options.
-  → "interaction_data": {{"options": ["Correct answer", "Wrong1", "Wrong2"]}}
-
-**"DIRECT_INPUT"** — Use ONLY for open-ended answers (numbers, words, full sentences).
-  → Use sparingly — only when there is ONE clear correct answer that can't be guessed from options.
-  → "interaction_data": {{}}
-
-**"DRAG_DROP"** — Use ONLY for ordering tasks (smallest to largest, etc.).
-  → "interaction_data": {{"items": ["item1", "item2", "item3"]}}
-
-🔄 VARIETY RULE (IMPORTANT):
-- Do NOT use the same interaction_type more than 2 times in a row during [TESTING].
-- Rotate between CHIPS, CLOZE, TRUE_FALSE, and DIRECT_INPUT across different questions.
-- Check the last 3 responses in history to avoid repetition.
-
-🛑 OUTPUT FORMAT RULES (JSON):
-- **FRAGMENTATION:** Break the explanation into short, digestible sentences (max 15-20 words per bubble).
-- Output ONLY a valid JSON object. No markdown, no text before or after.
-
-OUTPUT JSON ONLY:
-{{
-  "messages": [
-      "Bubble 1.",
-      "Bubble 2.",
-      "Bubble 3."
-  ],
+  "messages": ["Bubble 1.", "Bubble 2.", "Ficou claro? 😊"],
   "emotion": "HAPPY" | "INTERESTED" | "THOUGHTFUL",
-  "interaction_type": "EXPLANATION" | "CHIPS" | "TRUE_FALSE" | "CLOZE" | "DRAG_DROP" | "DIRECT_INPUT",  
-  "assessment": "CORRECT" | "INCORRECT" | null, // CRITICAL: If you praise an answer, MUST be "CORRECT". If you correct an error, MUST be "INCORRECT". ONLY use null for pure EXPLANATION.
-  "interaction_data": {{
-      "options": ["Option A", "Option B"]
-  }}
+  "interaction_type": "EXPLANATION",
+  "assessment": null,
+  "interaction_data": {{"options": ["Entendi!", "Não percebi..."]}}
 }}
 """
 
 # ==============================================================================
-# PROMPT RUSH (LLAMA) - Legacy Drill
+# PROMPT 2 — TEST
+# Kani gera UMA pergunta de avaliação. NÃO explica conteúdo novo.
+# ==============================================================================
+PROMPT_TEST = """
+ROLE: KMind (Kani), interactive Tutor for Mozambican kids, 3rd-4th grade.
+CONTEXT: Subject="{subject}", Topic="{topic}".
+YOUR TASK THIS TURN: TEST — ask exactly ONE question to check understanding.
+{lang_block}
+{math_block}
+📋 LESSON GUIDELINES:
+{context_rules}
+
+RULES FOR THIS TURN:
+1. Ask ONE question based ONLY on what was just explained in the history.
+2. NEVER reveal the answer in the question bubbles.
+3. Choose the interaction_type:
+
+   CHIPS — 2-4 distinct answer options (DEFAULT for most questions).
+     → {{"options": ["A", "B", "C"]}}
+
+   TRUE_FALSE — factual statement to validate.
+     → options MUST be EXACTLY: ["Verdadeiro", "Falso"]
+     → ❌ WRONG: ["540.000 é maior", "500.000 é maior"] — use CHIPS instead.
+
+   CLOZE — ONLY if the last bubble contains "___".
+     → {{"options": ["correct", "wrong1", "wrong2"]}}
+
+   DIRECT_INPUT — open-ended answer (number, word, sentence).
+     → {{}}
+
+   DRAG_DROP — ordering tasks only.
+     → {{"items": ["item1", "item2", "item3"]}}
+
+4. VARIETY: check last 3 history entries — do NOT repeat same type.
+5. Start simple. Increase difficulty if student has answered correctly before.
+
+OUTPUT JSON:
+{{
+  "messages": ["Então diz-me...", "A question here?"],
+  "emotion": "INTERESTED",
+  "interaction_type": "CHIPS" | "TRUE_FALSE" | "CLOZE" | "DIRECT_INPUT" | "DRAG_DROP",
+  "assessment": null,
+  "interaction_data": {{"options": ["A", "B", "C"]}}
+}}
+"""
+
+# ==============================================================================
+# PROMPT 3a — FEEDBACK CORRECT
+# Kani elogia. assessment já foi calculado pelo Python como "CORRECT".
+# ==============================================================================
+PROMPT_FEEDBACK_CORRECT = """
+ROLE: KMind (Kani), interactive Tutor for Mozambican kids, 3rd-4th grade.
+CONTEXT: Subject="{subject}", Topic="{topic}".
+YOUR TASK THIS TURN: PRAISE the student — they answered CORRECTLY!
+{lang_block}
+
+The question was: "{last_question}"
+The student answered: "{user_answer}"
+The correct answer: "{correct_answer}"
+
+RULES FOR THIS TURN:
+1. Celebrate with energy! ("Fantástico! 🎉", "Arrasei!", "Boa demais! 🚀")
+2. Briefly confirm WHY the answer is correct (max 1 sentence).
+3. Ask: more challenge on the same sub-topic, or advance to new content?
+4. Do NOT introduce new content yet.
+
+OUTPUT JSON:
+{{
+  "messages": ["Fantástico! 🎉", "Acertaste mesmo!", "Mais um desafio ou avançamos?"],
+  "emotion": "HAPPY",
+  "interaction_type": "CHIPS",
+  "assessment": "CORRECT",
+  "interaction_data": {{"options": ["Mais um desafio! 💪", "Avançar matéria ➡️"]}}
+}}
+"""
+
+# ==============================================================================
+# PROMPT 3b — FEEDBACK INCORRECT
+# Kani encoraja e dá uma dica. assessment já foi calculado como "INCORRECT".
+# ==============================================================================
+PROMPT_FEEDBACK_INCORRECT = """
+ROLE: KMind (Kani), interactive Tutor for Mozambican kids, 3rd-4th grade.
+CONTEXT: Subject="{subject}", Topic="{topic}".
+YOUR TASK THIS TURN: ENCOURAGE and give a HINT — the student answered incorrectly.
+{lang_block}
+{math_block}
+
+The question was: "{last_question}"
+The student answered: "{user_answer}"
+The correct answer: "{correct_answer}"
+The question type was: "{last_interaction_type}"
+
+RULES FOR THIS TURN:
+1. Be kind! NEVER say "Errado!" harshly. Use "Quase!", "Não desanimes!", "Pensa bem...".
+2. Give ONE specific hint pointing toward the correct answer WITHOUT revealing it.
+3. Retry the SAME question — same type ({last_interaction_type}), slightly reworded if needed.
+4. Do NOT move to a new topic.
+
+OUTPUT JSON:
+{{
+  "messages": ["Quase! 🤔", "Lembra-te: [hint].", "Tenta outra vez:"],
+  "emotion": "THOUGHTFUL",
+  "interaction_type": "{last_interaction_type}",
+  "assessment": "INCORRECT",
+  "interaction_data": {{"options": ["{correct_answer}", "wrong_option_1", "wrong_option_2"]}}
+}}
+"""
+
+# ==============================================================================
+# PROMPT RUSH LEGACY
 # ==============================================================================
 PROMPT_RUSH_LEGACY = """
 You are KMind (Legacy Mode).
 Just give a short feedback and chips: <<Continuar|Sair>>.
 """
 
+# ==============================================================================
+# UTILITÁRIOS
+# ==============================================================================
 def clean_unicode(text: str) -> str:
     if not text:
         return text
@@ -198,211 +188,206 @@ def clean_unicode(text: str) -> str:
     return text
 
 
-# ==============================================================================
-# SANITIZAÇÃO DO RESPONSE DO TUTOR
-# Corrige tipos inválidos DEPOIS de receber o JSON — defesa em profundidade.
-# ==============================================================================
-def _sanitize_tutor_response(obj: dict) -> dict:
-    """
-    Corrige interaction_type e interaction_data inválidos.
-    
-    Regras aplicadas:
-    1. TRUE_FALSE com options != ["Verdadeiro","Falso"] → converte para CHIPS
-    2. CLOZE sem ___ em nenhuma mensagem → converte para CHIPS
-    3. DIRECT_INPUT mais de 2 vezes seguidas não é controlado aqui
-       (é controlado pelo histórico no prompt) — mas garantimos que
-       interaction_data é sempre {} para DIRECT_INPUT
-    4. interaction_data ausente ou mal formado → corrige para o default do tipo
-    """
+def _norm(s: str) -> str:
+    """Normaliza para comparação: remove espaços/pontos/vírgulas, lowercase."""
+    return re.sub(r'[\s.,]', '', s).strip().lower()
+
+
+PLACE_VALUES = {
+    0: "unidades", 1: "dezenas", 2: "centenas",
+    3: "unidades de milhar", 4: "dezenas de milhar",
+    5: "centenas de milhar", 6: "milhões"
+}
+
+def correct_place_value(messages: list) -> list:
+    text = " ".join(messages)
+    match = re.search(r"(\d)\s+em\s+([\d\.]+)", text)
+    if not match:
+        return messages
+    digit = match.group(1)
+    number = match.group(2).replace(".", "")
+    for i, d in enumerate(number):
+        if d == digit:
+            pos = len(number) - i - 1
+            correct_value = PLACE_VALUES.get(pos)
+            if not correct_value:
+                return messages
+            return [
+                re.sub(r"casa das [a-zA-ZÀ-ú\s]+", f"casa das {correct_value}", m)
+                if "casa" in m.lower() else m
+                for m in messages
+            ]
+    return messages
+
+
+def _sanitize_interaction(obj: dict) -> dict:
+    """Corrige interaction_type inválido. NÃO toca no assessment."""
     itype = obj.get("interaction_type", "CHIPS")
     idata = obj.get("interaction_data", {})
     messages = obj.get("messages", [])
 
-    # ── TRUE_FALSE: options devem ser exactamente ["Verdadeiro", "Falso"] ─────
     if itype == "TRUE_FALSE":
         opts = idata.get("options", [])
-        expected = {"verdadeiro", "falso"}
-        actual   = {o.strip().lower() for o in opts}
-        if actual != expected:
-            # O modelo usou TRUE_FALSE para uma pergunta de escolha → CHIPS
-            print(f"⚠️ [Sanitize] TRUE_FALSE com options inválidas {opts} → convertido para CHIPS")
+        if {o.strip().lower() for o in opts} != {"verdadeiro", "falso"}:
+            print(f"⚠️ [Sanitize] TRUE_FALSE options inválidas → CHIPS")
             obj["interaction_type"] = "CHIPS"
-            # As options já estão lá, só muda o tipo
-            return obj
-        # Normaliza para capitalized
-        obj["interaction_data"] = {"options": ["Verdadeiro", "Falso"]}
+        else:
+            obj["interaction_data"] = {"options": ["Verdadeiro", "Falso"]}
         return obj
 
-    # ── CLOZE: última mensagem deve ter ___ ───────────────────────────────────
     if itype == "CLOZE":
-        has_blank = any("___" in m for m in messages)
-        if not has_blank:
-            print(f"⚠️ [Sanitize] CLOZE sem ___ nas mensagens → convertido para CHIPS")
+        if not any("___" in m for m in messages):
+            print(f"⚠️ [Sanitize] CLOZE sem ___ → CHIPS")
             obj["interaction_type"] = "CHIPS"
-            # Mantém as options que o modelo deu
-            return obj
         return obj
 
-    # ── DIRECT_INPUT: garante interaction_data vazio ──────────────────────────
     if itype == "DIRECT_INPUT":
         obj["interaction_data"] = {}
         return obj
 
-    # ── EXPLANATION: garante options de confirmação ───────────────────────────
     if itype == "EXPLANATION":
-        opts = idata.get("options", [])
-        if not opts:
+        if not idata.get("options"):
             obj["interaction_data"] = {"options": ["Entendi!", "Não percebi..."]}
         return obj
 
-    # ── CHIPS / DRAG_DROP: garante que há options / items ─────────────────────
     if itype == "CHIPS":
-        opts = idata.get("options", [])
-        if not opts:
-            print(f"⚠️ [Sanitize] CHIPS sem options → adicionado fallback")
+        if not idata.get("options"):
             obj["interaction_data"] = {"options": ["Continuar"]}
         return obj
 
     if itype == "DRAG_DROP":
-        items = idata.get("items", [])
-        if not items:
-            # converte para CHIPS se não tem items
+        if not idata.get("items"):
             obj["interaction_type"] = "CHIPS"
             obj["interaction_data"] = {"options": ["Continuar"]}
         return obj
-    if obj.get("assessment") is None:
-        text = " ".join(messages).lower()
-
-        if any(word in text for word in [
-            "muito bem", "boa", "fantástico", "correto", "certo", "👏", "🎉"
-        ]):
-            obj["assessment"] = "CORRECT"
-
-        elif any(word in text for word in [
-            "quase", "tenta novamente", "não", "errado"
-        ]):
-            obj["assessment"] = "INCORRECT"
 
     return obj
 
-
-
-PLACE_VALUES = {
-    0: "unidades",
-    1: "dezenas",
-    2: "centenas",
-    3: "unidades de milhar",
-    4: "dezenas de milhar",
-    5: "centenas de milhar",
-    6: "milhões"
-}
-
-def correct_place_value(messages):
-    text = " ".join(messages)
-
-    # procura padrão tipo: "5 em 540.000"
-    match = re.search(r"(\d)\s+em\s+([\d\.]+)", text)
-
-    if not match:
-        return messages
-
-    digit = match.group(1)
-    number = match.group(2).replace(".", "")
-
-    number_str = str(number)
-
-    for i, d in enumerate(number_str):
-        if d == digit:
-            pos = len(number_str) - i - 1
-            correct_value = PLACE_VALUES.get(pos)
-
-            if not correct_value:
-                return messages
-
-            # corrige se o LLM escreveu errado
-            new_messages = []
-            for m in messages:
-
-                if "casa" in m.lower():
-                    m = re.sub(
-                        r"casa das [a-zA-Z\s]+",
-                        f"casa das {correct_value}",
-                        m
-                    )
-
-                new_messages.append(m)
-
-            return new_messages
-
-    return messages
 
 # ==============================================================================
 # LÓGICA PRINCIPAL
 # ==============================================================================
 async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
+
+    # ── Rush legacy ────────────────────────────────────────────────────────────
     if request.mode == "rush_feedback":
-        client = get_rush_clients()
-        if not client:
+        clients = get_rush_clients()
+        if not clients:
             return ChatResponse(response_text="Erro: Rush indisponível.")
         try:
-            completion = client.chat.completions.create(
+            completion = clients[0].chat.completions.create(
                 model="meta-llama/llama-3.3-70b-instruct:free",
                 messages=[{"role": "user", "content": f"{PROMPT_RUSH_LEGACY}\n{request.user_query}"}],
-                temperature=0.8, max_tokens=150, top_p=0.9,
-                frequency_penalty=0.6, presence_penalty=0.4,
+                temperature=0.8, max_tokens=150,
                 response_format={"type": "json_object"}
             )
             return ChatResponse(response_text=completion.choices[0].message.content)
-        except:
+        except Exception:
             return ChatResponse(response_text="Muito bem! <<Continuar>>")
 
+    # ── Parâmetros ─────────────────────────────────────────────────────────────
     subject       = request.subject or "Matemática"
     topic         = request.topic or "Geral"
-    context_rules = request.context_rules or "Seja divertido."
+    context_rules = request.context_rules or "Seja divertido e usa exemplos do dia-a-dia."
+    phase         = request.phase or "EXPLAIN"
 
-    # 🔥 FIX 1: REMOVIDO o chosen_type aleatório.
-    # O modelo escolhe o tipo correcto com base nas regras do prompt.
-    # Forçar um tipo aleatório causava:
-    #   - TRUE_FALSE com options personalizadas (ex: "540.000 é maior")
-    #   - CLOZE sem ___ nas mensagens
-    #   - DIRECT_INPUT repetido indefinidamente
-    system_text = PROMPT_TUTOR_FINAL.format(
-        subject=subject,
-        topic=topic,
-        context_rules=context_rules,
-    )
+    assessment_override: str | None = None
 
+    # ── Selecciona prompt pela fase ────────────────────────────────────────────
+    if phase == "EXPLAIN":
+        system_text = PROMPT_EXPLAIN.format(
+            subject=subject, topic=topic,
+            context_rules=context_rules,
+            lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
+        )
+
+    elif phase == "TEST":
+        system_text = PROMPT_TEST.format(
+            subject=subject, topic=topic,
+            context_rules=context_rules,
+            lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
+        )
+
+    elif phase == "FEEDBACK":
+        # ── Assessment calculado deterministicamente ───────────────────────────
+        # O Python compara a resposta do aluno com a correcta.
+        # O modelo só gera o TEXTO — nunca decide o resultado.
+        user_answer    = request.user_query or ""
+        correct_answer = request.last_correct_answer or ""
+        last_itype     = request.last_interaction_type or "CHIPS"
+
+        if correct_answer and _norm(user_answer) == _norm(correct_answer):
+            assessment_override = "CORRECT"
+            system_text = PROMPT_FEEDBACK_CORRECT.format(
+                subject=subject, topic=topic,
+                lang_block=_LANG_BLOCK,
+                user_answer=user_answer,
+                correct_answer=correct_answer,
+                last_question=request.last_question or "",
+            )
+        else:
+            assessment_override = "INCORRECT"
+            system_text = PROMPT_FEEDBACK_INCORRECT.format(
+                subject=subject, topic=topic,
+                lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
+                user_answer=user_answer,
+                correct_answer=correct_answer,
+                last_question=request.last_question or "",
+                last_interaction_type=last_itype,
+            )
+    else:
+        # Fase desconhecida → fallback seguro para EXPLAIN
+        phase = "EXPLAIN"
+        system_text = PROMPT_EXPLAIN.format(
+            subject=subject, topic=topic,
+            context_rules=context_rules,
+            lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
+        )
+
+    # ── Chamada ao modelo ──────────────────────────────────────────────────────
     try:
         json_obj = await generate_tutor_response(
             system_prompt=system_text,
             user_query=request.user_query,
-            history=request.history
+            history=request.history,
         )
 
-        # 🔥 FIX 2: Sanitiza o response ANTES de gerar o áudio
-        json_obj = _sanitize_tutor_response(json_obj)
+        # Assessment: sobrescreve SEMPRE com o valor calculado (nunca do modelo)
+        if assessment_override is not None:
+            json_obj["assessment"] = assessment_override
+        else:
+            # EXPLAIN e TEST nunca têm assessment
+            json_obj["assessment"] = None
+
+        # Sanitiza interaction_type (não toca no assessment)
+        json_obj = _sanitize_interaction(json_obj)
+
+        # Correcção determinística de valor posicional
         json_obj["messages"] = correct_place_value(json_obj.get("messages", []))
+
+        # Limpeza de encoding
         json_obj["messages"] = [
             remove_broken_emojis(clean_unicode(m))
             for m in json_obj.get("messages", [])
         ]
 
+        # Áudio
         audio_file = await generate_voice_audio(json_obj.get("messages", []))
+        json_obj["audio_url"] = f"/static/audio_cache/{audio_file}" if audio_file else None
 
-        if audio_file:
-            json_obj["audio_url"] = f"/static/audio_cache/{audio_file}"
-        else:
-            json_obj["audio_url"] = None
+        # Devolve a fase ao NestJS para calcular a próxima transição
+        json_obj["phase"] = phase
 
-        return ChatResponse(
-            response_text=json.dumps(json_obj, ensure_ascii=False)
-        )
+        return ChatResponse(response_text=json.dumps(json_obj, ensure_ascii=False))
 
     except Exception as e:
-        print(f"ERRO CONTROLADOR: {e}")
+        print(f"ERRO CONTROLADOR [{phase}]: {e}")
         return ChatResponse(response_text=json.dumps({
-            "messages": ["Erro técnico no sistema. ⚙️"],
+            "messages": ["Eish, algo correu mal! ⚙️", "Podes tentar de novo?"],
             "emotion": "SAD",
             "interaction_type": "CHIPS",
-            "interaction_data": {"options": ["Tentar de novo"]}
-        }))
+            "assessment": None,
+            "phase": phase,
+            "interaction_data": {"options": ["Tentar de novo"]},
+            "audio_url": None,
+        }, ensure_ascii=False))

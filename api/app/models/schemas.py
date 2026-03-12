@@ -25,7 +25,11 @@ class ChatRequest(BaseModel):
     history: List[dict] = []
     subject: str = "" 
     topic: str = ""
-    context_rules: str = ""   
+    context_rules: str = ""
+    phase: str = "EXPLAIN"
+    last_question: Optional[str] = None
+    last_correct_answer: Optional[str] = None
+    last_interaction_type: Optional[str] = None
 
 class ChatResponse(BaseModel):
     response_text: str
