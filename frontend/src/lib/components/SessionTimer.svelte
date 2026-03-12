@@ -1,69 +1,87 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { Battery, BatteryWarning } from 'lucide-svelte';
-  import '../../app.css'
-  
-  // Tempo padrão: 30 minutos em segundos
-  const MAX_TIME = 30 * 60; 
-  
-  // 🔥 NOVO: Chave para o localStorage. Exportamos caso queiras passar o ID da sessão depois!
-  export let timerKey = 'rush_session_timer';
-  
+
+  const MAX_TIME = 30 * 60; // 30 minutos
+
+  // timerKey: chave do localStorage — muda por sessão para forçar reset
+  export let timerKey = 'kmind_session_timer';
+
+  // paused: quando true o timer congela (ex: durante loading de tópicos)
+  export let paused = false;
+
   let timeLeft = MAX_TIME;
-  let interval: any;
+  let interval: ReturnType<typeof setInterval> | null = null;
   const dispatch = createEventDispatcher();
 
-  // Calcula a percentagem para a barra visual
   $: percentage = (timeLeft / MAX_TIME) * 100;
-  
-  // Cor muda conforme o tempo acaba
-  $: color = percentage > 50 ? 'bg-green-500' 
-           : percentage > 20 ? 'bg-yellow-500' 
+  $: color = percentage > 50 ? 'bg-green-500'
+           : percentage > 20 ? 'bg-yellow-500'
            : 'bg-red-500';
 
-  onMount(() => {
-    // 🔥 1. RECUPERA O TEMPO SALVO (se existir)
-    const savedTime = localStorage.getItem(timerKey);
-    if (savedTime !== null) {
-        timeLeft = parseInt(savedTime, 10);
-    }
-
+  function startInterval() {
+    if (interval) clearInterval(interval);
     interval = setInterval(() => {
+      if (paused) return; // congela sem parar o interval
       if (timeLeft > 0) {
         timeLeft--;
-        // 🔥 2. GUARDA O TEMPO RESTANTE A CADA SEGUNDO
         localStorage.setItem(timerKey, timeLeft.toString());
       } else {
-        clearInterval(interval);
-        // 🔥 3. LIMPA O LOCALSTORAGE QUANDO O TEMPO ACABA
+        clearInterval(interval!);
+        interval = null;
         localStorage.removeItem(timerKey);
-        dispatch('timeup'); // Avisa a página principal que acabou
+        dispatch('timeup');
       }
     }, 1000);
+  }
+
+  onMount(() => {
+    // Recupera o tempo guardado para ESTA chave específica
+    const saved = localStorage.getItem(timerKey);
+    if (saved !== null) {
+      const parsed = parseInt(saved, 10);
+      // Só usa o valor guardado se for válido e menor que o máximo
+      if (!isNaN(parsed) && parsed > 0 && parsed <= MAX_TIME) {
+        timeLeft = parsed;
+      }
+    }
+    startInterval();
   });
+
+  // Quando a timerKey muda (nova sessão) → reseta o timer
+  $: if (timerKey) {
+    const saved = localStorage.getItem(timerKey);
+    if (saved === null) {
+      // Nova chave sem valor guardado → reinicia a partir do máximo
+      timeLeft = MAX_TIME;
+    }
+  }
 
   onDestroy(() => {
     if (interval) clearInterval(interval);
   });
 
-  function formatTime(seconds: number) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  function formatTime(s: number): string {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec < 10 ? '0' : ''}${sec}`;
   }
 </script>
 
-<div class="flex items-center gap-2 bg-white dark:bg-surface-800 px-3 py-1.5 rounded-full shadow-sm border border-surface-200 dark:border-surface-700">
-  
-  <div class="{timeLeft < 60 ? 'animate-pulse text-red-500' : 'text-surface-600'}">
-    {#if timeLeft < 300} <BatteryWarning size={18} /> {:else} <Battery size={18} /> {/if}
+<div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-slate-200">
+  <div class="{timeLeft < 60 ? 'animate-pulse text-red-500' : 'text-slate-600'}">
+    {#if timeLeft < 300}
+      <BatteryWarning size={18} />
+    {:else}
+      <Battery size={18} />
+    {/if}
   </div>
 
-  <div class="w-24 h-2 bg-surface-200 rounded-full overflow-hidden">
+  <div class="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
     <div class="h-full transition-all duration-1000 {color}" style="width: {percentage}%"></div>
   </div>
 
-  <span class="text-xs font-mono font-bold text-surface-600 dark:text-surface-300 w-10 text-right">
-    {formatTime(timeLeft)}
+  <span class="text-xs font-mono font-bold text-slate-600 w-10 text-right {paused ? 'opacity-40' : ''}">
+    {paused ? '--:--' : formatTime(timeLeft)}
   </span>
 </div>

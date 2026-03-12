@@ -5,7 +5,7 @@
   import { PUBLIC_API_URL_HOST, PUBLIC_IA_HOST_API_URL } from '$env/static/public';
   import { 
     Send, Bot, ArrowLeft, Sparkles, Brain, X,
-    Smile, Frown, BookOpen, Calculator, ChevronRight, GraduationCap, Volume2, Star, ArrowDown
+    Smile, Frown, BookOpen, Calculator, ChevronRight, GraduationCap, Volume2, Star, ArrowDown, PenLine
   } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import confetti from 'canvas-confetti';
@@ -25,18 +25,37 @@
   let loadingTopics = true;
   let isTimeUp = false;
 
+  // ── FIX 1: Timer key única por sessão de chat ─────────────────────────────
+  // Ao iniciar uma nova sessão de tópico, geramos uma chave nova.
+  // Isto garante que o localStorage não reaproveita o timer de sessões anteriores.
+  let currentTimerKey = `kmind_timer_${Date.now()}`;
+
+  // ── FIX 1: Timer só corre quando está no CHAT ─────────────────────────────
+  $: timerPaused = viewState !== 'CHAT';
+
   // --- ESTADO DO CHAT ---
   let messageInput = '';
   let isTyping = false;
   let isPreparingAudio = false;
   let chatContainer: HTMLElement;
   let isRevealing = false;
-
   let visibleBubbles: string[] = [];
-  
-  // --- ESTADO DRAG & DROP (Tap-to-order) ---
+
+  // ── FIX 2: Input livre sempre acessível ──────────────────────────────────
+  // Quando o Kani dá opções (quiz/chips/confirmation), o aluno pode sempre
+  // alternar para escrever livremente — ex: tirar uma dúvida no meio de um teste.
+  let showFreeInput = false;
+
+  // --- ESTADO DRAG & DROP ---
   let availableDragItems: string[] = [];
   let selectedDragItems: string[] = [];
+
+  // ── State machine da lição (Opção A) ─────────────────────────────────────
+  // Guardamos os campos necessários para o FEEDBACK determinístico.
+  let currentPhase: 'EXPLAIN' | 'TEST' | 'FEEDBACK' = 'EXPLAIN';
+  let lastQuestion: string | null = null;
+  let lastCorrectAnswer: string | null = null;
+  let lastInteractionType: string | null = null;
 
   let currentAiMessage = {
     messages: [] as string[],
@@ -45,7 +64,6 @@
     data: {} as any
   };
 
-  // ── MAPEAMENTO DE INPUTS SINCRONIZADO COM O BACKEND ─────────────────────
   $: inputMode = resolveInputMode(currentAiMessage.type, currentAiMessage.data, isTyping, isPreparingAudio, isRevealing);
 
   function resolveInputMode(
@@ -56,27 +74,17 @@
     revealing: boolean
   ): 'confirmation' | 'quiz' | 'chips' | 'text' | 'drag_drop' | 'none' {
     if (typing || preparingAudio || revealing) return 'none';
-    
-    // 1. O Aluno digita a resposta livremente
     if (type === 'DIRECT_INPUT') return 'text';
-    
-    // 2. O Aluno clica em itens para os colocar na ordem correta
     if (type === 'DRAG_DROP' && data?.items) return 'drag_drop';
-
     const options: string[] = data?.options || [];
-    
-    // 3. O Kani acabou de explicar algo (Botões: Entendi / Não entendi)
     if (type === 'EXPLANATION' && options.length > 0) return 'confirmation';
-    
-    // 4. Testes de clique rápido (Grid 2x2 ou botões grandes)
     if (type === 'TRUE_FALSE' || type === 'CHIPS') return 'quiz';
-    
-    // 5. Preencher a lacuna (Opções em formato de lista)
     if (type === 'CLOZE') return 'chips';
-    
-    // Fallback de segurança
     return 'text';
   }
+
+  // O input livre deve fechar quando o inputMode muda
+  $: if (inputMode !== 'none') showFreeInput = false;
 
   $: mascotState = getMascotState(currentAiMessage.emotion);
 
@@ -95,7 +103,6 @@
     }
   });
 
-  // --- FUNÇÕES ---
   function handleTimeUp() {
     isTimeUp = true;
     viewState = 'GAMEOVER';
@@ -144,12 +151,28 @@
 
   function startSession(subject: string, topicName: string) {
     sessionContext = { subject, topic: topicName };
+
+    // ── FIX 1+3: Timer reseta com nova chave única ────────────────────────
+    // Limpa o timer antigo do localStorage e gera uma chave nova.
+    // Quando o SessionTimer recebe a nova timerKey, não encontra nada no
+    // localStorage e começa do MAX_TIME.
+    localStorage.removeItem(currentTimerKey);
+    currentTimerKey = `kmind_timer_${Date.now()}`;
+
+    // Reseta a state machine
+    currentPhase = 'EXPLAIN';
+    lastQuestion = null;
+    lastCorrectAnswer = null;
+    lastInteractionType = null;
+    showFreeInput = false;
+
     viewState = 'CHAT';
     handleAiResponse(JSON.stringify({
       messages: [`Olá campeão! 🌟`, `Hoje vamos dominar ${topicName}!`, "Estás pronto?"],
       emotion: "HAPPY",
       interaction_type: "EXPLANATION",
-      interaction_data: { options: ["Vamos lá!", "O que é isso?"] }
+      interaction_data: { options: ["Vamos lá!", "O que é isso?"] },
+      phase: "EXPLAIN"
     }));
   }
 
@@ -158,6 +181,7 @@
     if (!textToSend.trim() || isTyping) return;
 
     messageInput = '';
+    showFreeInput = false;
     isTyping = true;
     visibleBubbles = [];
     currentAiMessage.emotion = "THOUGHTFUL";
@@ -173,7 +197,12 @@
           topic: sessionContext.topic,
           mode: 'tutor',
           turmaId: turmaId,
-          sessaoId: sessionId || null
+          sessaoId: sessionId || null,
+          // ── State machine (Opção A) ────────────────────────────────────
+          phase: currentPhase,
+          lastQuestion: lastQuestion,
+          lastCorrectAnswer: lastCorrectAnswer,
+          lastInteractionType: lastInteractionType,
         })
       });
       if (res.ok) {
@@ -213,11 +242,22 @@
         type: content.interaction_type || "FREE_TEXT",
         data: content.interaction_data || {}
       };
-      
-      // Preparar os Itens se for DRAG_DROP (Baralhar a ordem)
-      if (currentAiMessage.type === 'DRAG_DROP' && currentAiMessage.data.items) {
-          selectedDragItems = [];
-          availableDragItems = [...currentAiMessage.data.items].sort(() => Math.random() - 0.5);
+
+      // ── Actualiza a state machine com a fase devolvida pelo backend ──────
+      if (content.phase) currentPhase = content.phase;
+
+      // ── Guarda os campos de contexto para o próximo FEEDBACK ─────────────
+      // Quando o Kani devolve uma pergunta (fase TEST), guardamos a pergunta
+      // e a resposta correcta para enviar no próximo pedido (fase FEEDBACK).
+      if (content.phase === 'TEST') {
+        // A última mensagem do array é normalmente a pergunta
+        lastQuestion = msgs[msgs.length - 1] || null;
+        // correct_answer vem no interaction_data para CHIPS/CLOZE/TRUE_FALSE
+        // e o backend também pode devolvê-lo num campo dedicado
+        lastCorrectAnswer = content.correct_answer
+          || content.interaction_data?.correct_answer
+          || null;
+        lastInteractionType = content.interaction_type || null;
       }
 
       if (content.emotion === 'HAPPY' || content.assessment === 'CORRECT') {
@@ -313,7 +353,12 @@
     </div>
     {#if viewState !== 'GAMEOVER'}
       <div class="shrink-0 ml-2">
-        <SessionTimer on:timeup={handleTimeUp} />
+        <!-- FIX 1: paused=true enquanto não está no CHAT, timerKey única por sessão -->
+        <SessionTimer
+          timerKey={currentTimerKey}
+          paused={timerPaused}
+          on:timeup={handleTimeUp}
+        />
       </div>
     {/if}
   </div>
@@ -419,6 +464,7 @@
       </div>
     </div>
 
+    <!-- ZONA DE INPUT FIXA ──────────────────────────────────────────────── -->
     <div class="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-100 z-40">
       <div class="max-w-3xl mx-auto flex flex-col justify-center p-3 pb-safe">
 
@@ -430,60 +476,153 @@
           </div>
 
         {:else if inputMode === 'confirmation'}
-          <div class="flex gap-3 w-full animate-slide-up pb-1">
-            {#each (currentAiMessage.data.options || []) as option}
+          <div class="flex flex-col gap-2 w-full animate-slide-up pb-1">
+            <div class="flex gap-3 w-full">
+              {#each (currentAiMessage.data.options || []) as option}
+                <button
+                  class="flex-1 px-4 py-4 rounded-2xl border-b-4 font-black text-base transition-all
+                    active:translate-y-1 active:border-b-0
+                    {option.toLowerCase().includes('não') || option.toLowerCase().includes('duvida') || option.toLowerCase().includes('dúvida')
+                      ? 'bg-rose-50 text-rose-600 border-rose-200 hover:border-rose-400'
+                      : 'bg-green-50 text-green-700 border-green-200 hover:border-green-400'}"
+                  on:click={() => sendMessage(option)}
+                >
+                  {option}
+                </button>
+              {/each}
+            </div>
+            <!-- FIX 2: botão para escrever livremente mesmo com opções -->
+            {#if !showFreeInput}
               <button
-                class="flex-1 px-4 py-4 rounded-2xl border-b-4 font-black text-base transition-all
-                  active:translate-y-1 active:border-b-0
-                  {option.toLowerCase().includes('não') || option.toLowerCase().includes('duvida') || option.toLowerCase().includes('dúvida')
-                    ? 'bg-rose-50 text-rose-600 border-rose-200 hover:border-rose-400'
-                    : 'bg-green-50 text-green-700 border-green-200 hover:border-green-400'}"
-                on:click={() => sendMessage(option)}
+                on:click={() => showFreeInput = true}
+                class="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-blue-500 transition-colors mt-1"
               >
-                {option}
+                <PenLine size={12} /> Escrever outra coisa
               </button>
-            {/each}
+            {:else}
+              <div class="flex items-center gap-2 mt-1 animate-slide-up">
+                <input
+                  type="text"
+                  class="flex-1 pl-4 pr-4 py-2.5 bg-slate-100 border-2 border-slate-200
+                    focus:border-blue-400 focus:bg-white rounded-xl outline-none transition-all
+                    text-slate-700 font-bold shadow-inner text-sm"
+                  placeholder="Escreve aqui..."
+                  bind:value={messageInput}
+                  on:keydown={handleKeydown}
+                  autofocus
+                />
+                <button
+                  class="p-2.5 rounded-xl bg-blue-500 text-white border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 shadow-md disabled:opacity-50 shrink-0"
+                  on:click={() => sendMessage()}
+                  disabled={!messageInput.trim()}
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            {/if}
           </div>
 
         {:else if inputMode === 'quiz'}
           {@const opts = currentAiMessage.data.options || []}
-          <div class="animate-slide-up pb-1 w-full"
-            class:grid={opts.length <= 4}
-            class:grid-cols-2={opts.length === 4}
-            class:grid-cols-1={opts.length !== 4}
-            class:flex={opts.length > 4}
-            class:flex-col={opts.length > 4}
-            style="gap: 10px;"
-          >
-            {#each opts as option}
+          <div class="animate-slide-up pb-1 w-full flex flex-col gap-2">
+            <div
+              class:grid={opts.length <= 4}
+              class:grid-cols-2={opts.length === 4}
+              class:grid-cols-1={opts.length !== 4}
+              class:flex={opts.length > 4}
+              class:flex-col={opts.length > 4}
+              style="gap: 10px;"
+            >
+              {#each opts as option}
+                <button
+                  class="px-4 py-3 rounded-2xl border-b-4 border-slate-200 bg-white
+                    text-slate-700 font-bold text-base shadow-sm
+                    hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700
+                    active:translate-y-1 active:border-b-0 transition-all
+                    flex items-center justify-center text-center min-h-[52px]"
+                  on:click={() => sendMessage(option)}
+                >
+                  <span class="leading-tight">{option}</span>
+                </button>
+              {/each}
+            </div>
+            <!-- FIX 2: input livre sempre acessível -->
+            {#if !showFreeInput}
               <button
-                class="px-4 py-3 rounded-2xl border-b-4 border-slate-200 bg-white
-                  text-slate-700 font-bold text-base shadow-sm
-                  hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700
-                  active:translate-y-1 active:border-b-0 transition-all
-                  flex items-center justify-center text-center min-h-[52px]"
-                on:click={() => sendMessage(option)}
+                on:click={() => showFreeInput = true}
+                class="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-blue-500 transition-colors mt-1"
               >
-                <span class="leading-tight">{option}</span>
+                <PenLine size={12} /> Tirar uma dúvida
               </button>
-            {/each}
+            {:else}
+              <div class="flex items-center gap-2 mt-1 animate-slide-up">
+                <input
+                  type="text"
+                  class="flex-1 pl-4 pr-4 py-2.5 bg-slate-100 border-2 border-slate-200
+                    focus:border-blue-400 focus:bg-white rounded-xl outline-none transition-all
+                    text-slate-700 font-bold shadow-inner text-sm"
+                  placeholder="Escreve a tua pergunta..."
+                  bind:value={messageInput}
+                  on:keydown={handleKeydown}
+                  autofocus
+                />
+                <button
+                  class="p-2.5 rounded-xl bg-blue-500 text-white border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 shadow-md disabled:opacity-50 shrink-0"
+                  on:click={() => sendMessage()}
+                  disabled={!messageInput.trim()}
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            {/if}
           </div>
 
         {:else if inputMode === 'chips'}
-          <div class="flex flex-col gap-2 w-full animate-slide-up pb-1 max-h-[40vh] overflow-y-auto custom-scrollbar px-1">
-            {#each (currentAiMessage.data.options || []) as option}
+          <div class="flex flex-col gap-2 w-full animate-slide-up pb-1">
+            <div class="flex flex-col gap-2 max-h-[35vh] overflow-y-auto custom-scrollbar px-1">
+              {#each (currentAiMessage.data.options || []) as option}
+                <button
+                  class="w-full px-5 py-3 md:py-4 rounded-xl shadow-sm border-b-4
+                    transition-all active:border-b-0 active:translate-y-1 active:bg-blue-50
+                    bg-white text-blue-600 border-slate-200 hover:border-blue-400
+                    flex items-center justify-center text-center font-bold"
+                  class:text-lg={option.length < 20}
+                  class:text-sm={option.length >= 20}
+                  on:click={() => sendMessage(option)}
+                >
+                  {option}
+                </button>
+              {/each}
+            </div>
+            <!-- FIX 2 -->
+            {#if !showFreeInput}
               <button
-                class="w-full px-5 py-3 md:py-4 rounded-xl shadow-sm border-b-4
-                  transition-all active:border-b-0 active:translate-y-1 active:bg-blue-50
-                  bg-white text-blue-600 border-slate-200 hover:border-blue-400
-                  flex items-center justify-center text-center font-bold"
-                class:text-lg={option.length < 20}
-                class:text-sm={option.length >= 20}
-                on:click={() => sendMessage(option)}
+                on:click={() => showFreeInput = true}
+                class="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-blue-500 transition-colors mt-1"
               >
-                {option}
+                <PenLine size={12} /> Tirar uma dúvida
               </button>
-            {/each}
+            {:else}
+              <div class="flex items-center gap-2 mt-1 animate-slide-up">
+                <input
+                  type="text"
+                  class="flex-1 pl-4 pr-4 py-2.5 bg-slate-100 border-2 border-slate-200
+                    focus:border-blue-400 focus:bg-white rounded-xl outline-none transition-all
+                    text-slate-700 font-bold shadow-inner text-sm"
+                  placeholder="Escreve a tua pergunta..."
+                  bind:value={messageInput}
+                  on:keydown={handleKeydown}
+                  autofocus
+                />
+                <button
+                  class="p-2.5 rounded-xl bg-blue-500 text-white border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 shadow-md disabled:opacity-50 shrink-0"
+                  on:click={() => sendMessage()}
+                  disabled={!messageInput.trim()}
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            {/if}
           </div>
 
         {:else if inputMode === 'drag_drop'}
@@ -521,6 +660,7 @@
           </div>
 
         {:else}
+          <!-- DIRECT_INPUT ou fallback — input de texto principal -->
           <div class="flex items-center gap-2 animate-slide-up pb-1">
             <input
               type="text"
