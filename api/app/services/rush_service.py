@@ -34,6 +34,20 @@ LINGUAGEM (OBRIGATÓRIO):
 - PROIBIDO usar: "algarismo", "valor posicional", "centenas de milhar", "ordem numérica", "classe decimal".
 - Substitua por: "Quanto vale o 4 no número...?", "Quem está na casa dos milhares?".
 
+⚠️ VERIFICAÇÃO FACTUAL OBRIGATÓRIA (lê antes de gerar):
+- A tua "correct_answer" DEVE ser factualmente correcta e verificável.
+- Se a pergunta usar "cada X" (cada pé, cada mão, cada lado, cada asa...),
+  a resposta refere-se a UMA unidade, NÃO ao total de duas ou mais.
+  Exemplos de erros a NUNCA cometer:
+    ❌ "Dedos em cada pé?" → 10  (cada pé tem 5, não 10)
+    ❌ "Lados de cada triângulo?" → 4  (são 3)
+    ❌ "Patas de cada cadeira?" → 8  (são 4)
+  Exemplos correctos:
+    ✅ "Dedos em cada pé?" → 5
+    ✅ "Lados de um triângulo?" → 3
+- Se tiveres dúvida sobre o facto, escolhe outro aspecto do tópico.
+- O "_logic" deve confirmar: "Verifiquei que a resposta é factualmente correcta."
+
 HISTÓRICO RECENTE (PROIBIDO REPETIR QUALQUER PERGUNTA DESTE GÉNERO):
 {exclude_list}
 
@@ -153,6 +167,14 @@ REGRAS DE OURO:
 4. As "options" DEVEM ser EXATAMENTE ["Verdadeiro", "Falso"].
 5. Não repita perguntas passadas: {exclude_list}
 
+⚠️ VERIFICAÇÃO FACTUAL OBRIGATÓRIA (lê antes de gerar):
+- A afirmação que crias DEVE ser factualmente correcta ou incorrecta de forma inequívoca.
+- Evita afirmações ambíguas ou dependentes de contexto.
+- Se a afirmação usar "cada X", verifica que o valor se refere a UMA unidade:
+    ❌ "Cada ser humano tem 10 dedos em cada pé." → isto é Falso, mas a IA pode gerar como Verdadeiro por engano
+    ✅ "Cada ser humano tem 5 dedos em cada pé." → Verdadeiro
+- Quando tiveres dúvida sobre um facto, escolhe outro aspecto do tópico.
+
 FORMATO OBRIGATÓRIO (JSON PURO):
 {{
   "type": "true_false",
@@ -181,6 +203,14 @@ REGRAS DE OURO:
 3. Gere exatamente 4 "options" únicas. Uma delas é a resposta que encaixa perfeitamente na lacuna.
 4. A "correct_answer" DEVE ser a opção correta.
 5. Não repita perguntas passadas: {exclude_list}
+
+⚠️ VERIFICAÇÃO FACTUAL OBRIGATÓRIA (lê antes de gerar):
+- A palavra ou valor que preenche a lacuna DEVE ser factualmente correcto.
+- Se a lacuna pedir uma quantidade "de cada X" (de cada mão, de cada pé, de cada lado...),
+  verifica que o valor se refere a UMA unidade, não ao total:
+    ❌ "Cada pé humano tem ___ dedos." → opção correcta "10"  (ERRADO: são 5)
+    ✅ "Cada pé humano tem ___ dedos." → opção correcta "5"   (CORRECTO)
+- Quando tiveres dúvida sobre um facto, escolhe outro aspecto do tópico.
 
 FORMATO OBRIGATÓRIO (JSON PURO):
 {{
