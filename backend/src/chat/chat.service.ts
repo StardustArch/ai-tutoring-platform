@@ -100,23 +100,29 @@ export class ChatService {
     // 2. Resolver Tópico e regras da IA
     let aiContextRules = '';
     let currentTopicoId: number | null = null;
+     let currentAncoras: string[] = [];
 
-    if (dto.topic && dto.subject) {
-      const topicoDb = await this.prisma.topico.findFirst({
-        where: {
-          nome: dto.topic,
-          nivelClasse: aluno.classe,
-          disciplina: { nome: dto.subject },
-        },
-        select: { id: true, metadata: true },
-      });
-      if (topicoDb) {
-        currentTopicoId = topicoDb.id;
-        const meta = topicoDb.metadata as any;
-        if (meta?.ai_rules) aiContextRules = meta.ai_rules;
+      if (dto.topic && dto.subject) {
+        const topicoDb = await this.prisma.topico.findFirst({
+          where: {
+            nome: dto.topic,
+            nivelClasse: aluno.classe,
+            disciplina: { nome: dto.subject },
+          },
+          select: {
+            id: true,
+            metadata: true,
+            ancoras: true,   // 🆕
+          },
+        });
+        if (topicoDb) {
+          currentTopicoId = topicoDb.id;
+          const meta = topicoDb.metadata as any;
+          if (meta?.ai_rules) aiContextRules = meta.ai_rules;
+          // 🆕 guardar ancoras para o payload
+          currentAncoras = (topicoDb as any).ancoras ?? [];
+        }
       }
-    }
-
     // 3. Memória contextual — tópicos problemáticos recentes
     const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const errosRecentes = await this.prisma.exercicioResultado.findMany({
@@ -183,21 +189,21 @@ export class ChatService {
     const nextPhase: Phase = _calcNextPhase(currentPhase, dto.userQuery, lastAssessment);
 
     // 6. Payload para o Python
-    const aiRequest: MicroserviceChatRequestDto = {
-      student_id: aluno.id,
-      student_class: aluno.classe,
-      user_query: dto.userQuery,
-      mode: 'tutor',
-      history: formattedHistory,
-      subject: dto.subject || 'Geral',
-      topic: dto.topic || 'Geral',
-      context_rules: aiContextRules + memoriaContexto,
-      // ── State machine ──
-      phase: nextPhase,
-      last_question: dto.lastQuestion,
-      last_correct_answer: dto.lastCorrectAnswer,
-      last_interaction_type: dto.lastInteractionType,
-    };
+      const aiRequest: MicroserviceChatRequestDto = {
+        student_id: aluno.id,
+        student_class: aluno.classe,
+        user_query: dto.userQuery,
+        mode: 'tutor',
+        history: formattedHistory,
+        subject: dto.subject || 'Geral',
+        topic: dto.topic || 'Geral',
+        context_rules: aiContextRules + memoriaContexto,
+        phase: nextPhase,
+        last_question: dto.lastQuestion,
+        last_correct_answer: dto.lastCorrectAnswer,
+        last_interaction_type: dto.lastInteractionType,
+        ancoras: currentAncoras,   // 🆕 lista de chaves para o Python escolher
+      };
 
     // 7. Chamada ao Python
     let finalResponse: string;

@@ -153,6 +153,7 @@ model Topico {
   exercicios          Exercicio[]
   questoesNoCache     QuestaoCache[]
   licaoProgressos     LicaoProgresso[]
+  ancoras  String[]
 
   @@map("topicos")
 }
@@ -230,7 +231,6 @@ enum NivelProficiencia {
   ABAIXO_MEDIA
   NA_MEDIA
   AVANCADO
-  EXPERT
   NAO_DIAGNOSTICADO
 }
 
@@ -338,11 +338,12 @@ model QuestaoCache {
   id          Int    @id @default(autoincrement())
   topicoId    Int
   topico      Topico @relation(fields: [topicoId], references: [id], onDelete: Cascade)
-  disciplina  String // "matematica" ou "portugues"
+  disciplina  String
   classe      Int
-  dificuldade Int // 1 a 5
+  dificuldade Int
   pergunta    String @db.Text
   opcoesJson  Json
+  structure   String?  // 🆕 opcional — NULL = gerado pelo Rush/Cron; preenchido = gerado pelo Lesson
 
   resposta      String
   explicacao    String   @db.Text
@@ -350,8 +351,10 @@ model QuestaoCache {
   criadoEm      DateTime @default(now())
 
   @@index([topicoId, dificuldade, classe])
+  @@index([topicoId, dificuldade, structure]) // 🆕 índice para filtros do Lesson
   @@map("questao_cache")
 }
+
 
 model LicaoProgresso {
   id       Int @id @default(autoincrement())

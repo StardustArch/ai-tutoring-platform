@@ -218,9 +218,7 @@ export class DiagnosticService {
       let nivelNumerico = 1;
       let nivelNome = 'INICIANTE';
 
-      if (percTopico >= 90) { 
-        nivelNumerico = 5; nivelNome = 'EXPERT'; // ou o nome do enum que você usa
-      } else if (percTopico >= 75) { 
+      if (percTopico >= 90) {  
         nivelNumerico = 4; nivelNome = 'AVANCADO'; 
       } else if (percTopico >= 60) { 
         nivelNumerico = 3; nivelNome = 'NA_MEDIA'; 

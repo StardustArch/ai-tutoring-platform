@@ -7,6 +7,7 @@ from app.services.llm_client import get_rush_clients, get_rush_groq_clients
 from app.models.schemas import RushRequest, RushResponse
 from app.config import LANG_VARIANT
 from openai import RateLimitError
+from app.utils.textos_ancora import get_ancora
 
 # ─── PROMPT GERAL ────────────────────────────────────────────────────────────
 PROMPT_RUSH_JSON = """
@@ -15,7 +16,7 @@ O seu objetivo é gerar APENAS UMA pergunta de escolha múltipla perfeita em for
 
 Disciplina: {subject}
 Tópico Específico: {subtopic}
-Nível de Dificuldade: {difficulty_level} (1 a 5)
+Nível de Dificuldade: {difficulty_level} (1 a 4)
 
 🎯 TIPO DE PERGUNTA OBRIGATÓRIO: "{forced_structure}"
 Você TEM de fazer uma pergunta deste tipo exato. Não escolhas. Não decides. Só executa este tipo.
@@ -140,7 +141,7 @@ O seu objetivo é gerar UMA pergunta do tipo Verdadeiro ou Falso.
 
 Disciplina: {subject}
 Tópico Específico: {subtopic}
-Nível de Dificuldade: {difficulty_level} (1 a 5)
+Nível de Dificuldade: {difficulty_level} (1 a 4)
 
 🎯 TIPO OBRIGATÓRIO: "{forced_structure}"
 
@@ -169,7 +170,7 @@ O seu objetivo é gerar UMA pergunta de "Completar a Lacuna".
 
 Disciplina: {subject}
 Tópico Específico: {subtopic}
-Nível de Dificuldade: {difficulty_level} (1 a 5)
+Nível de Dificuldade: {difficulty_level} (1 a 4)
 
 🎯 TIPO OBRIGATÓRIO: "{forced_structure}"
 
@@ -189,6 +190,46 @@ FORMATO OBRIGATÓRIO (JSON PURO):
   "correct_answer": "1.000.000",
   "explanation": "Explicação clara."
 }}
+"""
+
+PROMPT_ANCORA = """
+Você é um professor criativo de Moçambique, criando um quiz para alunos da {student_class}ª classe.
+O seu objetivo é gerar APENAS UMA pergunta de escolha múltipla em formato JSON puro.
+ 
+Disciplina: {subject}
+Tópico: {subtopic}
+Nível de Dificuldade: {difficulty_level} (1 a 4)
+Tipo de pergunta obrigatório: "{forced_structure}"
+ 
+══════════════════════════════════════════════
+{ancora_label}:
+"{ancora_conteudo}"
+══════════════════════════════════════════════
+ 
+REGRAS OBRIGATÓRIAS:
+1. A tua pergunta DEVE ser exclusivamente sobre o {ancora_label_lower} acima.
+2. NÃO inventes outro texto, cartaz ou sinal — usa APENAS o que está acima.
+3. Respeita o currículo: {context_rules}
+4. Gera exactamente 4 opções únicas.
+5. A "correct_answer" DEVE ser uma cópia exacta de uma das opções.
+6. Linguagem simples para crianças de 8-10 anos.
+7. Contexto moçambicano (nomes: Ali, Fátima, Sónia, Hélio).
+8. SEM MARKDOWN. Só JSON puro.
+ 
+HISTÓRICO RECENTE (NÃO REPETIR):
+{exclude_list}
+ 
+FORMATO OBRIGATÓRIO:
+{{
+  "_logic": "Vou fazer uma pergunta do tipo '{forced_structure}' sobre o {ancora_label_lower} fornecido.",
+  "topico": "{subtopic}",
+  "question": "...",
+  "options": ["...", "...", "...", "..."],
+  "correct_answer": "...",
+  "explanation": "..."
+}}
+ 
+Gera agora o JSON:
 """
 
 current_rush_client_index = 0
@@ -728,50 +769,98 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
 
 
 # ─── LÓGICA PRINCIPAL ─────────────────────────────────────────────────────────
-
+# ── 2. generate_rush_question_logic — início da função ───────────────────────
+#
+# Substituir APENAS o bloco onde o forced_structure é escolhido.
+# Antes era SEMPRE _pick_forced_structure().
+# Agora verifica primeiro se veio override do NestJS.
+ 
 async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
-
+ 
     print(f"\n🚀 [RushService] Chamado!\n{request}", flush=True)
-
+ 
     global current_rush_client_index
-
+ 
     clients = get_rush_groq_clients()
     if not clients:
         raise Exception("Nenhum cliente Groq configurado.")
-
-    subject  = request.subject.lower()
+ 
+    subject = request.subject.lower()
     if subject not in ("matematica", "portugues"):
         subject = "matematica"
-
+ 
     subtopic     = request.subtopic if request.subtopic else "Geral"
     last_3       = request.recent_questions[-3:] if request.recent_questions else []
     exclude_list = "\n- ".join(last_3) if last_3 else "Nenhuma pergunta anterior."
-
-    is_math_operation    = _is_math_strict_topic(subtopic)
-    dynamic_temperature  = 0.4 if is_math_operation else 0.85
-
-    # 🔥 Modelos actualizados — os anteriores davam 404
+ 
+    is_math_operation   = _is_math_strict_topic(subtopic)
+    dynamic_temperature = 0.4 if is_math_operation else 0.85
+ 
     FREE_MODELS = [
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
         "gemma2-9b-it",
     ]
-
+ 
     for tentativa in range(5):
-        forced_structure = _pick_forced_structure(
-            subtopic, request.context_rules, request.recent_questions
-        )
-
+ 
+        # 🆕 BLOCO NOVO — escolha do forced_structure
+        # Se o NestJS enviou um override (vem do lesson_plan do slot),
+        # usa directamente. Caso contrário, sorteia como antes (Rush/Cron).
+        if request.forced_structure_override:
+            forced_structure = request.forced_structure_override
+            print(
+                f"📌 [ForcedStructure] Override do LessonService: '{forced_structure}'",
+                flush=True
+            )
+        else:
+            forced_structure = _pick_forced_structure(
+                subtopic, request.context_rules, request.recent_questions
+            )
+ 
+        # ── A partir daqui o código é 100% igual ao original ─────────────────
+ 
         is_decomp     = "decomposição" in forced_structure.lower() or "decomp" in forced_structure.lower()
         is_positional = _is_positional_structure(forced_structure)
         is_tf         = _is_true_false_structure(forced_structure)
         is_cloze_q    = _is_cloze_structure(forced_structure)
-
+ 
         math_data     = None
         override_type = "multiple_choice"
-
-       # ── TRUE/FALSE ────────────────────────────────────────────────────────
-        if is_tf:
+  # ── ÂNCORA (textual ou visual) ────────────────────────────────────────
+        # Se o slot tem âncora definida no seed, usa o PROMPT_ANCORA.
+        # A IA é obrigada a basear a pergunta no texto/descrição fornecido.
+        ancora_data = None
+        if request.ancora:
+            ancora_data = get_ancora(request.ancora)
+ 
+        if ancora_data:
+            # Distingue o label para o prompt ficar natural
+            if ancora_data["tipo"] == "visual":
+                ancora_label       = "DESCRIÇÃO VISUAL (Cartaz ou Sinal)"
+                ancora_label_lower = "cartaz ou sinal descrito"
+            else:
+                ancora_label       = "TEXTO DE SUPORTE"
+                ancora_label_lower = "texto acima"
+ 
+            prompt = PROMPT_ANCORA.format(
+                student_class=request.student_class,
+                subject=subject,
+                subtopic=subtopic,
+                difficulty_level=request.difficulty_level,
+                forced_structure=forced_structure,
+                ancora_label=ancora_label,
+                ancora_label_lower=ancora_label_lower,
+                ancora_conteudo=ancora_data["conteudo"],
+                context_rules=request.context_rules,
+                exclude_list=exclude_list,
+            )
+            override_type = "multiple_choice"
+            print(
+                f"⚓ [Âncora/{ancora_data['tipo']}] '{request.ancora}' | struct='{forced_structure}'",
+                flush=True
+            )
+        elif is_tf:
             override_type = "true_false"
             prompt = PROMPT_TRUE_FALSE.format(
                 student_class=request.student_class,
@@ -782,9 +871,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                 forced_structure=forced_structure,
                 exclude_list=exclude_list,
             )
-            # NOTA: math_data continua = None para deixar a IA brilhar
-
-        # ── CLOZE ─────────────────────────────────────────────────────────────
+ 
         elif is_cloze_q:
             override_type = "cloze"
             prompt = PROMPT_CLOZE.format(
@@ -796,9 +883,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                 forced_structure=forced_structure,
                 exclude_list=exclude_list,
             )
-            # NOTA: math_data continua = None
-            
-        # ── DECOMPOSIÇÃO ──────────────────────────────────────────────────────
+ 
         elif is_decomp:
             decomp    = _build_decomposition_question(request.difficulty_level)
             narrative = _pick_narrative(decomp["number_fmt"])
@@ -812,8 +897,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
             )
             math_data = decomp
             print(f"🔢 [Decomposição] {decomp['number_fmt']}", flush=True)
-
-        # ── POSICIONAL ────────────────────────────────────────────────────────
+ 
         elif is_positional:
             positional = _build_positional_question(subtopic, request.difficulty_level)
             q_type     = positional["type"]
@@ -841,8 +925,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                 )
             math_data = positional
             print(f"🔢 [Posicional/{q_type}] {positional['number_fmt']}", flush=True)
-
-        # ── MÚLTIPLA ESCOLHA GERAL ────────────────────────────────────────────
+ 
         else:
             prompt = PROMPT_RUSH_JSON.format(
                 student_class=request.student_class,
@@ -853,15 +936,15 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                 context_rules=request.context_rules,
                 forced_structure=forced_structure,
             )
-
+ 
         client      = clients[current_rush_client_index]
         used_index  = current_rush_client_index
         current_rush_client_index = (current_rush_client_index + 1) % len(clients)
         chosen_model = FREE_MODELS[tentativa % len(FREE_MODELS)]
-
+ 
         try:
             print(f"🔄 Rush #{used_index+1} | {chosen_model} | {forced_structure} | {override_type}")
-
+ 
             completion = client.chat.completions.create(
                 model=chosen_model,
                 messages=[{"role": "user", "content": prompt}],
@@ -872,28 +955,27 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                 max_tokens=400,
                 response_format={"type": "json_object"}
             )
-
+ 
             raw = completion.choices[0].message.content
             print(f"👀 RAW ({chosen_model}): {raw}", flush=True)
-
+ 
             obj = safe_load_json_object(raw)
             if not obj:
                 raise ValueError("JSON inválido.")
-
-            # Sobrescreve SEMPRE com os valores calculados pelo código
+ 
             if math_data:
                 obj["correct_answer"] = math_data["correct_answer"]
                 obj["options"]        = math_data["options"]
             obj["type"] = override_type
-
+ 
             clean_data = _sanitize_rush_payload(obj, subject, subtopic)
-
+ 
             if _is_duplicate(clean_data["question"], request.recent_questions):
                 raise ValueError("Pergunta duplicada.")
-
+ 
             print(f"✅ [{override_type}] SUCESSO com {chosen_model}")
             return RushResponse(**clean_data)
-
+ 
         except RateLimitError:
             print(f"⚠️ Rate limit em {chosen_model}.")
             await asyncio.sleep(1)
@@ -902,7 +984,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
             print(f"⚠️ Erro em {chosen_model}: {e}")
             await asyncio.sleep(1)
             continue
-
+ 
     return RushResponse(
         type="multiple_choice",
         question="Ocorreu uma pequena falha técnica. Qual é a capital de Moçambique?",
@@ -910,3 +992,4 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
         correct_answer="Maputo",
         explanation="O servidor precisou de um descanso, mas seguimos em frente!"
     )
+ 
