@@ -18,6 +18,9 @@ class RushResponse(BaseModel):
     options: List[str]
     correct_answer: str
     explanation: str
+    ancora_chave: Optional[str] = None
+    ancora_tipo: Optional[str] = None
+    ancora_conteudo: Optional[str] = None
 
 
 class ChatRequest(BaseModel):

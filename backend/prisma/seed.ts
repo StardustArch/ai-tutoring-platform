@@ -155,8 +155,12 @@ PROIBIDO:
   - Fórmulas de área ou perímetro.
   - Coordenadas.
 
-CONTEXTO: Objectos moçambicanos — lata de água (cilindro), bola
-  (esfera), caixa de fósforos (paralelepípedo), pilão (cilindro+cone).`,
+CONTEXTO: Usa objectos do quotidiano moçambicano como exemplos variados.
+  NÃO repitas sempre os mesmos objectos — varia entre:
+  utensílios domésticos (panela, copo, balde, caixa, pilão, pote, garrafa),
+  brinquedos (bola, cubo de madeira, cone de pinho),
+  objectos da escola (borracha, lata de lápis, caixa de giz).
+  O objectivo é que o aluno reconheça o sólido em DIFERENTES contextos.`,
     lesson_plan: [
       { slot: 1, structure: 'Identificar Triângulo entre figuras planas',              difficulty: 1, ancora: ['visual_figuras_planas_1', 'visual_figuras_planas_2'] }, // 🆕
       { slot: 2, structure: 'Identificar Rectas Perpendiculares vs Paralelas',         difficulty: 1 },
@@ -654,8 +658,13 @@ PROIBIDO:
   - Fórmulas de área ou perímetro.
   - Coordenadas.
 
-CONTEXTO: Objectos do quotidiano moçambicano (pote de barro=esfera,
-  caixas de cartão=paralelepípedo, lata de sardinha=cilindro).`,
+CONTEXTO: Usa objectos do quotidiano moçambicano como exemplos variados.
+  NÃO repitas sempre os mesmos objectos — varia entre diferentes categorias:
+  utensílios de cozinha, objectos de construção, brinquedos, embalagens, ferramentas.
+  Exemplos possíveis (não exclusivos): panela, garrafa, caixa de sabão, bola de futebol,
+  pilão, copo, lata de conserva, tijolo, lápis, borracha cilíndrica, pirâmide de açúcar.
+  O aluno deve reconhecer o TIPO DE SÓLIDO a partir de qualquer objecto do dia-a-dia,
+  não apenas os exemplos do livro.`,
     lesson_plan: [
       { slot: 1, structure: 'Identificar o tipo de Ângulo (recto/agudo/obtuso/raso)',  difficulty: 1, ancora: ['visual_angulos_1', 'visual_angulos_2', 'visual_angulos_3'] }, // 🆕
       { slot: 2, structure: 'Identificar Centro, Raio e Diâmetro no Círculo',          difficulty: 2, ancora: ['visual_circulo_raio_1', 'visual_circulo_raio_2', 'visual_circulo_raio_3'] }, // 🆕
@@ -1848,13 +1857,13 @@ lesson_plan: [
 
     if (!existe) {
       await prisma.topico.create({
-        data: { nome: t.nome, nivelClasse: t.c, disciplinaId: t.d, ordem: ordemAtual, metadata: t.meta }
+        data: { nome: t.nome, nivelClasse: t.c, disciplinaId: t.d, ordem: ordemAtual, metadata: t.meta, ancoras: t.ancoras }
       });
       console.log(`➕ Criado: [${t.c}ª Classe] ${t.nome}`);
     } else {
       await prisma.topico.update({
         where: { id: existe.id },
-        data: { metadata: t.meta, ordem: ordemAtual }
+        data: { metadata: t.meta, ordem: ordemAtual, ancoras: t.ancoras }
       });
       console.log(`🔄 Atualizado: ${t.nome}`);
     }

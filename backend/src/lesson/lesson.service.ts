@@ -49,6 +49,7 @@ export interface LicaoQuestionResponse {
   tentativa: number;
   melhorPontuacao: number | null;
   totalSlotsPlan: number;
+  ancora?: { chave: string; tipo: string; conteudo: string } | null;
 }
 
 export interface LicaoAnswerResponse {
@@ -430,22 +431,23 @@ export class LessonService {
     return 'multiple_choice';
   }
 
-
   // ── HELPER — adicionar junto ao _isDirectInputStructure no topo ───────
- 
-/**
- * Resolve ancora do slot — pode ser string ou string[].
- * Se for array, escolhe aleatoriamente.
- * Devolve string | undefined.
- */
-_resolveSlotAncora(ancora: string | string[] | undefined | null): string | undefined {
-  if (!ancora) return undefined;
-  if (Array.isArray(ancora)) {
-    if (ancora.length === 0) return undefined;
-    return ancora[Math.floor(Math.random() * ancora.length)];
+
+  /**
+   * Resolve ancora do slot — pode ser string ou string[].
+   * Se for array, escolhe aleatoriamente.
+   * Devolve string | undefined.
+   */
+  _resolveSlotAncora(
+    ancora: string | string[] | undefined | null,
+  ): string | undefined {
+    if (!ancora) return undefined;
+    if (Array.isArray(ancora)) {
+      if (ancora.length === 0) return undefined;
+      return ancora[Math.floor(Math.random() * ancora.length)];
+    }
+    return ancora;
   }
-  return ancora;
-}
 
   // ── HELPER: gera pergunta para um slot ──────────────────────────────────────
   // ─── ALTERAÇÃO CIRÚRGICA NO LessonService ────────────────────────────────────
@@ -465,7 +467,7 @@ _resolveSlotAncora(ancora: string | string[] | undefined | null): string | undef
   //   });
   // ─────────────────────────────────────────────────────────────────────────────
 
-   private async _gerarPerguntaParaSlot(
+  private async _gerarPerguntaParaSlot(
     progressoId: number,
     sessaoId: number,
     estado: LicaoEstado,
@@ -474,12 +476,11 @@ _resolveSlotAncora(ancora: string | string[] | undefined | null): string | undef
     tentativa: number = 1,
     melhorPontuacao: number | null = null,
   ): Promise<LicaoQuestionResponse> {
- 
     const slot = estado.slots[slotIndex];
- 
+
     // 🆕 Resolver ancora (string ou array → sempre string | undefined)
     const ancora = this._resolveSlotAncora((slot as any).ancora);
- 
+
     const pergunta = await this.cache.getQuestion({
       classe: topico.nivelClasse,
       disciplina: topico.disciplina?.nome?.toLowerCase() || 'matematica',
@@ -487,7 +488,7 @@ _resolveSlotAncora(ancora: string | string[] | undefined | null): string | undef
       dificuldade: slot.difficulty,
       historicoRecente: estado.perguntasRespondidas,
       structure: slot.structure,
-      ancora,   // 🆕 sempre string | undefined — nunca array
+      ancora, // 🆕 sempre string | undefined — nunca array
     });
 
     estado.perguntasRespondidas.push(pergunta.question);
@@ -548,6 +549,7 @@ _resolveSlotAncora(ancora: string | string[] | undefined | null): string | undef
       tentativa,
       melhorPontuacao,
       totalSlotsPlan: estado.slots.length,
+      ancora: (pergunta as any).ancora ?? null,
     };
   }
 

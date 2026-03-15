@@ -5,7 +5,8 @@
   import { PUBLIC_API_URL_HOST, PUBLIC_IA_HOST_API_URL } from '$env/static/public';
   import { 
     Send, Bot, ArrowLeft, Sparkles, Brain, X,
-    Smile, Frown, BookOpen, Calculator, ChevronRight, GraduationCap, Volume2, Star, ArrowDown, PenLine
+    Smile, Frown, BookOpen, Calculator, ChevronRight, GraduationCap, Volume2, Star, ArrowDown, PenLine,
+    Image as ImageIcon, FileText // 🆕 Importados para a Âncora
   } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import confetti from 'canvas-confetti';
@@ -25,12 +26,7 @@
   let loadingTopics = true;
   let isTimeUp = false;
 
-  // ── FIX 1: Timer key única por sessão de chat ─────────────────────────────
-  // Ao iniciar uma nova sessão de tópico, geramos uma chave nova.
-  // Isto garante que o localStorage não reaproveita o timer de sessões anteriores.
   let currentTimerKey = `kmind_timer_${Date.now()}`;
-
-  // ── FIX 1: Timer só corre quando está no CHAT ─────────────────────────────
   $: timerPaused = viewState !== 'CHAT';
 
   // --- ESTADO DO CHAT ---
@@ -40,18 +36,16 @@
   let chatContainer: HTMLElement;
   let isRevealing = false;
   let visibleBubbles: string[] = [];
-
-  // ── FIX 2: Input livre sempre acessível ──────────────────────────────────
-  // Quando o Kani dá opções (quiz/chips/confirmation), o aluno pode sempre
-  // alternar para escrever livremente — ex: tirar uma dúvida no meio de um teste.
   let showFreeInput = false;
+
+  // 🆕 ESTADO DA ÂNCORA
+  let showAncoraModal = false;
 
   // --- ESTADO DRAG & DROP ---
   let availableDragItems: string[] = [];
   let selectedDragItems: string[] = [];
 
   // ── State machine da lição (Opção A) ─────────────────────────────────────
-  // Guardamos os campos necessários para o FEEDBACK determinístico.
   let currentPhase: 'EXPLAIN' | 'TEST' | 'FEEDBACK' = 'EXPLAIN';
   let lastQuestion: string | null = null;
   let lastCorrectAnswer: string | null = null;
@@ -61,7 +55,8 @@
     messages: [] as string[],
     emotion: "NEUTRAL",
     type: "FREE_TEXT",
-    data: {} as any
+    data: {} as any,
+    ancora: null as any // 🆕 Propriedade para guardar a âncora enviada pela IA
   };
 
   $: inputMode = resolveInputMode(currentAiMessage.type, currentAiMessage.data, isTyping, isPreparingAudio, isRevealing);
@@ -83,9 +78,7 @@
     return 'text';
   }
 
-  // O input livre deve fechar quando o inputMode muda
   $: if (inputMode !== 'none') showFreeInput = false;
-
   $: mascotState = getMascotState(currentAiMessage.emotion);
 
   // --- LIFECYCLE ---
@@ -152,14 +145,9 @@
   function startSession(subject: string, topicName: string) {
     sessionContext = { subject, topic: topicName };
 
-    // ── FIX 1+3: Timer reseta com nova chave única ────────────────────────
-    // Limpa o timer antigo do localStorage e gera uma chave nova.
-    // Quando o SessionTimer recebe a nova timerKey, não encontra nada no
-    // localStorage e começa do MAX_TIME.
     localStorage.removeItem(currentTimerKey);
     currentTimerKey = `kmind_timer_${Date.now()}`;
 
-    // Reseta a state machine
     currentPhase = 'EXPLAIN';
     lastQuestion = null;
     lastCorrectAnswer = null;
@@ -182,6 +170,7 @@
 
     messageInput = '';
     showFreeInput = false;
+    showAncoraModal = false; // 🆕 Esconde a âncora ao enviar nova mensagem
     isTyping = true;
     visibleBubbles = [];
     currentAiMessage.emotion = "THOUGHTFUL";
@@ -198,7 +187,6 @@
           mode: 'tutor',
           turmaId: turmaId,
           sessaoId: sessionId || null,
-          // ── State machine (Opção A) ────────────────────────────────────
           phase: currentPhase,
           lastQuestion: lastQuestion,
           lastCorrectAnswer: lastCorrectAnswer,
@@ -240,28 +228,25 @@
         messages: msgs,
         emotion: content.emotion || "NEUTRAL",
         type: content.interaction_type || "FREE_TEXT",
-        data: content.interaction_data || {}
+        data: content.interaction_data || {},
+        ancora: content.ancora || null // 🆕 Lê a âncora devolvida pela IA
       };
 
-      // ── Actualiza a state machine com a fase devolvida pelo backend ──────
       if (content.phase) currentPhase = content.phase;
 
-      // ── Guarda os campos de contexto para o próximo FEEDBACK ─────────────
-      // Quando o Kani devolve uma pergunta (fase TEST), guardamos a pergunta
-      // e a resposta correcta para enviar no próximo pedido (fase FEEDBACK).
       if (content.phase === 'TEST') {
-        // A última mensagem do array é normalmente a pergunta
         lastQuestion = msgs[msgs.length - 1] || null;
-        // correct_answer vem no interaction_data para CHIPS/CLOZE/TRUE_FALSE
-        // e o backend também pode devolvê-lo num campo dedicado
-        lastCorrectAnswer = content.correct_answer
-          || content.interaction_data?.correct_answer
-          || null;
+        lastCorrectAnswer = content.correct_answer || content.interaction_data?.correct_answer || null;
         lastInteractionType = content.interaction_type || null;
       }
 
       if (content.emotion === 'HAPPY' || content.assessment === 'CORRECT') {
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FFD700', '#FF4500', '#00BFFF'] });
+      }
+
+      // 🆕 Se a IA devolveu uma âncora, abre o modal para o aluno ver logo
+      if (currentAiMessage.ancora) {
+        setTimeout(() => { showAncoraModal = true; }, 500);
       }
 
       if (content.audio_url) {
@@ -329,6 +314,54 @@
   <title>Sessão | KMind</title>
 </svelte:head>
 
+{#if showAncoraModal && currentAiMessage.ancora}
+  {@const ancora = currentAiMessage.ancora}
+  <div 
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+      on:click={() => showAncoraModal = false}
+  >
+      <div 
+          class="animate-zoom-in relative max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+          on:click|stopPropagation
+      >
+          <div class="flex items-center justify-between border-b-4 border-slate-100 bg-slate-50 p-4">
+              <h2 class="flex items-center gap-2 text-lg font-black text-slate-700">
+                  {#if ancora.tipo === 'visual'}
+                      <ImageIcon class="text-blue-500" size={24} /> Observa a Imagem
+                  {:else}
+                      <FileText class="text-amber-500" size={24} /> Lê o Texto
+                  {/if}
+              </h2>
+              <button 
+                  on:click={() => showAncoraModal = false}
+                  class="rounded-full bg-slate-200 p-2 text-slate-600 transition-transform hover:scale-105 active:scale-95"
+              >
+                  <X size={20} strokeWidth={3} />
+              </button>
+          </div>
+          
+          <div class="overflow-y-auto p-4 sm:p-6">
+              {#if ancora.tipo === 'visual'}
+                  <img src={`/ancoras/${ancora.chave}.jpg`} alt="Contexto Visual" class="w-full rounded-2xl object-contain shadow-sm" />
+              {:else}
+                  <div class="rounded-2xl border-2 border-amber-100 bg-amber-50 p-6 font-medium text-slate-800 leading-relaxed">
+                      {ancora.conteudo}
+                  </div>
+              {/if}
+          </div>
+          
+          <div class="border-t-4 border-slate-100 p-4">
+              <button 
+                  on:click={() => showAncoraModal = false}
+                  class="w-full rounded-2xl border-b-4 border-blue-700 bg-blue-500 py-4 text-lg font-black text-white shadow-md active:translate-y-1 active:border-b-0"
+              >
+                  JÁ VI, VOU RESPONDER!
+              </button>
+          </div>
+      </div>
+  </div>
+{/if}
+
 <div class="flex flex-col h-[100dvh] bg-gradient-to-b from-sky-200 via-blue-50 to-white font-['Fredoka'] overflow-hidden">
 
   <div class="bg-white/80 backdrop-blur-md border-b border-blue-100 p-3 flex items-center justify-between shadow-sm z-30 shrink-0">
@@ -353,7 +386,6 @@
     </div>
     {#if viewState !== 'GAMEOVER'}
       <div class="shrink-0 ml-2">
-        <!-- FIX 1: paused=true enquanto não está no CHAT, timerKey única por sessão -->
         <SessionTimer
           timerKey={currentTimerKey}
           paused={timerPaused}
@@ -464,9 +496,23 @@
       </div>
     </div>
 
-    <!-- ZONA DE INPUT FIXA ──────────────────────────────────────────────── -->
     <div class="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-100 z-40">
       <div class="max-w-3xl mx-auto flex flex-col justify-center p-3 pb-safe">
+
+        {#if currentAiMessage.ancora}
+          <div class="flex justify-center mb-3 animate-slide-up">
+            <button 
+              on:click={() => showAncoraModal = true}
+              class="flex animate-pulse items-center gap-2 rounded-full border-b-4 border-amber-600 bg-amber-400 px-4 py-1.5 text-xs md:text-sm font-black text-white shadow-sm active:translate-y-1 active:border-b-0"
+            >
+              {#if currentAiMessage.ancora.tipo === 'visual'}
+                <ImageIcon size={16} /> REVER IMAGEM
+              {:else}
+                <FileText size={16} /> LER TEXTO NOVAMENTE
+              {/if}
+            </button>
+          </div>
+        {/if}
 
         {#if inputMode === 'none'}
           <div class="flex justify-center items-center gap-2 py-4 h-[60px]">
@@ -491,7 +537,6 @@
                 </button>
               {/each}
             </div>
-            <!-- FIX 2: botão para escrever livremente mesmo com opções -->
             {#if !showFreeInput}
               <button
                 on:click={() => showFreeInput = true}
@@ -546,7 +591,6 @@
                 </button>
               {/each}
             </div>
-            <!-- FIX 2: input livre sempre acessível -->
             {#if !showFreeInput}
               <button
                 on:click={() => showFreeInput = true}
@@ -594,7 +638,6 @@
                 </button>
               {/each}
             </div>
-            <!-- FIX 2 -->
             {#if !showFreeInput}
               <button
                 on:click={() => showFreeInput = true}
@@ -660,7 +703,6 @@
           </div>
 
         {:else}
-          <!-- DIRECT_INPUT ou fallback — input de texto principal -->
           <div class="flex items-center gap-2 animate-slide-up pb-1">
             <input
               type="text"
@@ -701,6 +743,12 @@
     50%       { transform: translateY(-10px); }
   }
   .animate-bounce-slow { animation: bounce-slow 2s infinite; }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
 
   @keyframes shake {
     0%, 100% { transform: translateX(0); }

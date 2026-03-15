@@ -29,11 +29,20 @@ export class QuestionCacheService {
     dificuldade: number;
     historicoRecente: string[];
     structure?: string; // opcional — só o LessonService envia
-    ancora?: string;    // 🆕 chave da âncora (ex: 'texto_bilhete_fatima')
+    ancora?: string; // 🆕 chave da âncora (ex: 'texto_bilhete_fatima')
   }) {
-    const { topicoId, dificuldade, classe, disciplina, historicoRecente, structure } = params;
+    const {
+      topicoId,
+      dificuldade,
+      classe,
+      disciplina,
+      historicoRecente,
+      structure,
+    } = params;
 
-    const topico = await this.prisma.topico.findUnique({ where: { id: topicoId } });
+    const topico = await this.prisma.topico.findUnique({
+      where: { id: topicoId },
+    });
     if (!topico) throw new Error('Tópico não encontrado');
 
     const contextRules = (topico.metadata as any)?.ai_rules || '';
@@ -41,7 +50,7 @@ export class QuestionCacheService {
 
     this.logger.debug(
       `🔍 Procurando: Topico ${topicoId}, Level ${dificuldade}, Classe ${classe}, ` +
-      `Structure: ${structure || 'qualquer'}, Hash ${currentSignature}`
+        `Structure: ${structure || 'qualquer'}, Hash ${currentSignature}`,
     );
 
     // ── 1. Tentar Cache ───────────────────────────────────────────────────────
@@ -65,34 +74,65 @@ export class QuestionCacheService {
       take: 5,
     });
 
-    if (cachedPool.length > 0) {
-      const selected = cachedPool[Math.floor(Math.random() * cachedPool.length)];
-      this.logger.log(
-        `⚡ [CACHE HIT] Tópico ${topicoId} - Dificuldade ${dificuldade}` +
-        (structure ? ` - Structure: "${structure.substring(0, 40)}..."` : '')
-      );
-      return {
-        question: selected.pergunta,
-        options: selected.opcoesJson as string[],
-        correct_answer: selected.resposta,
-        explanation: selected.explicacao,
-        cached: true,
-      };
-    }
+if (cachedPool.length > 0) {
+  const selected = cachedPool[Math.floor(Math.random() * cachedPool.length)];
 
+  // Se foi pedida âncora mas a pergunta do cache não tem → ignora cache, gera ao vivo
+  if (params.ancora && !selected.ancoraChave) {
+    this.logger.warn(`🐢 [CACHE MISS âncora] Tópico ${topicoId} - Pergunta sem âncora no cache, gerando ao vivo`);
+    // não faz return — cai para generateAndCache abaixo
+  } else {
+    this.logger.log(
+      `⚡ [CACHE HIT] Tópico ${topicoId} - Dificuldade ${dificuldade}` +
+        (structure ? ` - Structure: "${structure.substring(0, 40)}..."` : ''),
+    );
+    return {
+      question: selected.pergunta,
+      options: selected.opcoesJson as string[],
+      correct_answer: selected.resposta,
+      explanation: selected.explicacao,
+      cached: true,
+      ancora: selected.ancoraChave ? {
+        chave:    selected.ancoraChave,
+        tipo:     selected.ancoraTipo,
+        conteudo: selected.ancoraConteudo,
+      } : null,
+    };
+  }
+}
     // ── 2. Cache Miss → Gera na IA ────────────────────────────────────────────
     this.logger.warn(
       `🐢 [CACHE MISS] Tópico ${topicoId} - Gerando via IA` +
-      (structure ? ` com structure: "${structure.substring(0, 40)}..."` : '')
+        (structure ? ` com structure: "${structure.substring(0, 40)}..."` : ''),
     );
-    return this.generateAndCache(params, currentSignature, contextRules, topico.nome, false);
+const result = await this.generateAndCache(
+  params,
+  currentSignature,
+  contextRules,
+  topico.nome,
+  false,
+);
+
+return {
+  ...result,
+  ancora: result.ancora_chave ? {
+    chave:    result.ancora_chave,
+    tipo:     result.ancora_tipo,
+    conteudo: result.ancora_conteudo,
+  } : null,
+};
   }
 
   /**
    * 🚀 FUNÇÃO DE REPOSIÇÃO EM MASSA (Cron Worker)
    * Não passa structure — gera questões genéricas para o Rush.
    */
-  async refillStock(topicId: number, targetAmount = 20, isBackground = true, deadlineMs?: number) {
+  async refillStock(
+    topicId: number,
+    targetAmount = 20,
+    isBackground = true,
+    deadlineMs?: number,
+  ) {
     const topico = await this.prisma.topico.findUnique({
       where: { id: topicId },
       include: { disciplina: true },
@@ -106,7 +146,7 @@ export class QuestionCacheService {
     for (let nivel = 1; nivel <= 5; nivel++) {
       if (deadlineMs && Date.now() >= deadlineMs) {
         this.logger.warn(
-          `🛑 [FIM DE TURNO] Tempo esgotou no tópico ${topico.nome} (Nível ${nivel}). Abortando...`
+          `🛑 [FIM DE TURNO] Tempo esgotou no tópico ${topico.nome} (Nível ${nivel}). Abortando...`,
         );
         return;
       }
@@ -126,16 +166,18 @@ export class QuestionCacheService {
 
       if (needs > 0) {
         this.logger.log(
-          `📦 Repondo estoque: Tópico ${topico.nome} | Nível ${nivel} | Faltam ${needs}`
+          `📦 Repondo estoque: Tópico ${topico.nome} | Nível ${nivel} | Faltam ${needs}`,
         );
 
-        const historicoAtualizado = existentes.map(e => e.pergunta);
+        const historicoAtualizado = existentes.map((e) => e.pergunta);
         const iteracoes = Math.min(needs, 5);
 
         for (let i = 0; i < iteracoes; i++) {
           try {
             if (deadlineMs && Date.now() >= deadlineMs) {
-              this.logger.warn(`🛑 Tempo limite atingido antes de gerar nova questão. Saindo...`);
+              this.logger.warn(
+                `🛑 Tempo limite atingido antes de gerar nova questão. Saindo...`,
+              );
               return;
             }
 
@@ -158,7 +200,7 @@ export class QuestionCacheService {
               historicoAtualizado.push(gerada.question);
             }
 
-            await new Promise(resolve => setTimeout(resolve, 800));
+            await new Promise((resolve) => setTimeout(resolve, 800));
           } catch (err) {
             this.logger.error(`Falha no refill loop: ${err.message}`);
           }
@@ -181,7 +223,7 @@ export class QuestionCacheService {
       dificuldade: number;
       historicoRecente: string[];
       structure?: string;
-      ancora?: string;   // 🆕
+      ancora?: string; // 🆕
     },
     signature: string,
     rules: string,
@@ -211,7 +253,9 @@ export class QuestionCacheService {
       const timeoutValue = isBackground ? 120000 : this.httpTimeoutMs;
 
       const res = await firstValueFrom(
-        this.http.post(`${this.aiUrl}/generate-rush-question`, payload).pipe(timeout(timeoutValue))
+        this.http
+          .post(`${this.aiUrl}/generate-rush-question`, payload)
+          .pipe(timeout(timeoutValue)),
       );
 
       const data = res.data;
@@ -223,7 +267,7 @@ export class QuestionCacheService {
 
       if (perguntaDuplicada) {
         this.logger.warn(
-          `♻️ Duplicata detectada ("${data.question.substring(0, 30)}..."). Entregue mas NÃO guardada.`
+          `♻️ Duplicata detectada ("${data.question.substring(0, 30)}..."). Entregue mas NÃO guardada.`,
         );
       } else {
         await this.prisma.questaoCache.create({
@@ -238,6 +282,9 @@ export class QuestionCacheService {
             explicacao: data.explanation || '',
             signatureHash: signature,
             structure: params.structure ?? null, // 🆕 guarda a structure se vier
+            ancoraChave: params.ancora ?? null,
+            ancoraTipo: data.ancora_tipo ?? null,
+            ancoraConteudo: data.ancora_conteudo ?? null,
           },
         });
       }

@@ -41,26 +41,19 @@ function _calcNextPhase(currentPhase: Phase, userQuery: string, lastAssessment?:
 
   switch (currentPhase) {
     case 'EXPLAIN':
-      // Se o aluno confirmou → passar para TEST
       if (CONFIRM_KEYWORDS.some(k => q.includes(k))) return 'TEST';
-      // Se o aluno tem dúvidas → ficar em EXPLAIN
       if (DOUBT_KEYWORDS.some(k => q.includes(k))) return 'EXPLAIN';
-      // Por defeito, qualquer outra coisa em EXPLAIN → TEST
       return 'TEST';
 
     case 'TEST':
-      // Qualquer resposta a uma pergunta vai para FEEDBACK
       return 'FEEDBACK';
 
     case 'FEEDBACK':
-      // Depois de feedback correcto: aluno escolhe
       if (lastAssessment === 'CORRECT') {
         if (ADVANCE_KEYWORDS.some(k => q.includes(k))) return 'EXPLAIN';
         if (CHALLENGE_KEYWORDS.some(k => q.includes(k))) return 'TEST';
-        // Por defeito após correcto → avança explicação
         return 'EXPLAIN';
       }
-      // Depois de feedback incorrecto: retesta automaticamente
       return 'TEST';
 
     default:
@@ -100,29 +93,34 @@ export class ChatService {
     // 2. Resolver Tópico e regras da IA
     let aiContextRules = '';
     let currentTopicoId: number | null = null;
-     let currentAncoras: string[] = [];
+    let currentAncoras: string[] = [];
 
-      if (dto.topic && dto.subject) {
-        const topicoDb = await this.prisma.topico.findFirst({
-          where: {
-            nome: dto.topic,
-            nivelClasse: aluno.classe,
-            disciplina: { nome: dto.subject },
-          },
-          select: {
-            id: true,
-            metadata: true,
-            ancoras: true,   // 🆕
-          },
-        });
-        if (topicoDb) {
-          currentTopicoId = topicoDb.id;
-          const meta = topicoDb.metadata as any;
-          if (meta?.ai_rules) aiContextRules = meta.ai_rules;
-          // 🆕 guardar ancoras para o payload
-          currentAncoras = (topicoDb as any).ancoras ?? [];
+    if (dto.topic && dto.subject) {
+      const topicoDb = await this.prisma.topico.findFirst({
+        where: {
+          nome: dto.topic,
+          nivelClasse: aluno.classe,
+          disciplina: { nome: dto.subject },
+        },
+        select: {
+          id: true,
+          metadata: true,
+          ancoras: true,   // 🆕 Buscar âncoras na BD
+        },
+      });
+      if (topicoDb) {
+        currentTopicoId = topicoDb.id;
+        const meta = topicoDb.metadata as any;
+        if (meta?.ai_rules) aiContextRules = meta.ai_rules;
+        
+        // 🆕 Garantir que currentAncoras é sempre um array de strings
+        const rawAncoras = (topicoDb as any).ancoras;
+        if (Array.isArray(rawAncoras)) {
+            currentAncoras = rawAncoras.map(a => String(a));
         }
       }
+    }
+
     // 3. Memória contextual — tópicos problemáticos recentes
     const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const errosRecentes = await this.prisma.exercicioResultado.findMany({
@@ -165,18 +163,7 @@ export class ChatService {
     const formattedHistory = this.formatarHistoricoParaIA(rawHistory.reverse());
 
     // 5. State machine — calcula a fase a enviar ao Python
-    //
-    // O frontend envia a fase em que estava ANTES desta mensagem.
-    // O NestJS calcula em que fase o Python deve RESPONDER.
-    //
-    // Exemplo:
-    //   Frontend: phase="TEST" (estava a responder a uma pergunta)
-    //   NestJS calcula: próxima fase = "FEEDBACK"
-    //   Python recebe phase="FEEDBACK" e usa PROMPT_FEEDBACK_*
     const currentPhase = (dto.phase as Phase) || 'EXPLAIN';
-
-    // Para o FEEDBACK, precisamos do último assessment guardado
-    // (para saber se o aluno acertou ou não na pergunta anterior)
     const lastMensagem = rawHistory[rawHistory.length - 1];
     let lastAssessment: string | undefined;
     if (lastMensagem?.respostaIa) {
@@ -188,22 +175,24 @@ export class ChatService {
 
     const nextPhase: Phase = _calcNextPhase(currentPhase, dto.userQuery, lastAssessment);
 
+    this.logger.log(`💬 Chat: Fase Atual [${currentPhase}] -> Próxima Fase [${nextPhase}]. Âncoras ativas: ${currentAncoras.length}`);
+
     // 6. Payload para o Python
-      const aiRequest: MicroserviceChatRequestDto = {
-        student_id: aluno.id,
-        student_class: aluno.classe,
-        user_query: dto.userQuery,
-        mode: 'tutor',
-        history: formattedHistory,
-        subject: dto.subject || 'Geral',
-        topic: dto.topic || 'Geral',
-        context_rules: aiContextRules + memoriaContexto,
-        phase: nextPhase,
-        last_question: dto.lastQuestion,
-        last_correct_answer: dto.lastCorrectAnswer,
-        last_interaction_type: dto.lastInteractionType,
-        ancoras: currentAncoras,   // 🆕 lista de chaves para o Python escolher
-      };
+    const aiRequest: MicroserviceChatRequestDto = {
+      student_id: aluno.id,
+      student_class: aluno.classe,
+      user_query: dto.userQuery,
+      mode: 'tutor',
+      history: formattedHistory,
+      subject: dto.subject || 'Geral',
+      topic: dto.topic || 'Geral',
+      context_rules: aiContextRules + memoriaContexto,
+      phase: nextPhase,
+      last_question: dto.lastQuestion,
+      last_correct_answer: dto.lastCorrectAnswer,
+      last_interaction_type: dto.lastInteractionType,
+      ancoras: currentAncoras, // ⬅️ Array enviado perfeitamente para o Python
+    };
 
     // 7. Chamada ao Python
     let finalResponse: string;
@@ -225,7 +214,6 @@ export class ChatService {
     }
 
     // 8. Persistência
-    // tipoSalvo reflecte a fase actual (o que o Kani acabou de fazer)
     let tipoSalvo: TipoInteracaoChat = 'EXPLICACAO';
     try {
       const jsonResp = JSON.parse(finalResponse);
@@ -233,7 +221,7 @@ export class ChatService {
       if (nextPhase === 'TEST' || ['CHIPS', 'CLOZE', 'TRUE_FALSE', 'DIRECT_INPUT', 'DRAG_DROP'].includes(itype)) {
         tipoSalvo = 'PERGUNTA';
       } else if (nextPhase === 'FEEDBACK' && jsonResp.assessment === 'CORRECT') {
-        tipoSalvo = 'PERGUNTA'; // foi avaliado
+        tipoSalvo = 'PERGUNTA'; 
       }
     } catch { /* assume EXPLICACAO */ }
 
@@ -259,8 +247,6 @@ export class ChatService {
         history.push({ role: 'user', text: entry.mensagemAluno });
       }
       if (entry.respostaIa) {
-        // Remove campos técnicos (audio_url, phase) antes de passar ao modelo.
-        // Se ficarem no histórico, o GPT-4o começa a inventar audio_urls no output.
         let textoParaIA = entry.respostaIa;
         try {
           const parsed = JSON.parse(entry.respostaIa);

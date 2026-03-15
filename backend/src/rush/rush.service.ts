@@ -124,8 +124,10 @@ export class RushService {
       : [];
 
     const dificuldade = await this.getDifficultyLevel(alunoId, topicoId, subject);
-          const ancora = this._resolveAncoraAleatoria((topicoDb as any)?.ancoras);
-
+const ancoras = (topicoDb as any)?.ancoras ?? [];
+const usarAncora = ancoras.length > 0 && Math.random() < 0.20;
+const ancora = usarAncora ? this._resolveAncoraAleatoria(ancoras) : undefined;
+this.logger.log(`🎲 [Rush âncora] ancoras=${ancoras.length} usarAncora=${usarAncora} ancora=${ancora ?? 'nenhuma'}`);
     try {
       const data = await this.cacheService.getQuestion({
         classe: classeInt,
@@ -165,7 +167,8 @@ export class RushService {
         options: data.options,
         correct_answer: data.correct_answer,
         explanation: data.explanation || '',
-        cached: data.cached
+        cached: data.cached,
+        ancora: data.ancora ?? null,  // 🆕
       };
 
     } catch (err) {
@@ -193,8 +196,32 @@ export class RushService {
   }
 
   // --- 3. SALVAR RESPOSTA (TRANSACTIONAL - MANTIDO) ---
+// --- 3. SALVAR RESPOSTA (TRANSACTIONAL - MANTIDO E CORRIGIDO) ---
   async saveExerciseResult(alunoId: number, exercicioId: number | null, respostaAluno: string, acertou: boolean, topicoId: number, turmaId?: number, sessaoId?: number) {
     return await this.prisma.$transaction(async (tx) => {
+      
+      // 🔥 VALIDAÇÃO DE SEGURANÇA: Prevenir erros de Foreign Key fantasma
+      let validSessaoId = sessaoId || null;
+      if (validSessaoId) {
+          // Verifica se a sessão realmente existe na BD
+          const sessaoExiste = await tx.sessaoEstudo.findUnique({ 
+              where: { id: validSessaoId } 
+          });
+          if (!sessaoExiste) {
+              this.logger.warn(`Sessão fantasma detectada: ${validSessaoId} não existe. A gravar sem sessaoId.`);
+              validSessaoId = null; // Ignora o ID para não quebrar a inserção
+          }
+      }
+
+      // Validação semelhante para turmaId (opcional, mas boa prática)
+      let validTurmaId = turmaId || null;
+      if (validTurmaId) {
+          const turmaExiste = await tx.turma.findUnique({
+              where: { id: validTurmaId }
+          });
+          if (!turmaExiste) validTurmaId = null;
+      }
+
       const resultado = await tx.exercicioResultado.create({
         data: {
           alunoId,
@@ -203,10 +230,11 @@ export class RushService {
           respostaAluno,
           acertou,
           detalhesJson: { note: 'rush' },
-          turmaId: turmaId || null, 
-          sessaoId: sessaoId || null      
-          }
+          turmaId: validTurmaId,   // ⬅️ USA A VARIÁVEL VALIDADA
+          sessaoId: validSessaoId  // ⬅️ USA A VARIÁVEL VALIDADA
+        }
       });
+      
       await this.updateProficiencyLevel(alunoId, topicoId, acertou, tx);
 
       let prof = await tx.alunoProficienciaTopico.findUnique({

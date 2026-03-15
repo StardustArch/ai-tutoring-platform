@@ -405,7 +405,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
                 ancora_label       = "TEXTO DE SUPORTE"
                 ancora_label_lower = "texto acima"
  
-            prompt = PROMPT_TEST_COM_ANCORA.format(
+            system_text = PROMPT_TEST_COM_ANCORA.format( # ⬅️ MUDOU DE prompt PARA system_text
                 student_class=request.student_class,
                 subject=request.subject,
                 topic=request.topic,
@@ -413,22 +413,21 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
                 ancora_label=ancora_label,
                 ancora_label_lower=ancora_label_lower,
                 ancora_conteudo=ancora_data["conteudo"],
-                history=formatted_history,
+                history=request.history,                 # ⬅️ MUDOU DE formatted_history PARA request.history
                 user_query=request.user_query,
             )
             print(f"⚓ [Tutor/TEST] Âncora '{request.ancoras}' → {ancora_data['tipo']}", flush=True)
  
         else:
             # Sem âncora → usa o prompt TEST original
-            prompt = PROMPT_TEST.format(
+            system_text = PROMPT_TEST.format(            # ⬅️ MUDOU DE prompt PARA system_text
                 student_class=request.student_class,
                 subject=request.subject,
                 topic=request.topic,
                 context_rules=request.context_rules,
-                history=formatted_history,
+                history=request.history,                 # ⬅️ MUDOU DE formatted_history PARA request.history
                 user_query=request.user_query,
             )
-
     elif phase == "FEEDBACK":
         # ── Assessment calculado deterministicamente ───────────────────────────
         # O Python compara a resposta do aluno com a correcta.
@@ -487,7 +486,10 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
             user_query=request.user_query,
             history=request.history,
         )
-
+        # 👇 ADICIONA ESTAS DUAS LINHAS 👇
+        if phase == "TEST" and 'ancora_data' in locals() and ancora_data:
+            json_obj["ancora"] = ancora_data
+        # 👆 FIM DA ADIÇÃO 👆
         # Assessment: sobrescreve SEMPRE com o valor calculado (nunca do modelo)
         if assessment_override is not None:
             json_obj["assessment"] = assessment_override
