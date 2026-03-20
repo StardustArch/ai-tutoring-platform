@@ -208,7 +208,7 @@ def build_ordinal_question(student_class: int, difficulty: int) -> dict:
             "correct_answer": str(n),
             "options": options,
             "options_json": json.dumps(options, ensure_ascii=False),
-            "question_template": f"O ordinal '{correct}' corresponde à posição número?",
+            "question_template": f"O ordinal '{correct}' é a posição número ___ numa fila.",
         }
 
 

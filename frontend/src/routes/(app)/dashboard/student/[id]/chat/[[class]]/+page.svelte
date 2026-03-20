@@ -1,783 +1,1211 @@
 <script lang="ts">
-  import { onMount, afterUpdate, onDestroy } from 'svelte';
-  import { page } from '$app/stores';
-  import { apiFetch } from '$lib/utils/api';
-  import { PUBLIC_API_URL_HOST, PUBLIC_IA_HOST_API_URL } from '$env/static/public';
-  import { 
-    Send, Bot, ArrowLeft, Sparkles, Brain, X,
-    Smile, Frown, BookOpen, Calculator, ChevronRight, GraduationCap, Volume2, Star, ArrowDown, PenLine,
-    Image as ImageIcon, FileText // 🆕 Importados para a Âncora
-  } from 'lucide-svelte';
-  import { goto } from '$app/navigation';
-  import confetti from 'canvas-confetti';
-  import SessionTimer from '$lib/components/SessionTimer.svelte';
+	import { onMount, afterUpdate, onDestroy } from 'svelte';
+	import { page } from '$app/stores';
+	import { apiFetch } from '$lib/utils/api';
+	import { PUBLIC_API_URL_HOST, PUBLIC_IA_HOST_API_URL } from '$env/static/public';
+	import {
+		Send,
+		Bot,
+		ArrowLeft,
+		Sparkles,
+		Brain,
+		X,
+		Smile,
+		Frown,
+		BookOpen,
+		Calculator,
+		Volume2,
+		PenLine,
+		Image as ImageIcon,
+		FileText
+	} from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import SessionTimer from '$lib/components/SessionTimer.svelte';
 
-  // --- PARÂMETROS ---
-  let studentId = $page.params.id || '';
-  let sessionId = $page.url.searchParams.get('sessionId') ? parseInt($page.url.searchParams.get('sessionId')!) : null;
-  $: turmaId = $page.params.class ? parseInt($page.params.class!) : null;
+	// ── Parâmetros ────────────────────────────────────────────────────────────
+	let studentId = $page.params.id || '';
+	let sessionId = $page.url.searchParams.get('sessionId')
+		? parseInt($page.url.searchParams.get('sessionId')!)
+		: null;
+	$: turmaId = $page.params.class ? parseInt($page.params.class!) : null;
 
-  let allowedTopicIds: number[] = [];
-  let viewState: 'TOPICS' | 'CHAT' | 'GAMEOVER' = 'TOPICS';
+	let allowedTopicIds: number[] = [];
+	let viewState: 'TOPICS' | 'CHAT' | 'GAMEOVER' = 'TOPICS';
+	let sessionContext = { subject: '', topic: '' };
+	let lastAudio: HTMLAudioElement | null = null;
+	let availableTopics: { [key: string]: any[] } = { matematica: [], portugues: [] };
+	let loadingTopics = true;
+	let isTimeUp = false;
+	let currentTimerKey = `kmind_timer_${studentId}_${sessionId || 'livre'}`;
+	$: timerPaused = viewState !== 'CHAT';
 
-  let sessionContext = { subject: '', topic: '' };
-  let lastAudio: HTMLAudioElement | null = null;
-  let availableTopics: { [key: string]: any[] } = { matematica: [], portugues: [] };
-  let loadingTopics = true;
-  let isTimeUp = false;
+	// ── Chat state ────────────────────────────────────────────────────────────
+	let messageInput = '';
+	let isTyping = false;
+	let isPreparingAudio = false;
+	let chatContainer: HTMLElement;
+	let isRevealing = false;
+	let visibleBubbles: string[] = [];
+	let showFreeInput = false;
+	let showAncoraModal = false;
 
-  let currentTimerKey = `kmind_timer_${Date.now()}`;
-  $: timerPaused = viewState !== 'CHAT';
+	// Fix 1 — balão imediato do aluno
+	let userBubble: string | null = null;
+	let buttonsHidden = false;
 
-  // --- ESTADO DO CHAT ---
-  let messageInput = '';
-  let isTyping = false;
-  let isPreparingAudio = false;
-  let chatContainer: HTMLElement;
-  let isRevealing = false;
-  let visibleBubbles: string[] = [];
-  let showFreeInput = false;
+	// drag & drop
+	let availableDragItems: string[] = [];
+	let selectedDragItems: string[] = [];
 
-  // 🆕 ESTADO DA ÂNCORA
-  let showAncoraModal = false;
+	// phase machine
+	let currentPhase: 'EXPLAIN' | 'TEST' | 'FEEDBACK' = 'EXPLAIN';
+	let lastQuestion: string | null = null;
+	let lastCorrectAnswer: string | null = null;
+	let lastInteractionType: string | null = null;
 
-  // --- ESTADO DRAG & DROP ---
-  let availableDragItems: string[] = [];
-  let selectedDragItems: string[] = [];
+	let currentAiMessage = {
+		messages: [] as string[],
+		emotion: 'NEUTRAL',
+		type: 'FREE_TEXT',
+		data: {} as any,
+		ancora: null as any
+	};
 
-  // ── State machine da lição (Opção A) ─────────────────────────────────────
-  let currentPhase: 'EXPLAIN' | 'TEST' | 'FEEDBACK' = 'EXPLAIN';
-  let lastQuestion: string | null = null;
-  let lastCorrectAnswer: string | null = null;
-  let lastInteractionType: string | null = null;
+	// Fix 2 — show de espera
+	const WAIT_PHRASES = [
+		'A procurar nos livros...',
+		'A contar pelos dedos...',
+		'A afinar a voz...',
+		'Quase lá...'
+	];
+	let waitPhraseText = '';
+	let waitPhraseVisible = false;
+	let waitInterval: ReturnType<typeof setInterval> | null = null;
+	let waitPhraseIdx = 0;
 
-  let currentAiMessage = {
-    messages: [] as string[],
-    emotion: "NEUTRAL",
-    type: "FREE_TEXT",
-    data: {} as any,
-    ancora: null as any // 🆕 Propriedade para guardar a âncora enviada pela IA
-  };
+	function startWaitShow() {
+		waitPhraseIdx = 0;
+		waitPhraseText = WAIT_PHRASES[0];
+		waitPhraseVisible = true;
+		waitInterval = setInterval(() => {
+			waitPhraseVisible = false;
+			setTimeout(() => {
+				waitPhraseIdx = (waitPhraseIdx + 1) % WAIT_PHRASES.length;
+				waitPhraseText = WAIT_PHRASES[waitPhraseIdx];
+				waitPhraseVisible = true;
+			}, 120);
+		}, 1500);
+	}
+	function stopWaitShow() {
+		if (waitInterval) {
+			clearInterval(waitInterval);
+			waitInterval = null;
+		}
+		waitPhraseVisible = false;
+	}
 
-  $: inputMode = resolveInputMode(currentAiMessage.type, currentAiMessage.data, isTyping, isPreparingAudio, isRevealing);
+	$: inputMode = resolveInputMode(
+		currentAiMessage.type,
+		currentAiMessage.data,
+		isTyping,
+		isPreparingAudio,
+		isRevealing
+	);
+	$: if (inputMode !== 'none') showFreeInput = false;
+	$: mascotEmotion = currentAiMessage.emotion;
 
-  function resolveInputMode(
-    type: string,
-    data: any,
-    typing: boolean,
-    preparingAudio: boolean,
-    revealing: boolean
-  ): 'confirmation' | 'quiz' | 'chips' | 'text' | 'drag_drop' | 'none' {
-    if (typing || preparingAudio || revealing) return 'none';
-    if (type === 'DIRECT_INPUT') return 'text';
-    if (type === 'DRAG_DROP' && data?.items) return 'drag_drop';
-    const options: string[] = data?.options || [];
-    if (type === 'EXPLANATION' && options.length > 0) return 'confirmation';
-    if (type === 'TRUE_FALSE' || type === 'CHIPS') return 'quiz';
-    if (type === 'CLOZE') return 'chips';
-    return 'text';
-  }
+	// ── Web Audio ─────────────────────────────────────────────────────────────
+	let audioCtx: AudioContext | null = null;
+	function getCtx() {
+		if (!audioCtx) audioCtx = new AudioContext();
+		return audioCtx;
+	}
+	function playPop() {
+		try {
+			const c = getCtx(),
+				o = c.createOscillator(),
+				g = c.createGain();
+			o.connect(g);
+			g.connect(c.destination);
+			o.frequency.setValueAtTime(800, c.currentTime);
+			o.frequency.exponentialRampToValueAtTime(400, c.currentTime + 0.08);
+			g.gain.setValueAtTime(0.28, c.currentTime);
+			g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.08);
+			o.start();
+			o.stop(c.currentTime + 0.08);
+		} catch {}
+	}
+	function playDinDon() {
+		try {
+			const c = getCtx();
+			[660, 880].forEach((f, i) => {
+				const o = c.createOscillator(),
+					g = c.createGain();
+				o.connect(g);
+				g.connect(c.destination);
+				o.type = 'sine';
+				o.frequency.setValueAtTime(f, c.currentTime + i * 0.18);
+				g.gain.setValueAtTime(0.2, c.currentTime + i * 0.18);
+				g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + i * 0.18 + 0.25);
+				o.start(c.currentTime + i * 0.18);
+				o.stop(c.currentTime + i * 0.18 + 0.25);
+			});
+		} catch {}
+	}
 
-  $: if (inputMode !== 'none') showFreeInput = false;
-  $: mascotState = getMascotState(currentAiMessage.emotion);
+	// ── Lifecycle ─────────────────────────────────────────────────────────────
+	onMount(async () => {
+		await loadStudentAndTopics();
+	});
+	onDestroy(() => {
+		if (lastAudio) lastAudio.pause();
+		if (audioCtx) audioCtx.close();
+		stopWaitShow();
+	});
+	afterUpdate(() => {
+		if (viewState === 'CHAT' && chatContainer)
+			chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+	});
 
-  // --- LIFECYCLE ---
-  onMount(async () => {
-    await loadStudentAndTopics();
-  });
+	function handleTimeUp() {
+		isTimeUp = true;
+		viewState = 'GAMEOVER';
+		if (lastAudio) lastAudio.pause();
+		stopWaitShow();
+	}
 
-  onDestroy(() => {
-    if (typeof window !== 'undefined' && lastAudio) lastAudio.pause();
-  });
+	async function loadStudentAndTopics() {
+		loadingTopics = true;
+		try {
+			if (sessionId) {
+				const r = await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}`);
+				if (r.ok) {
+					const d = await r.json();
+					let ids = d.topicosAlvo;
+					if (typeof ids === 'string') {
+						try {
+							ids = JSON.parse(ids);
+						} catch {}
+					}
+					if (Array.isArray(ids)) allowedTopicIds = ids.map((id: any) => Number(id));
+				}
+			}
+			const ru = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`);
+			if (!ru.ok) throw new Error();
+			const student = await ru.json();
+			const classe = student.classe || 3;
+			const rt = await apiFetch(
+				`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${classe}&studentId=${studentId}`
+			);
+			if (rt.ok) {
+				const all = await rt.json();
+				if (sessionId) {
+					availableTopics.matematica = (all.matematica || []).filter((t: any) =>
+						allowedTopicIds.includes(Number(t.id))
+					);
+					availableTopics.portugues = (all.portugues || []).filter((t: any) =>
+						allowedTopicIds.includes(Number(t.id))
+					);
+				} else {
+					availableTopics = all;
+				}
+			}
+		} catch (e) {
+			console.error(e);
+		} finally {
+			loadingTopics = false;
+		}
+	}
 
-  afterUpdate(() => {
-    if (viewState === 'CHAT' && chatContainer) {
-      chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-    }
-  });
+	function speakText() {
+		if (lastAudio) {
+			lastAudio.currentTime = 0;
+			lastAudio.play();
+		}
+	}
 
-  function handleTimeUp() {
-    isTimeUp = true;
-    viewState = 'GAMEOVER';
-    if (typeof window !== 'undefined' && lastAudio) lastAudio.pause();
-  }
+	function startSession(subject: string, topicName: string) {
+		sessionContext = { subject, topic: topicName };
+		currentPhase = 'EXPLAIN';
+		lastQuestion = lastCorrectAnswer = lastInteractionType = null;
+		showFreeInput = false;
+		userBubble = null;
+		buttonsHidden = false;
+		viewState = 'CHAT';
+		handleAiResponse(
+			JSON.stringify({
+				messages: [`Olá campeão! 🌟`, `Hoje vamos dominar ${topicName}!`, 'Estás pronto?'],
+				emotion: 'HAPPY',
+				interaction_type: 'EXPLANATION',
+				interaction_data: { options: ['Vamos lá!', 'O que é isso?'] },
+				phase: 'EXPLAIN'
+			})
+		);
+	}
 
-  async function loadStudentAndTopics() {
-    loadingTopics = true;
-    try {
-      if (sessionId) {
-        const resSession = await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}`);
-        if (resSession.ok) {
-          const sessionData = await resSession.json();
-          let rawIds = sessionData.topicosAlvo;
-          if (typeof rawIds === 'string') { try { rawIds = JSON.parse(rawIds); } catch(e) {} }
-          if (Array.isArray(rawIds)) allowedTopicIds = rawIds.map((id: any) => Number(id));
-        }
-      }
-      const resUser = await apiFetch(`${PUBLIC_API_URL_HOST}/api/students/${studentId}`);
-      if (!resUser.ok) throw new Error('Erro aluno');
-      const student = await resUser.json();
-      const classe = student.classe || 3;
-      const resTopics = await apiFetch(`${PUBLIC_API_URL_HOST}/api/classes/topics?classe=${classe}&studentId=${studentId}`);
-      if (resTopics.ok) {
-        const allTopics = await resTopics.json();
-        if (sessionId) {
-          availableTopics.matematica = (allTopics.matematica || []).filter((t: any) => allowedTopicIds.includes(Number(t.id)));
-          availableTopics.portugues  = (allTopics.portugues  || []).filter((t: any) => allowedTopicIds.includes(Number(t.id)));
-        } else {
-          availableTopics = allTopics;
-        }
-      }
-    } catch (e) {
-      console.error("Erro ao carregar currículo:", e);
-    } finally {
-      loadingTopics = false;
-    }
-  }
+	// ── Fix 1: tap → feedback imediato → depois enviar ────────────────────────
+	function handleOptionTap(option: string, btn: HTMLElement) {
+		// feedback visual imediato — 0 ms
+		playPop();
+		btn.style.transform = 'scale(0.92)';
+		btn.style.transition = 'transform 80ms ease, opacity 150ms ease';
 
-  function speakText() {
-    if (lastAudio) {
-      lastAudio.currentTime = 0;
-      lastAudio.play();
-    }
-  }
+		// balão do aluno aparece imediatamente
+		userBubble = option;
 
-  function startSession(subject: string, topicName: string) {
-    sessionContext = { subject, topic: topicName };
+		// botões somem a 150 ms
+		setTimeout(() => {
+			buttonsHidden = true;
+			btn.style.opacity = '0';
+		}, 80);
 
-    localStorage.removeItem(currentTimerKey);
-    currentTimerKey = `kmind_timer_${Date.now()}`;
+		// envia à IA depois de 160 ms (botão já sumiu)
+		setTimeout(() => sendMessage(option), 160);
+	}
 
-    currentPhase = 'EXPLAIN';
-    lastQuestion = null;
-    lastCorrectAnswer = null;
-    lastInteractionType = null;
-    showFreeInput = false;
+	// ── Enviar mensagem ───────────────────────────────────────────────────────
+	async function sendMessage(textOverride?: string) {
+		const text = textOverride || messageInput;
+		if (!text.trim() || isTyping) return;
 
-    viewState = 'CHAT';
-    handleAiResponse(JSON.stringify({
-      messages: [`Olá campeão! 🌟`, `Hoje vamos dominar ${topicName}!`, "Estás pronto?"],
-      emotion: "HAPPY",
-      interaction_type: "EXPLANATION",
-      interaction_data: { options: ["Vamos lá!", "O que é isso?"] },
-      phase: "EXPLAIN"
-    }));
-  }
+		messageInput = '';
+		showFreeInput = false;
+		showAncoraModal = false;
 
-  async function sendMessage(textOverride?: string) {
-    const textToSend = textOverride || messageInput;
-    if (!textToSend.trim() || isTyping) return;
+		// Fix 2: show de espera começa imediatamente
+		isTyping = true;
+		visibleBubbles = [];
+		currentAiMessage = { ...currentAiMessage, emotion: 'THOUGHTFUL' };
+		startWaitShow();
 
-    messageInput = '';
-    showFreeInput = false;
-    showAncoraModal = false; // 🆕 Esconde a âncora ao enviar nova mensagem
-    isTyping = true;
-    visibleBubbles = [];
-    currentAiMessage.emotion = "THOUGHTFUL";
+		try {
+			const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/chat/send`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					alunoId: parseInt(studentId),
+					userQuery: text,
+					subject: sessionContext.subject,
+					topic: sessionContext.topic,
+					mode: 'tutor',
+					turmaId,
+					sessaoId: sessionId || null,
+					phase: currentPhase,
+					lastQuestion,
+					lastCorrectAnswer,
+					lastInteractionType
+				})
+			});
+			if (res.ok) {
+				const data = await res.json();
+				handleAiResponse(data.response);
+			} else throw new Error();
+		} catch {
+			handleAiResponse(
+				JSON.stringify({
+					messages: ['Eish, a minha internet tropeçou! 🔌', 'Podes repetir?'],
+					emotion: 'SAD',
+					interaction_type: 'CHIPS',
+					interaction_data: { options: ['Tentar de novo'] }
+				})
+			);
+		} finally {
+			isTyping = false;
+			stopWaitShow();
+		}
+	}
 
-    try {
-      const res = await apiFetch(`${PUBLIC_API_URL_HOST}/api/chat/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          alunoId: parseInt(studentId),
-          userQuery: textToSend,
-          subject: sessionContext.subject,
-          topic: sessionContext.topic,
-          mode: 'tutor',
-          turmaId: turmaId,
-          sessaoId: sessionId || null,
-          phase: currentPhase,
-          lastQuestion: lastQuestion,
-          lastCorrectAnswer: lastCorrectAnswer,
-          lastInteractionType: lastInteractionType,
-        })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        handleAiResponse(data.response);
-      } else {
-        throw new Error('Erro API');
-      }
-    } catch (err: any) {
-      handleAiResponse(JSON.stringify({
-        messages: ["Eish, a minha internet tropeçou! 🔌", "Podes repetir?"],
-        emotion: "SAD",
-        interaction_type: "CHIPS",
-        interaction_data: { options: ["Tentar de novo"] }
-      }));
-    } finally {
-      isTyping = false;
-    }
-  }
+	// ── Processar resposta IA ─────────────────────────────────────────────────
+	async function handleAiResponse(rawText: string) {
+		stopWaitShow();
+		try {
+			const content = JSON.parse(rawText);
+			const msgs: string[] = Array.isArray(content.messages)
+				? content.messages
+				: content.text
+					? [content.text]
+					: ['...'];
 
-  async function handleAiResponse(rawText: string) {
-    try {
-      const content = JSON.parse(rawText);
-      let msgs: string[] = [];
+			currentAiMessage = {
+				messages: msgs,
+				emotion: content.emotion || 'NEUTRAL',
+				type: content.interaction_type || 'FREE_TEXT',
+				data: content.interaction_data || {},
+				ancora: content.ancora || null
+			};
 
-      if (content.messages && Array.isArray(content.messages)) {
-        msgs = content.messages;
-      } else if (content.text) {
-        msgs = [content.text];
-      } else {
-        msgs = ["..."];
-      }
+			if (content.phase) currentPhase = content.phase;
+			if (content.phase === 'TEST') {
+				lastQuestion = msgs[msgs.length - 1] || null;
+				lastCorrectAnswer =
+					content.correct_answer || content.interaction_data?.correct_answer || null;
+				lastInteractionType = content.interaction_type || null;
+			}
 
-      currentAiMessage = {
-        messages: msgs,
-        emotion: content.emotion || "NEUTRAL",
-        type: content.interaction_type || "FREE_TEXT",
-        data: content.interaction_data || {},
-        ancora: content.ancora || null // 🆕 Lê a âncora devolvida pela IA
-      };
+			if (content.ancora)
+				setTimeout(() => {
+					showAncoraModal = true;
+				}, 500);
 
-      if (content.phase) currentPhase = content.phase;
+			// Fix 3 — din-don ao chegar a resposta
+			playDinDon();
+			// repõe botões para próxima interacção
+			buttonsHidden = false;
+			userBubble = null;
 
-      if (content.phase === 'TEST') {
-        lastQuestion = msgs[msgs.length - 1] || null;
-        lastCorrectAnswer = content.correct_answer || content.interaction_data?.correct_answer || null;
-        lastInteractionType = content.interaction_type || null;
-      }
+			if (content.audio_url) {
+				if (lastAudio) {
+					lastAudio.pause();
+					lastAudio.currentTime = 0;
+				}
 
-      if (content.emotion === 'HAPPY' || content.assessment === 'CORRECT') {
-        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#FFD700', '#FF4500', '#00BFFF'] });
-      }
+				isPreparingAudio = true;
+				const url = `${PUBLIC_IA_HOST_API_URL}${content.audio_url}`;
+				lastAudio = new Audio(url);
+				await new Promise<void>((resolve) => {
+					lastAudio!.oncanplaythrough = () => resolve();
+					lastAudio!.onerror = () => resolve();
+					setTimeout(() => resolve(), 4000);
+				});
+				isPreparingAudio = false;
+				lastAudio.play().catch(() => {});
+			}
 
-      // 🆕 Se a IA devolveu uma âncora, abre o modal para o aluno ver logo
-      if (currentAiMessage.ancora) {
-        setTimeout(() => { showAncoraModal = true; }, 500);
-      }
+			await triggerBubbleSequence(msgs);
+		} catch (e) {
+			console.warn(e);
+			isPreparingAudio = false;
+			await triggerBubbleSequence([rawText]);
+		}
+	}
 
-      if (content.audio_url) {
-        isPreparingAudio = true;
-        const fullAudioUrl = `${PUBLIC_IA_HOST_API_URL}${content.audio_url}`;
-        lastAudio = new Audio(fullAudioUrl);
+	// Fix 3 — balões um a um, 400 ms entre cada
+	async function triggerBubbleSequence(messages: string[]) {
+		isRevealing = true;
+		visibleBubbles = [];
+		for (let i = 0; i < messages.length; i++) {
+			await new Promise((r) => setTimeout(r, i === 0 ? 300 : 400));
+			visibleBubbles = [...visibleBubbles, messages[i]];
+		}
+		isRevealing = false;
+	}
 
-        const audioReadyPromise = new Promise<void>((resolve) => {
-          lastAudio!.oncanplaythrough = () => resolve();
-          lastAudio!.onerror = () => resolve();
-          setTimeout(() => resolve(), 4000);
-        });
+	function resolveInputMode(
+		type: string,
+		data: any,
+		typing: boolean,
+		preparingAudio: boolean,
+		revealing: boolean
+	): 'confirmation' | 'quiz' | 'chips' | 'text' | 'drag_drop' | 'none' {
+		if (typing || preparingAudio || revealing) return 'none';
+		if (type === 'DIRECT_INPUT') return 'text';
+		if (type === 'DRAG_DROP' && data?.items) return 'drag_drop';
+		const opts: string[] = data?.options || [];
+		if (type === 'EXPLANATION' && opts.length > 0) return 'confirmation';
+		if (type === 'TRUE_FALSE' || type === 'CHIPS') return 'quiz';
+		if (type === 'CLOZE') return 'chips';
+		return 'text';
+	}
 
-        await audioReadyPromise;
-        isPreparingAudio = false;
-        lastAudio.play().catch(e => console.warn("Autoplay bloqueado"));
-        triggerBubbleSequence(msgs);
-      } else {
-        triggerBubbleSequence(msgs);
-      }
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			sendMessage();
+		}
+	}
 
-    } catch (e) {
-      console.warn("Erro parsing ou áudio:", e);
-      isPreparingAudio = false;
-      triggerBubbleSequence([rawText]);
-    }
-  }
+	async function exitSession() {
+		if (sessionId)
+			await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}/end`, { method: 'PATCH' });
+		goto(`/dashboard/foreman/student/${studentId}/class`);
+	}
+	function handleBack() {
+		// Corta o áudio imediatamente se estiver a tocar
+		if (lastAudio) {
+			lastAudio.pause();
+			lastAudio.currentTime = 0;
+		}
 
-  function getMascotState(emotion: string) {
-    switch (emotion) {
-      case 'HAPPY':      return { color: 'bg-green-400',  ring: 'ring-green-200',  icon: Smile,    animation: 'animate-bounce-slow' };
-      case 'INTERESTED': return { color: 'bg-violet-500', ring: 'ring-violet-200', icon: Sparkles, animation: 'animate-pulse' };
-      case 'THOUGHTFUL': return { color: 'bg-amber-400',  ring: 'ring-amber-200',  icon: Brain,    animation: 'animate-float' };
-      case 'SAD':        return { color: 'bg-rose-400',   ring: 'ring-rose-200',   icon: Frown,    animation: 'animate-shake' };
-      default:           return { color: 'bg-blue-500',   ring: 'ring-blue-200',   icon: Bot,      animation: 'animate-float' };
-    }
-  }
+		if (viewState === 'CHAT') {
+			viewState = 'TOPICS';
+		} else if (sessionId) {
+			exitSession();
+		} else {
+			goto(`/dashboard/foreman/student/${studentId}/class`);
+		}
+	}
 
-  async function triggerBubbleSequence(messages: string[]) {
-    isRevealing = true;
-    visibleBubbles = [];
-    for (let i = 0; i < messages.length; i++) {
-      const delay = i === 0 ? 100 : Math.min(messages[i-1].length * 20, 1000);
-      await new Promise(r => setTimeout(r, delay));
-      visibleBubbles = [...visibleBubbles, messages[i]];
-    }
-    isRevealing = false;
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  }
-
-  async function exitSession() {
-    if (sessionId) await apiFetch(`${PUBLIC_API_URL_HOST}/api/session/${sessionId}/end`, { method: 'PATCH' });
-    goto(`/dashboard/foreman/student/${studentId}/class`);
-  }
+	// cores para botões quiz
+	const QUIZ_COLORS = [
+		'bg-violet-500 border-violet-700 hover:shadow-violet-200',
+		'bg-sky-500    border-sky-700    hover:shadow-sky-200',
+		'bg-amber-500  border-amber-700  hover:shadow-amber-200',
+		'bg-rose-500   border-rose-700   hover:shadow-rose-200'
+	];
 </script>
 
 <svelte:head>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <title>Sessão | KMind</title>
+	<link
+		href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap"
+		rel="stylesheet"
+	/>
+	<title>Sessão | KMind</title>
 </svelte:head>
 
+<!-- ── MODAL ÂNCORA ──────────────────────────────────────────────────────── -->
 {#if showAncoraModal && currentAiMessage.ancora}
-  {@const ancora = currentAiMessage.ancora}
-  <div 
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
-      on:click={() => showAncoraModal = false}
-  >
-      <div 
-          class="animate-zoom-in relative max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
-          on:click|stopPropagation
-      >
-          <div class="flex items-center justify-between border-b-4 border-slate-100 bg-slate-50 p-4">
-              <h2 class="flex items-center gap-2 text-lg font-black text-slate-700">
-                  {#if ancora.tipo === 'visual'}
-                      <ImageIcon class="text-blue-500" size={24} /> Observa a Imagem
-                  {:else}
-                      <FileText class="text-amber-500" size={24} /> Lê o Texto
-                  {/if}
-              </h2>
-              <button 
-                  on:click={() => showAncoraModal = false}
-                  class="rounded-full bg-slate-200 p-2 text-slate-600 transition-transform hover:scale-105 active:scale-95"
-              >
-                  <X size={20} strokeWidth={3} />
-              </button>
-          </div>
-          
-          <div class="overflow-y-auto p-4 sm:p-6">
-              {#if ancora.tipo === 'visual'}
-                  <img src={`/ancoras/${ancora.chave}.jpg`} alt="Contexto Visual" class="w-full rounded-2xl object-contain shadow-sm" />
-              {:else}
-                  <div class="rounded-2xl border-2 border-amber-100 bg-amber-50 p-6 font-medium text-slate-800 leading-relaxed">
-                      {ancora.conteudo}
-                  </div>
-              {/if}
-          </div>
-          
-          <div class="border-t-4 border-slate-100 p-4">
-              <button 
-                  on:click={() => showAncoraModal = false}
-                  class="w-full rounded-2xl border-b-4 border-blue-700 bg-blue-500 py-4 text-lg font-black text-white shadow-md active:translate-y-1 active:border-b-0"
-              >
-                  JÁ VI, VOU RESPONDER!
-              </button>
-          </div>
-      </div>
-  </div>
+	{@const ancora = currentAiMessage.ancora}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
+		on:click={() => (showAncoraModal = false)}
+	>
+		<div
+			class="animate-zoom-in relative max-h-[90vh] w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+			on:click|stopPropagation
+		>
+			<div
+				class="flex items-center justify-between border-b-4 border-slate-100 bg-slate-50 p-3 sm:p-4"
+			>
+				<h2 class="flex items-center gap-2 text-base font-black text-slate-700 sm:text-lg">
+					{#if ancora.tipo === 'visual'}
+						<ImageIcon class="shrink-0 text-blue-500" size={20} /> Observa a Imagem
+					{:else}
+						<FileText class="shrink-0 text-amber-500" size={20} /> Lê o Texto
+					{/if}
+				</h2>
+				<button
+					on:click={() => (showAncoraModal = false)}
+					class="rounded-full bg-slate-200 p-1.5 text-slate-600 active:scale-95"
+				>
+					<X size={18} strokeWidth={3} />
+				</button>
+			</div>
+			<div class="overflow-y-auto p-3 sm:p-5">
+				{#if ancora.tipo === 'visual'}
+					<img
+						src={`/ancoras/${ancora.chave}.svg`}
+						alt="Contexto"
+						class="w-full rounded-2xl object-contain"
+						on:error={(e) => {
+							const target = e.target as HTMLImageElement;
+
+							if (target.src.endsWith('.svg')) {
+								target.src = `/ancoras/${ancora.chave}.png`;
+							} else if (target.src.endsWith('.png')) {
+								target.src = `/ancoras/${ancora.chave}.jpg`;
+							} else {
+								target.onerror = null; // evita loop
+							}
+						}}
+					/>
+				{:else}
+					<div
+						class="rounded-2xl border-2 border-amber-100 bg-amber-50 p-4 text-sm leading-relaxed font-medium text-slate-800 sm:p-6 sm:text-base"
+					>
+						{ancora.conteudo}
+					</div>
+				{/if}
+			</div>
+			<div class="border-t-4 border-slate-100 p-3 sm:p-4">
+				<button
+					on:click={() => (showAncoraModal = false)}
+					class="w-full rounded-2xl border-b-4 border-blue-700 bg-blue-500 py-3 text-base font-black text-white shadow-md active:translate-y-1 active:border-b-0 sm:py-4 sm:text-lg"
+				>
+					JÁ VI, VOU RESPONDER!
+				</button>
+			</div>
+		</div>
+	</div>
 {/if}
 
-<div class="flex flex-col h-[100dvh] bg-gradient-to-b from-sky-200 via-blue-50 to-white font-['Fredoka'] overflow-hidden">
+<!-- ── LAYOUT ─────────────────────────────────────────────────────────────── -->
+<div
+	class="flex h-[100dvh] flex-col overflow-hidden bg-gradient-to-b from-sky-200 via-blue-50 to-white font-['Fredoka']"
+>
+	<!-- HEADER -->
+	<div
+		class="z-30 w-full shrink-0 overflow-hidden border-b border-blue-100 bg-white/90 p-2 shadow-sm backdrop-blur-md sm:p-3"
+	>
+		<div class="mx-auto flex max-w-4xl items-center justify-between gap-1 sm:gap-3">
+			<div class="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-3">
+				<button
+					on:click={handleBack}
+					class="shrink-0 rounded-xl border-2 border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition-all hover:border-blue-400 hover:text-blue-500 active:scale-95 sm:p-2"
+				>
+					<ArrowLeft class="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={3} />
+				</button>
 
-  <div class="bg-white/80 backdrop-blur-md border-b border-blue-100 p-3 flex items-center justify-between shadow-sm z-30 shrink-0">
-    <div class="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-      <button
-        on:click={() => viewState === 'CHAT' ? viewState = 'TOPICS' : (sessionId ? exitSession() : goto(`/dashboard/student/${studentId}/class`))}
-        class="p-2 rounded-full bg-white border-2 border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-500 transition-all shadow-sm active:scale-95 shrink-0"
-      >
-        <ArrowLeft size={20} strokeWidth={3} />
-      </button>
-      <div class="flex items-center gap-2 md:gap-3 min-w-0">
-        <div class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-400 text-white flex items-center justify-center shadow-md border-2 border-white shrink-0">
-          <Brain size={18} />
-        </div>
-        <div class="min-w-0">
-          <h2 class="font-bold text-slate-700 leading-tight text-sm md:text-base truncate">KMind</h2>
-          <p class="text-[10px] md:text-xs text-slate-500 font-bold uppercase tracking-wider truncate">
-            {viewState === 'CHAT' ? sessionContext.topic : 'Menu Principal'}
-          </p>
-        </div>
-      </div>
-    </div>
-    {#if viewState !== 'GAMEOVER'}
-      <div class="shrink-0 ml-2">
-        <SessionTimer
-          timerKey={currentTimerKey}
-          paused={timerPaused}
-          on:timeup={handleTimeUp}
-        />
-      </div>
-    {/if}
-  </div>
+				<div class="flex min-w-0 items-center gap-1.5 sm:gap-3">
+					<div
+						class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white bg-gradient-to-tr from-blue-500 to-cyan-400 text-white shadow-md sm:h-10 sm:w-10"
+					>
+						<Brain class="h-4 w-4 sm:h-5 sm:w-5" />
+					</div>
+					<div class="min-w-0">
+						<h2 class="truncate text-sm leading-tight font-bold text-slate-700 sm:text-base">
+							KMind
+						</h2>
+						<p
+							class="truncate text-[9px] font-bold tracking-wider text-slate-500 uppercase sm:text-xs"
+						>
+							{viewState === 'CHAT' ? sessionContext.topic : 'Menu Principal'}
+						</p>
+					</div>
+				</div>
+			</div>
 
-  {#if viewState === 'GAMEOVER'}
-    <div class="flex-1 flex flex-col items-center justify-center p-6 text-center animate-zoom-in bg-white/50 backdrop-blur-sm">
-      <div class="mb-6 text-8xl animate-bounce">⏰</div>
-      <h1 class="text-4xl md:text-5xl font-black text-slate-800 mb-4">Tempo Esgotado!</h1>
-      <button on:click={() => exitSession()} class="px-10 py-5 bg-blue-500 text-white rounded-2xl font-bold text-xl shadow-lg border-b-4 border-blue-700">
-        Terminar
-      </button>
-    </div>
+			{#if viewState !== 'GAMEOVER'}
+				<div class="ml-1 shrink-0 sm:ml-2">
+					<div class="zoom-75 sm:zoom-100">
+						<SessionTimer
+							timerKey={currentTimerKey}
+							paused={timerPaused}
+							on:timeup={handleTimeUp}
+						/>
+					</div>
+				</div>
+			{/if}
+		</div>
+	</div>
 
-  {:else if viewState === 'TOPICS'}
-    <div class="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-hide">
-      <div class="max-w-4xl mx-auto space-y-6 md:space-y-8 animate-fade-in-up pb-10">
-        <div class="text-center py-4 md:py-6">
-          <h1 class="text-2xl md:text-4xl font-black text-slate-800 mb-2 drop-shadow-sm">O que vamos aprender? 🚀</h1>
-        </div>
-        {#if loadingTopics}
-          <div class="flex justify-center"><div class="animate-spin w-8 h-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>
-        {:else}
-          {#if availableTopics.matematica.length > 0}
-            <section class="bg-white/60 p-4 md:p-6 rounded-3xl border border-blue-100 shadow-sm">
-              <h3 class="text-lg md:text-2xl font-black text-slate-700 mb-4 flex items-center gap-3">
-                <div class="p-2 bg-blue-100 rounded-xl text-blue-600"><Calculator size={24} /></div> Matemática
-              </h3>
-              <div class="grid grid-cols-1 gap-3">
-                {#each availableTopics.matematica as topic}
-                  <button on:click={() => startSession('Matemática', topic.nome)} class="p-4 bg-white rounded-2xl border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 text-left font-bold text-slate-700 shadow-sm">
-                    {topic.nome}
-                  </button>
-                {/each}
-              </div>
-            </section>
-          {/if}
-          {#if availableTopics.portugues.length > 0}
-            <section class="bg-white/60 p-4 md:p-6 rounded-3xl border border-green-100 shadow-sm">
-              <h3 class="text-lg md:text-2xl font-black text-slate-700 mb-4 flex items-center gap-3">
-                <div class="p-2 bg-green-100 rounded-xl text-green-600"><BookOpen size={24} /></div> Português
-              </h3>
-              <div class="grid grid-cols-1 gap-3">
-                {#each availableTopics.portugues as topic}
-                  <button on:click={() => startSession('Português', topic.nome)} class="p-4 bg-white rounded-2xl border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 text-left font-bold text-slate-700 shadow-sm">
-                    {topic.nome}
-                  </button>
-                {/each}
-              </div>
-            </section>
-          {/if}
-        {/if}
-      </div>
-    </div>
+	<!-- GAMEOVER -->
+	{#if viewState === 'GAMEOVER'}
+		<div class="animate-zoom-in flex flex-1 flex-col items-center justify-center p-6 text-center">
+			<div class="mb-6 animate-bounce text-7xl">⏰</div>
+			<h1 class="mb-4 text-3xl font-black text-slate-800 sm:text-5xl">Tempo Esgotado!</h1>
+			<button
+				on:click={exitSession}
+				class="rounded-2xl border-b-4 border-blue-700 bg-blue-500 px-10 py-4 text-lg font-bold text-white shadow-lg active:translate-y-1 active:border-b-0"
+			>
+				Terminar
+			</button>
+		</div>
 
-  {:else}
-    <div
-      class="flex-1 overflow-y-auto relative pb-40 md:pb-48 scroll-smooth"
-      bind:this={chatContainer}
-    >
-      <div class="flex flex-col items-center justify-start pt-6 px-4 space-y-6 min-h-[50vh]">
+		<!-- TOPICS -->
+	{:else if viewState === 'TOPICS'}
+		<div class="scrollbar-hide flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+			<div class="animate-fade-in-up mx-auto max-w-4xl space-y-5 pb-10">
+				<div class="py-4 text-center">
+					<h1 class="mb-2 text-2xl font-black text-slate-800 drop-shadow-sm sm:text-4xl">
+						O que vamos aprender? 🚀
+					</h1>
+				</div>
+				{#if loadingTopics}
+					<div class="flex justify-center">
+						<div
+							class="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
+						></div>
+					</div>
+				{:else}
+					{#if availableTopics.matematica.length > 0}
+						<section class="rounded-3xl border border-blue-100 bg-white/60 p-3 shadow-sm sm:p-5">
+							<h3
+								class="mb-3 flex items-center gap-2 text-base font-black text-slate-700 sm:mb-4 sm:text-xl"
+							>
+								<div class="rounded-xl bg-blue-100 p-1.5 text-blue-600">
+									<Calculator size={18} />
+								</div>
+								Matemática
+							</h3>
+							<div class="grid grid-cols-1 gap-2">
+								{#each availableTopics.matematica as topic}
+									<!-- Fix 4: botões sólidos com shadow -->
+									<button
+										on:click={() => startSession('Matemática', topic.nome)}
+										class="rounded-2xl border-b-4 border-blue-200 bg-white p-3 text-left text-sm font-bold text-slate-700 shadow-sm transition-all hover:scale-[1.02] hover:border-blue-400 hover:shadow-md active:translate-y-1 active:border-b-0 sm:p-4 sm:text-base"
+									>
+										{topic.nome}
+									</button>
+								{/each}
+							</div>
+						</section>
+					{/if}
+					{#if availableTopics.portugues.length > 0}
+						<section class="rounded-3xl border border-green-100 bg-white/60 p-3 shadow-sm sm:p-5">
+							<h3
+								class="mb-3 flex items-center gap-2 text-base font-black text-slate-700 sm:mb-4 sm:text-xl"
+							>
+								<div class="rounded-xl bg-green-100 p-1.5 text-green-600">
+									<BookOpen size={18} />
+								</div>
+								Português
+							</h3>
+							<div class="grid grid-cols-1 gap-2">
+								{#each availableTopics.portugues as topic}
+									<button
+										on:click={() => startSession('Português', topic.nome)}
+										class="rounded-2xl border-b-4 border-green-200 bg-white p-3 text-left text-sm font-bold text-slate-700 shadow-sm transition-all hover:scale-[1.02] hover:border-green-400 hover:shadow-md active:translate-y-1 active:border-b-0 sm:p-4 sm:text-base"
+									>
+										{topic.nome}
+									</button>
+								{/each}
+							</div>
+						</section>
+					{/if}
+				{/if}
+			</div>
+		</div>
 
-        <div class="w-full flex justify-center relative z-10 shrink-0">
-          <div class={`
-            w-32 h-32 md:w-48 md:h-48 rounded-full shadow-xl flex items-center justify-center
-            border-4 border-white transition-all duration-700
-            ${mascotState.color} ${mascotState.animation}
-          `}>
-            <svelte:component this={mascotState.icon} size={64} class="text-white drop-shadow-md" strokeWidth={2.5} />
-          </div>
-        </div>
+		<!-- CHAT -->
+	{:else}
+		<div class="relative flex-1 overflow-y-auto scroll-smooth pb-44" bind:this={chatContainer}>
+			<div
+				class="flex min-h-[50vh] flex-col items-center justify-start space-y-4 px-3 pt-4 sm:space-y-5 sm:px-4 sm:pt-6"
+			>
+				<!-- ── MASCOTE — idle animation sempre activa ─────────────────────── -->
+				<div class="relative z-10 flex w-full shrink-0 justify-center">
+					<div class="relative">
+						<!-- círculo principal com animação por emoção -->
+						<div
+							class="kani-wrap flex h-24 w-24 items-center justify-center rounded-full border-4 border-white shadow-xl transition-colors duration-700 sm:h-36 sm:w-36 md:h-44 md:w-44
+              {mascotEmotion === 'HAPPY'
+								? 'kani-bounce  bg-green-400'
+								: mascotEmotion === 'INTERESTED'
+									? 'kani-idle bg-violet-500'
+									: mascotEmotion === 'THOUGHTFUL'
+										? 'kani-thinking  bg-amber-400'
+										: mascotEmotion === 'SAD'
+											? 'kani-shake   bg-rose-400'
+											: 'kani-idle   bg-blue-500'}"
+						>
+							{#if mascotEmotion === 'HAPPY'}
+								<Smile
+									size={44}
+									class="text-white drop-shadow-md sm:h-14 sm:w-14"
+									strokeWidth={2.5}
+								/>
+							{:else if mascotEmotion === 'INTERESTED'}
+								<Sparkles
+									size={44}
+									class="text-white drop-shadow-md sm:h-14 sm:w-14"
+									strokeWidth={2.5}
+								/>
+							{:else if mascotEmotion === 'THOUGHTFUL'}
+								<Brain
+									size={44}
+									class="text-white drop-shadow-md sm:h-14 sm:w-14"
+									strokeWidth={2.5}
+								/>
+							{:else if mascotEmotion === 'SAD'}
+								<Frown
+									size={44}
+									class="text-white drop-shadow-md sm:h-14 sm:w-14"
+									strokeWidth={2.5}
+								/>
+							{:else}
+								<Bot
+									size={44}
+									class="text-white drop-shadow-md sm:h-14 sm:w-14"
+									strokeWidth={2.5}
+								/>
+							{/if}
+						</div>
+						<!-- Fix 3: pulse ring idle — CSS puro, sempre activo -->
+						<div
+							class="kani-pulse-ring absolute inset-0 rounded-full
+              {mascotEmotion === 'HAPPY'
+								? 'bg-green-400'
+								: mascotEmotion === 'THOUGHTFUL'
+									? 'bg-amber-400'
+									: mascotEmotion === 'SAD'
+										? 'bg-rose-400'
+										: 'bg-blue-500'}"
+						></div>
+					</div>
+				</div>
 
-        <div class="w-full max-w-2xl flex flex-col items-center space-y-4 pb-4">
-          {#if visibleBubbles.length > 0}
-            {#each visibleBubbles as bubble, i}
-              <div class="animate-pop-in relative px-6 py-4 md:px-8 md:py-6 shadow-sm border-b-4
-                bg-white border-slate-200 text-slate-700
-                text-center text-lg md:text-2xl font-medium leading-relaxed rounded-3xl
-                w-auto max-w-full md:max-w-[85%]"
-                style="animation-delay: {i * 100}ms;">
-                {@html bubble}
-              </div>
-            {/each}
+				<!-- Fix 2: show de espera com frases rotativas -->
+				{#if isTyping || isPreparingAudio}
+					<div class="flex flex-col items-center gap-2">
+						<div class="flex items-center gap-1.5">
+							<div
+								class="h-2.5 w-2.5 animate-bounce rounded-full bg-blue-400 [animation-delay:-0.3s]"
+							></div>
+							<div
+								class="h-2.5 w-2.5 animate-bounce rounded-full bg-blue-400 [animation-delay:-0.15s]"
+							></div>
+							<div class="h-2.5 w-2.5 animate-bounce rounded-full bg-blue-400"></div>
+						</div>
+						{#if waitPhraseVisible && waitPhraseText}
+							<p class="wait-phrase text-xs font-bold text-slate-400 sm:text-sm">
+								{waitPhraseText}
+							</p>
+						{/if}
+					</div>
+				{/if}
 
-            {#if visibleBubbles.length === currentAiMessage.messages.length && !isRevealing}
-              <button
-                on:click={() => speakText()}
-                class="mt-2 p-3 rounded-full bg-slate-100 text-slate-400 hover:text-blue-500 transition-all animate-fade-in"
-              >
-                <Volume2 size={24} />
-              </button>
-            {/if}
-          {:else if isPreparingAudio}
-            <div class="flex items-center justify-center gap-2 mt-4 animate-pulse text-blue-500 font-bold text-sm">
-              <Volume2 size={16} class="animate-bounce" />
-              <span>A preparar a voz...</span>
-            </div>
-          {:else if !isTyping}
-            <div class="text-center opacity-50 text-sm font-bold animate-pulse text-slate-400 mt-4">
-              À espera do K...
-            </div>
-          {/if}
-        </div>
-      </div>
-    </div>
+				<!-- Fix 1: balão imediato do aluno -->
+				{#if userBubble && (isTyping || isPreparingAudio || isRevealing)}
+					<div class="flex w-full max-w-2xl justify-end px-1">
+						<div
+							class="user-bubble-instant max-w-[80%] rounded-2xl bg-blue-500 px-4 py-2.5 text-sm font-bold text-white shadow-md sm:px-5 sm:py-3 sm:text-base"
+						>
+							{userBubble}
+						</div>
+					</div>
+				{/if}
 
-    <div class="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-100 z-40">
-      <div class="max-w-3xl mx-auto flex flex-col justify-center p-3 pb-safe">
+				<!-- Balões do Kani — Fix 3: um a um com 400 ms entre cada -->
+				<div class="flex w-full max-w-2xl flex-col items-center space-y-3 pb-4">
+					{#each visibleBubbles as bubble, i}
+						<div
+							class="animate-pop-in relative w-auto max-w-[92%] rounded-3xl border-b-4 border-slate-200 bg-white px-4 py-3 text-center text-base leading-relaxed font-medium text-slate-700 shadow-sm sm:px-6 sm:py-4 sm:text-lg md:max-w-[85%] md:text-xl"
+							style="animation-delay:{i * 80}ms"
+						>
+							{@html bubble}
+						</div>
+					{/each}
 
-        {#if currentAiMessage.ancora}
-          <div class="flex justify-center mb-3 animate-slide-up">
-            <button 
-              on:click={() => showAncoraModal = true}
-              class="flex animate-pulse items-center gap-2 rounded-full border-b-4 border-amber-600 bg-amber-400 px-4 py-1.5 text-xs md:text-sm font-black text-white shadow-sm active:translate-y-1 active:border-b-0"
-            >
-              {#if currentAiMessage.ancora.tipo === 'visual'}
-                <ImageIcon size={16} /> REVER IMAGEM
-              {:else}
-                <FileText size={16} /> LER TEXTO NOVAMENTE
-              {/if}
-            </button>
-          </div>
-        {/if}
+					{#if visibleBubbles.length === currentAiMessage.messages.length && !isRevealing && visibleBubbles.length > 0}
+						<button
+							on:click={speakText}
+							class="animate-fade-in mt-1 rounded-full bg-slate-100 p-2.5 text-slate-400 transition-all hover:text-blue-500 sm:p-3"
+						>
+							<Volume2 size={20} />
+						</button>
+					{/if}
+				</div>
+			</div>
+		</div>
 
-        {#if inputMode === 'none'}
-          <div class="flex justify-center items-center gap-2 py-4 h-[60px]">
-            <div class="h-3 w-3 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-            <div class="h-3 w-3 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-            <div class="h-3 w-3 bg-blue-400 rounded-full animate-bounce"></div>
-          </div>
+		<!-- BARRA DE INPUT ────────────────────────────────────────────────────── -->
+		<div
+			class="fixed bottom-0 left-0 z-40 w-full border-t border-slate-100 bg-white/95 backdrop-blur-xl"
+		>
+			<div
+				class="mx-auto flex max-w-3xl flex-col justify-center p-2 sm:p-3"
+				style="padding-bottom: max(env(safe-area-inset-bottom, 8px), 8px)"
+			>
+				<!-- botão âncora -->
+				{#if currentAiMessage.ancora && inputMode !== 'none'}
+					<div class="animate-slide-up mb-2 flex justify-center">
+						<button
+							on:click={() => (showAncoraModal = true)}
+							class="flex animate-pulse items-center gap-1.5 rounded-full border-b-4 border-amber-600 bg-amber-400 px-3 py-1 text-xs font-black text-white shadow-sm active:translate-y-1 active:border-b-0 sm:px-4 sm:py-1.5 sm:text-sm"
+						>
+							{#if currentAiMessage.ancora.tipo === 'visual'}<ImageIcon size={13} /> REVER IMAGEM
+							{:else}<FileText size={13} /> LER TEXTO{/if}
+						</button>
+					</div>
+				{/if}
 
-        {:else if inputMode === 'confirmation'}
-          <div class="flex flex-col gap-2 w-full animate-slide-up pb-1">
-            <div class="flex gap-3 w-full">
-              {#each (currentAiMessage.data.options || []) as option}
-                <button
-                  class="flex-1 px-4 py-4 rounded-2xl border-b-4 font-black text-base transition-all
-                    active:translate-y-1 active:border-b-0
-                    {option.toLowerCase().includes('não') || option.toLowerCase().includes('duvida') || option.toLowerCase().includes('dúvida')
-                      ? 'bg-rose-50 text-rose-600 border-rose-200 hover:border-rose-400'
-                      : 'bg-green-50 text-green-700 border-green-200 hover:border-green-400'}"
-                  on:click={() => sendMessage(option)}
-                >
-                  {option}
-                </button>
-              {/each}
-            </div>
-            {#if !showFreeInput}
-              <button
-                on:click={() => showFreeInput = true}
-                class="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-blue-500 transition-colors mt-1"
-              >
-                <PenLine size={12} /> Escrever outra coisa
-              </button>
-            {:else}
-              <div class="flex items-center gap-2 mt-1 animate-slide-up">
-                <input
-                  type="text"
-                  class="flex-1 pl-4 pr-4 py-2.5 bg-slate-100 border-2 border-slate-200
-                    focus:border-blue-400 focus:bg-white rounded-xl outline-none transition-all
-                    text-slate-700 font-bold shadow-inner text-sm"
-                  placeholder="Escreve aqui..."
-                  bind:value={messageInput}
-                  on:keydown={handleKeydown}
-                  autofocus
-                />
-                <button
-                  class="p-2.5 rounded-xl bg-blue-500 text-white border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 shadow-md disabled:opacity-50 shrink-0"
-                  on:click={() => sendMessage()}
-                  disabled={!messageInput.trim()}
-                >
-                  <Send size={18} />
-                </button>
-              </div>
-            {/if}
-          </div>
+				<!-- NONE -->
+				{#if inputMode === 'none'}
+					<div class="flex h-14 items-center justify-center gap-2 py-3">
+						<div
+							class="h-2.5 w-2.5 animate-bounce rounded-full bg-blue-400 [animation-delay:-0.3s]"
+						></div>
+						<div
+							class="h-2.5 w-2.5 animate-bounce rounded-full bg-blue-400 [animation-delay:-0.15s]"
+						></div>
+						<div class="h-2.5 w-2.5 animate-bounce rounded-full bg-blue-400"></div>
+					</div>
 
-        {:else if inputMode === 'quiz'}
-          {@const opts = currentAiMessage.data.options || []}
-          <div class="animate-slide-up pb-1 w-full flex flex-col gap-2">
-            <div
-              class:grid={opts.length <= 4}
-              class:grid-cols-2={opts.length === 4}
-              class:grid-cols-1={opts.length !== 4}
-              class:flex={opts.length > 4}
-              class:flex-col={opts.length > 4}
-              style="gap: 10px;"
-            >
-              {#each opts as option}
-                <button
-                  class="px-4 py-3 rounded-2xl border-b-4 border-slate-200 bg-white
-                    text-slate-700 font-bold text-base shadow-sm
-                    hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700
-                    active:translate-y-1 active:border-b-0 transition-all
-                    flex items-center justify-center text-center min-h-[52px]"
-                  on:click={() => sendMessage(option)}
-                >
-                  <span class="leading-tight">{option}</span>
-                </button>
-              {/each}
-            </div>
-            {#if !showFreeInput}
-              <button
-                on:click={() => showFreeInput = true}
-                class="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-blue-500 transition-colors mt-1"
-              >
-                <PenLine size={12} /> Tirar uma dúvida
-              </button>
-            {:else}
-              <div class="flex items-center gap-2 mt-1 animate-slide-up">
-                <input
-                  type="text"
-                  class="flex-1 pl-4 pr-4 py-2.5 bg-slate-100 border-2 border-slate-200
-                    focus:border-blue-400 focus:bg-white rounded-xl outline-none transition-all
-                    text-slate-700 font-bold shadow-inner text-sm"
-                  placeholder="Escreve a tua pergunta..."
-                  bind:value={messageInput}
-                  on:keydown={handleKeydown}
-                  autofocus
-                />
-                <button
-                  class="p-2.5 rounded-xl bg-blue-500 text-white border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 shadow-md disabled:opacity-50 shrink-0"
-                  on:click={() => sendMessage()}
-                  disabled={!messageInput.trim()}
-                >
-                  <Send size={18} />
-                </button>
-              </div>
-            {/if}
-          </div>
+					<!-- CONFIRMATION — Fix 4: botões sólidos, hover scale -->
+				{:else if inputMode === 'confirmation'}
+					{#if !buttonsHidden}
+						<div class="animate-slide-up flex w-full flex-col gap-2">
+							<div class="flex w-full gap-2 sm:gap-3">
+								{#each currentAiMessage.data.options || [] as option, idx}
+									<button
+										class="option-solid flex-1 rounded-2xl border-b-4 px-3 py-3 text-sm font-black shadow-md transition-all sm:px-4 sm:py-4 sm:text-base
+                      {idx === 0
+											? 'border-green-700 bg-green-500 text-white hover:scale-[1.04] hover:shadow-lg hover:shadow-green-200'
+											: 'border-rose-700  bg-rose-500 text-white  hover:scale-[1.04] hover:shadow-lg hover:shadow-rose-200'}"
+										on:click={(e) => handleOptionTap(option, e.currentTarget)}
+									>
+										{option}
+									</button>
+								{/each}
+							</div>
+							{#if !showFreeInput}
+								<button
+									on:click={() => (showFreeInput = true)}
+									class="mt-0.5 flex items-center justify-center gap-1 text-xs text-slate-400 transition-colors hover:text-blue-500"
+								>
+									<PenLine size={11} /> Escrever outra coisa
+								</button>
+							{:else}
+								<div class="animate-slide-up mt-1 flex items-center gap-2">
+									<input
+										type="text"
+										placeholder="Escreve aqui..."
+										class="flex-1 rounded-xl border-2 border-slate-200 bg-slate-100 py-2 pr-3 pl-3 text-sm font-bold text-slate-700 shadow-inner outline-none focus:border-blue-400 focus:bg-white"
+										bind:value={messageInput}
+										on:keydown={handleKeydown}
+										autofocus
+									/>
+									<button
+										class="shrink-0 rounded-xl border-b-4 border-blue-700 bg-blue-500 p-2 text-white shadow-md active:translate-y-1 active:border-b-0 disabled:opacity-50"
+										on:click={() => sendMessage()}
+										disabled={!messageInput.trim()}><Send size={16} /></button
+									>
+								</div>
+							{/if}
+						</div>
+					{/if}
 
-        {:else if inputMode === 'chips'}
-          <div class="flex flex-col gap-2 w-full animate-slide-up pb-1">
-            <div class="flex flex-col gap-2 max-h-[35vh] overflow-y-auto custom-scrollbar px-1">
-              {#each (currentAiMessage.data.options || []) as option}
-                <button
-                  class="w-full px-5 py-3 md:py-4 rounded-xl shadow-sm border-b-4
-                    transition-all active:border-b-0 active:translate-y-1 active:bg-blue-50
-                    bg-white text-blue-600 border-slate-200 hover:border-blue-400
-                    flex items-center justify-center text-center font-bold"
-                  class:text-lg={option.length < 20}
-                  class:text-sm={option.length >= 20}
-                  on:click={() => sendMessage(option)}
-                >
-                  {option}
-                </button>
-              {/each}
-            </div>
-            {#if !showFreeInput}
-              <button
-                on:click={() => showFreeInput = true}
-                class="flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-blue-500 transition-colors mt-1"
-              >
-                <PenLine size={12} /> Tirar uma dúvida
-              </button>
-            {:else}
-              <div class="flex items-center gap-2 mt-1 animate-slide-up">
-                <input
-                  type="text"
-                  class="flex-1 pl-4 pr-4 py-2.5 bg-slate-100 border-2 border-slate-200
-                    focus:border-blue-400 focus:bg-white rounded-xl outline-none transition-all
-                    text-slate-700 font-bold shadow-inner text-sm"
-                  placeholder="Escreve a tua pergunta..."
-                  bind:value={messageInput}
-                  on:keydown={handleKeydown}
-                  autofocus
-                />
-                <button
-                  class="p-2.5 rounded-xl bg-blue-500 text-white border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 shadow-md disabled:opacity-50 shrink-0"
-                  on:click={() => sendMessage()}
-                  disabled={!messageInput.trim()}
-                >
-                  <Send size={18} />
-                </button>
-              </div>
-            {/if}
-          </div>
+					<!-- QUIZ — Fix 4: cores sólidas por opção -->
+				{:else if inputMode === 'quiz'}
+					{@const opts = currentAiMessage.data.options || []}
+					{#if !buttonsHidden}
+						<div class="animate-slide-up flex w-full flex-col gap-2">
+							<div class="{opts.length === 4 ? 'grid grid-cols-2' : 'flex flex-col'} gap-2">
+								{#each opts as option, idx}
+									<button
+										class="option-solid min-h-[48px] rounded-2xl border-b-4 px-3 py-3 text-center text-sm font-black text-white shadow-md transition-all sm:min-h-[54px] sm:px-4 sm:py-3.5
+                      sm:text-base {QUIZ_COLORS[idx % 4]}
+                      hover:scale-[1.04] hover:shadow-lg"
+										on:click={(e) => handleOptionTap(option, e.currentTarget)}
+									>
+										<span class="leading-tight">{option}</span>
+									</button>
+								{/each}
+							</div>
+							{#if !showFreeInput}
+								<button
+									on:click={() => (showFreeInput = true)}
+									class="mt-0.5 flex items-center justify-center gap-1 text-xs text-slate-400 transition-colors hover:text-blue-500"
+								>
+									<PenLine size={11} /> Tirar uma dúvida
+								</button>
+							{:else}
+								<div class="animate-slide-up mt-1 flex items-center gap-2">
+									<input
+										type="text"
+										placeholder="Escreve a tua pergunta..."
+										class="flex-1 rounded-xl border-2 border-slate-200 bg-slate-100 py-2 pr-3 pl-3 text-sm font-bold text-slate-700 shadow-inner outline-none focus:border-blue-400 focus:bg-white"
+										bind:value={messageInput}
+										on:keydown={handleKeydown}
+										autofocus
+									/>
+									<button
+										class="shrink-0 rounded-xl border-b-4 border-blue-700 bg-blue-500 p-2 text-white shadow-md active:translate-y-1 active:border-b-0 disabled:opacity-50"
+										on:click={() => sendMessage()}
+										disabled={!messageInput.trim()}><Send size={16} /></button
+									>
+								</div>
+							{/if}
+						</div>
+					{/if}
 
-        {:else if inputMode === 'drag_drop'}
-          <div class="flex flex-col gap-3 w-full animate-slide-up pb-1">
-            <div class="flex flex-wrap gap-2 justify-center min-h-[50px] p-3 bg-slate-100 rounded-xl border-2 border-dashed border-slate-300">
-               {#if selectedDragItems.length === 0}
-                 <span class="text-slate-400 font-bold text-sm my-auto">Toca nas palavras abaixo para ordenar</span>
-               {/if}
-               {#each selectedDragItems as item}
-                 <button on:click={() => {
-                    selectedDragItems = selectedDragItems.filter(i => i !== item);
-                    availableDragItems = [...availableDragItems, item];
-                 }} class="px-3 py-1.5 bg-blue-500 text-white font-bold rounded-lg shadow-sm animate-pop-in">
-                   {item}
-                 </button>
-               {/each}
-            </div>
-            <div class="flex flex-wrap gap-2 justify-center mt-2">
-               {#each availableDragItems as item}
-                 <button on:click={() => {
-                    availableDragItems = availableDragItems.filter(i => i !== item);
-                    selectedDragItems = [...selectedDragItems, item];
-                 }} class="px-3 py-1.5 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-lg shadow-sm hover:border-blue-400 transition-colors">
-                   {item}
-                 </button>
-               {/each}
-            </div>
-            <button
-              class="mt-2 py-3 rounded-xl bg-green-500 text-white font-black text-lg border-b-4 border-green-700 active:border-b-0 active:translate-y-1 shadow-md disabled:opacity-50 disabled:bg-slate-300 disabled:border-slate-400 transition-all"
-              disabled={availableDragItems.length > 0}
-              on:click={() => sendMessage(selectedDragItems.join(' '))}
-            >
-              Confirmar Ordem
-            </button>
-          </div>
+					<!-- CHIPS — Fix 4: cores sólidas -->
+				{:else if inputMode === 'chips'}
+					{#if !buttonsHidden}
+						<div class="animate-slide-up flex w-full flex-col gap-2">
+							<div
+								class="custom-scrollbar flex max-h-[32vh] flex-col gap-1.5 overflow-y-auto px-0.5"
+							>
+								{#each currentAiMessage.data.options || [] as option, idx}
+									<button
+										class="option-solid w-full rounded-xl border-b-4 px-4 py-2.5 text-center font-bold text-white shadow-sm transition-all hover:scale-[1.02]
+                      hover:shadow-md sm:py-3
+                      {QUIZ_COLORS[idx % 4]}
+                      {option.length >= 20 ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'}"
+										on:click={(e) => handleOptionTap(option, e.currentTarget)}
+									>
+										{option}
+									</button>
+								{/each}
+							</div>
+							{#if !showFreeInput}
+								<button
+									on:click={() => (showFreeInput = true)}
+									class="flex items-center justify-center gap-1 text-xs text-slate-400 transition-colors hover:text-blue-500"
+								>
+									<PenLine size={11} /> Tirar uma dúvida
+								</button>
+							{:else}
+								<div class="animate-slide-up flex items-center gap-2">
+									<input
+										type="text"
+										placeholder="Escreve a tua pergunta..."
+										class="flex-1 rounded-xl border-2 border-slate-200 bg-slate-100 py-2 pr-3 pl-3 text-sm font-bold text-slate-700 shadow-inner outline-none focus:border-blue-400 focus:bg-white"
+										bind:value={messageInput}
+										on:keydown={handleKeydown}
+										autofocus
+									/>
+									<button
+										class="shrink-0 rounded-xl border-b-4 border-blue-700 bg-blue-500 p-2 text-white shadow-md active:translate-y-1 active:border-b-0 disabled:opacity-50"
+										on:click={() => sendMessage()}
+										disabled={!messageInput.trim()}><Send size={16} /></button
+									>
+								</div>
+							{/if}
+						</div>
+					{/if}
 
-        {:else}
-          <div class="flex items-center gap-2 animate-slide-up pb-1">
-            <input
-              type="text"
-              class="flex-1 pl-4 pr-4 py-3 bg-slate-100 border-2 border-slate-200
-                focus:border-blue-400 focus:bg-white rounded-xl outline-none transition-all
-                text-slate-700 font-bold shadow-inner"
-              placeholder="Escreve aqui..."
-              bind:value={messageInput}
-              on:keydown={handleKeydown}
-            />
-            <button
-              class="p-3 rounded-xl bg-blue-500 text-white border-b-4 border-blue-700 active:border-b-0 active:translate-y-1 shadow-md disabled:opacity-50 shrink-0"
-              on:click={() => sendMessage()}
-              disabled={!messageInput.trim()}
-            >
-              <Send size={24} />
-            </button>
-          </div>
-        {/if}
+					<!-- DRAG & DROP -->
+				{:else if inputMode === 'drag_drop'}
+					<div class="animate-slide-up flex w-full flex-col gap-2">
+						<div
+							class="flex min-h-[44px] flex-wrap justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 bg-slate-100 p-2.5"
+						>
+							{#if selectedDragItems.length === 0}
+								<span class="my-auto text-xs font-bold text-slate-400"
+									>Toca nas palavras abaixo para ordenar</span
+								>
+							{/if}
+							{#each selectedDragItems as item}
+								<button
+									on:click={() => {
+										selectedDragItems = selectedDragItems.filter((i) => i !== item);
+										availableDragItems = [...availableDragItems, item];
+									}}
+									class="animate-pop-in rounded-lg bg-blue-500 px-2.5 py-1 text-sm font-bold text-white shadow-sm"
+									>{item}</button
+								>
+							{/each}
+						</div>
+						<div class="flex flex-wrap justify-center gap-1.5">
+							{#each availableDragItems as item}
+								<button
+									on:click={() => {
+										availableDragItems = availableDragItems.filter((i) => i !== item);
+										selectedDragItems = [...selectedDragItems, item];
+									}}
+									class="rounded-lg border-2 border-slate-200 bg-white px-2.5 py-1 text-sm font-bold text-slate-700 shadow-sm hover:border-blue-400"
+									>{item}</button
+								>
+							{/each}
+						</div>
+						<button
+							class="rounded-xl border-b-4 border-green-700 bg-green-500 py-3 text-base font-black text-white shadow-md transition-all active:translate-y-1 active:border-b-0 disabled:border-slate-400 disabled:bg-slate-300 disabled:opacity-40"
+							disabled={availableDragItems.length > 0}
+							on:click={() => sendMessage(selectedDragItems.join(' '))}
+						>
+							Confirmar Ordem
+						</button>
+					</div>
 
-      </div>
-      <div class="h-[env(safe-area-inset-bottom)]"></div>
-    </div>
-  {/if}
+					<!-- TEXT -->
+				{:else}
+					<div class="animate-slide-up flex items-center gap-2">
+						<input
+							type="text"
+							placeholder="Escreve aqui..."
+							class="flex-1 rounded-xl border-2 border-slate-200 bg-slate-100 py-3 pr-3 pl-3 text-sm font-bold text-slate-700 shadow-inner outline-none focus:border-blue-400 focus:bg-white sm:pr-4 sm:pl-4 sm:text-base"
+							bind:value={messageInput}
+							on:keydown={handleKeydown}
+						/>
+						<button
+							class="shrink-0 rounded-xl border-b-4 border-blue-700 bg-blue-500 p-2.5 text-white shadow-md active:translate-y-1 active:border-b-0 disabled:opacity-50 sm:p-3"
+							on:click={() => sendMessage()}
+							disabled={!messageInput.trim()}><Send size={18} /></button
+						>
+					</div>
+				{/if}
+			</div>
+		</div>
+	{/if}
 </div>
 
 <style>
-  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 10px); }
+	/* ── Kani — idle sempre activo ────────────────────────────────────────── */
+	@keyframes kani-idle-anim {
+		0%,
+		100% {
+			transform: translateY(0) scale(1);
+		}
+		50% {
+			transform: translateY(-12px) scale(1.02);
+		}
+	}
+	.kani-idle {
+		animation: kani-idle-anim 3s ease-in-out infinite;
+	}
 
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50%       { transform: translateY(-15px); }
-  }
-  .animate-float { animation: float 4s ease-in-out infinite; }
+	/* Fix 3: bounce ao receber resposta */
+	@keyframes kani-bounce-anim {
+		0%,
+		100% {
+			transform: translateY(0) scale(1);
+		}
+		30% {
+			transform: translateY(-18px) scale(1.06);
+		}
+		60% {
+			transform: translateY(-6px) scale(1.02);
+		}
+	}
+	.kani-bounce {
+		animation: kani-bounce-anim 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
 
-  @keyframes bounce-slow {
-    0%, 100% { transform: translateY(0); }
-    50%       { transform: translateY(-10px); }
-  }
-  .animate-bounce-slow { animation: bounce-slow 2s infinite; }
+	@keyframes kani-thinking-anim {
+		0%,
+		100% {
+			transform: rotate(0deg) scale(1);
+		}
+		25% {
+			transform: rotate(-4deg) scale(0.97);
+		}
+		75% {
+			transform: rotate(4deg) scale(0.97);
+		}
+	}
+	.kani-thinking {
+		animation: kani-thinking-anim 2s ease-in-out infinite;
+	}
 
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
+	@keyframes kani-shake-anim {
+		0%,
+		100% {
+			transform: translateX(0);
+		}
+		20% {
+			transform: translateX(-6px);
+		}
+		40% {
+			transform: translateX(6px);
+		}
+		60% {
+			transform: translateX(-4px);
+		}
+		80% {
+			transform: translateX(4px);
+		}
+	}
+	.kani-shake {
+		animation: kani-shake-anim 0.6s ease-in-out infinite;
+	}
 
-  @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25%       { transform: translateX(-5px); }
-    75%       { transform: translateX(5px); }
-  }
-  .animate-shake { animation: shake 0.5s ease-in-out infinite; }
+	/* Fix 3: pulse ring de idle — CSS puro, sem JS */
+	@keyframes kani-pulse-ring-anim {
+		0% {
+			transform: scale(1);
+			opacity: 0.22;
+		}
+		70% {
+			transform: scale(1.28);
+			opacity: 0;
+		}
+		100% {
+			transform: scale(1.28);
+			opacity: 0;
+		}
+	}
+	.kani-pulse-ring {
+		position: absolute;
+		inset: 0;
+		border-radius: 9999px;
+		pointer-events: none;
+		animation: kani-pulse-ring-anim 2s ease-out infinite;
+	}
 
-  @keyframes popIn {
-    0%   { opacity: 0; transform: scale(0.8) translateY(20px); }
-    100% { opacity: 1; transform: scale(1) translateY(0); }
-  }
-  .animate-pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+	/* Fix 2: wait phrase slide-up suave */
+	.wait-phrase {
+		animation: wait-slide 0.2s ease-out both;
+	}
+	@keyframes wait-slide {
+		from {
+			transform: translateY(8px);
+			opacity: 0;
+		}
+		to {
+			transform: translateY(0);
+			opacity: 1;
+		}
+	}
 
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+	/* Fix 1: balão imediato do aluno */
+	.user-bubble-instant {
+		animation: bubble-pop-right 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+	}
+	@keyframes bubble-pop-right {
+		from {
+			transform: scale(0.8) translateX(16px);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1) translateX(0);
+			opacity: 1;
+		}
+	}
 
-  @keyframes zoomIn {
-    from { opacity: 0; transform: scale(0.8); }
-    to   { opacity: 1; transform: scale(1); }
-  }
-  .animate-zoom-in { animation: zoomIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+	/* Fix 4: option-solid — will-change para tap rápido */
+	.option-solid {
+		will-change: transform, opacity;
+	}
 
-  .scrollbar-hide::-webkit-scrollbar { display: none; }
-  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+	/* ── Animações base ──────────────────────────────────────────────────── */
+	@keyframes popIn {
+		0% {
+			opacity: 0;
+			transform: scale(0.82) translateY(18px);
+		}
+		100% {
+			opacity: 1;
+			transform: scale(1) translateY(0);
+		}
+	}
+	.animate-pop-in {
+		animation: popIn 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+	}
 
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+	@keyframes slideUp {
+		from {
+			opacity: 0;
+			transform: translateY(14px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+	.animate-slide-up {
+		animation: slideUp 0.28s ease-out forwards;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+	.animate-fade-in {
+		animation: fadeIn 0.2s ease-out forwards;
+	}
+
+	@keyframes zoomIn {
+		from {
+			opacity: 0;
+			transform: scale(0.85);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+	.animate-zoom-in {
+		animation: zoomIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	.scrollbar-hide::-webkit-scrollbar {
+		display: none;
+	}
+	.scrollbar-hide {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
+
+	.custom-scrollbar::-webkit-scrollbar {
+		width: 3px;
+	}
+	.custom-scrollbar::-webkit-scrollbar-thumb {
+		background: #cbd5e1;
+		border-radius: 4px;
+	}
+	/* ── Utilitários Responsivos ─────────────────────────────────────────── */
+	.zoom-75 {
+		zoom: 0.75;
+	}
+	@media (min-width: 640px) {
+		.sm\:zoom-100 {
+			zoom: 1;
+		}
+	}
 </style>

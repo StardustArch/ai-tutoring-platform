@@ -15,7 +15,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   // Se o utilizador tenta ir para "/dashboard" e NÃO tem token...
   if (path.startsWith('/dashboard') && !token) {
     // ...chuta ele de volta para o login
-    throw redirect(303, '/auth/login');
+    throw redirect(303, '/login');
   }
 
   // REGRA 2: Proteger o Login (Se já está logado, não deve ver o login)

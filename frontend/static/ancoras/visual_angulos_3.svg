@@ -1,0 +1,19 @@
+<svg width="100%" viewBox="0 0 680 200" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+
+  <g>
+    <polygon points="100,160 580,160 200,50" fill="none" stroke="#222" stroke-width="1.5"></polygon>
+
+    <path d="M 130,160 A 30 30 0 0 0 120.2,137.8" fill="none" stroke="#444" stroke-width="1.2"></path>
+    <text x="140" y="152" font-size="11" font-family="sans-serif" fill="#222">A</text>
+    <text x="155" y="152" font-size="10" font-family="sans-serif" fill="#666">(agudo)</text>
+
+    <path d="M 550,160 A 30 30 0 0 1 551.2,151.7" fill="none" stroke="#444" stroke-width="1.2"></path>
+    <text x="552" y="148" font-size="11" font-family="sans-serif" fill="#222">B</text>
+    <text x="565" y="148" font-size="10" font-family="sans-serif" fill="#666">(agudo)</text>
+
+    <path d="M 179.8,72.2 A 30 30 0 0 0 228.8,58.3" fill="none" stroke="#444" stroke-width="1.5"></path>
+    <text x="215" y="48" font-size="11" font-family="sans-serif" fill="#222">C</text>
+    <text x="230" y="48" font-size="10" font-family="sans-serif" fill="#666">(obtuso)</text>
+  </g>
+  <text x="340" y="185" text-anchor="middle" font-size="10" font-family="sans-serif" fill="#666">A soma dos três ângulos é sempre 180°</text>
+</svg>

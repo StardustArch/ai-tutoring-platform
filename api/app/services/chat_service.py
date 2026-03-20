@@ -420,13 +420,15 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
  
         else:
             # Sem âncora → usa o prompt TEST original
-            system_text = PROMPT_TEST.format(            # ⬅️ MUDOU DE prompt PARA system_text
+            system_text = PROMPT_TEST.format(          
                 student_class=request.student_class,
                 subject=request.subject,
                 topic=request.topic,
                 context_rules=request.context_rules,
-                history=request.history,                 # ⬅️ MUDOU DE formatted_history PARA request.history
+                history=request.history,                
                 user_query=request.user_query,
+                lang_block=_LANG_BLOCK,    # 👇 ISTO FALTAVA E CAUSAVA O CRASH
+                math_block=_MATH_BLOCK,
             )
     elif phase == "FEEDBACK":
         # ── Assessment calculado deterministicamente ───────────────────────────
@@ -466,7 +468,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
                 subject=subject, topic=topic,
                 lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
                 user_answer=user_answer,
-                correct_answer="(avalia tu com base na pergunta e na resposta do aluno)",
+                correct_answer="INFERIR_DO_CONTEXTO_DO_ALUNO",
                 last_question=request.last_question or "",
                 last_interaction_type=last_itype,
             )

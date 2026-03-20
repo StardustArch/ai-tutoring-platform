@@ -76,7 +76,7 @@ ANCORAS: dict[str, dict] = {
             "O Luís convida-te para o seu aniversário!\n"
             "Data: Sábado, 20 de Abril\n"
             "Hora: 15h00\n"
-            "Local: Casa do Luís, Bairro Central, Beira\n"
+            "Local: Casa do Luís, Bairro do Macuti, Beira\n"
             "Confirma a tua presença com a mãe do Luís.\n"
             "Até lá!"
         )
@@ -175,7 +175,7 @@ ANCORAS: dict[str, dict] = {
     },
 
     # ══════════════════════════════════════════════════════════════════════
-    # 🚦 VISUAIS — Português: Cartazes e Sinais
+    # 🚦 VISUAIS — Português: Sinais de Trânsito (U7 3ª classe)
     # ══════════════════════════════════════════════════════════════════════
 
     "visual_sinal_stop": {
@@ -207,6 +207,15 @@ ANCORAS: dict[str, dict] = {
             "Significa que é proibido entrar naquela rua ou caminho."
         )
     },
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 🏥 VISUAIS — Português: Cartazes de Saúde
+    # Usadas no seed 4ª Português:
+    #   visual_cartaz_higiene_alimentar → U5 slot 2
+    #   visual_cartaz_vacinas           → U5 slot 2 (lista)
+    #   visual_cartaz_malaria           → U6 slot 1
+    #   visual_cartaz_lavar_maos        → U6 (pool do tópico)
+    # ══════════════════════════════════════════════════════════════════════
 
     "visual_cartaz_malaria": {
         "tipo": "visual",
@@ -253,47 +262,51 @@ ANCORAS: dict[str, dict] = {
     },
 
     # ══════════════════════════════════════════════════════════════════════
-    # 📐 VISUAIS — Matemática 3ª Classe
+    # 📐 VISUAIS — Matemática 3ª CLASSE
     # ══════════════════════════════════════════════════════════════════════
 
-    # ── Figuras Planas ────────────────────────────────────────────────────
+    # ── Figuras Planas (3ª classe: triângulo, rectângulo, quadrado, círculo) ──
+    # ATENÇÃO: losango e trapézio são da 4ª classe — não incluir aqui.
 
     "visual_figuras_planas_1": {
         "tipo": "visual",
         "conteudo": (
-            "DESCRIÇÃO DE FIGURAS GEOMÉTRICAS:\n"
-            "Figura A: 3 lados todos diferentes entre si (triângulo escaleno).\n"
+            "DESCRIÇÃO DE FIGURAS GEOMÉTRICAS (3ª classe):\n"
+            "Figura A: 3 lados (triângulo).\n"
             "Figura B: 4 lados iguais e 4 ângulos rectos (quadrado).\n"
             "Figura C: linha curva fechada, sem cantos nem lados (círculo).\n"
             "Figura D: 4 lados, os opostos iguais, 4 ângulos rectos, "
-            "mas os lados adjacentes não são iguais (rectângulo)."
+            "mais comprido que largo (rectângulo)."
         )
     },
 
     "visual_figuras_planas_2": {
         "tipo": "visual",
         "conteudo": (
-            "DESCRIÇÃO DE FIGURAS GEOMÉTRICAS:\n"
+            "DESCRIÇÃO DE FIGURAS GEOMÉTRICAS (3ª classe):\n"
             "Figura A: 3 lados, dois deles iguais (triângulo isósceles).\n"
-            "Figura B: 4 lados iguais mas ângulos não rectos (losango).\n"
-            "Figura C: 4 lados, apenas um par de lados paralelo (trapézio).\n"
-            "Figura D: 3 lados todos iguais entre si (triângulo equilátero)."
+            "Figura B: 4 lados iguais e 4 ângulos rectos (quadrado).\n"
+            "Figura C: 3 lados todos iguais entre si (triângulo equilátero).\n"
+            "Figura D: linha curva fechada com ponto no centro (círculo)."
         )
     },
+
+    # ── Círculo — apenas centro (3ª classe) ──────────────────────────────
+    # NOTA: raio e diâmetro são da 4ª classe.
+    # Esta âncora mostra apenas a noção de centro do círculo.
 
     "visual_figuras_planas_3": {
         "tipo": "visual",
         "conteudo": (
-            "DESCRIÇÃO DE FIGURAS GEOMÉTRICAS:\n"
-            "Figura A: círculo com ponto O no centro e linha do centro ao bordo "
-            "marcada como 'r = 5 cm' (raio).\n"
-            "Figura B: mesmo círculo com linha a atravessar o centro de ponta a ponta "
-            "marcada como 'd' (diâmetro).\n"
-            "Se o raio mede 5 cm, qual é o diâmetro?"
+            "DESCRIÇÃO DE FIGURAS GEOMÉTRICAS (3ª classe):\n"
+            "Figura A: círculo com ponto O marcado no centro.\n"
+            "Figura B: círculo dividido em duas metades iguais por uma linha.\n"
+            "Figura C: rectângulo com os 4 cantos marcados (4 ângulos rectos).\n"
+            "Questão: qual das figuras é um círculo? Onde está o centro?"
         )
     },
 
-    # ── Sólidos Geométricos ───────────────────────────────────────────────
+    # ── Sólidos Geométricos (partilhados 3ª e 4ª) ────────────────────────
 
     "visual_solidos_1": {
         "tipo": "visual",
@@ -318,7 +331,9 @@ ANCORAS: dict[str, dict] = {
         )
     },
 
-    # ── Relógio ───────────────────────────────────────────────────────────
+    # ── Relógio (3ª classe) ───────────────────────────────────────────────
+    # Livro ensina: horas certas, meia hora, um quarto, um quarto para,
+    # minutos exactos e período AM/PM (+12).
 
     "visual_relogio_1": {
         "tipo": "visual",
@@ -327,7 +342,8 @@ ANCORAS: dict[str, dict] = {
             "Relógio redondo com números de 1 a 12.\n"
             "Ponteiro pequeno (horas): aponta para o 3.\n"
             "Ponteiro grande (minutos): aponta para o 12.\n"
-            "Hora mostrada: 3:00 (três horas em ponto)."
+            "Hora mostrada: 3 horas (em ponto).\n"
+            "No período da tarde/noite: 15 horas."
         )
     },
 
@@ -338,7 +354,8 @@ ANCORAS: dict[str, dict] = {
             "Relógio redondo com números de 1 a 12.\n"
             "Ponteiro pequeno (horas): entre o 7 e o 8.\n"
             "Ponteiro grande (minutos): aponta para o 6.\n"
-            "Hora mostrada: 7:30 (sete horas e meia)."
+            "Hora mostrada: 7 horas e meia (7 h 30 min).\n"
+            "No período da tarde/noite: 19 horas e meia."
         )
     },
 
@@ -349,7 +366,8 @@ ANCORAS: dict[str, dict] = {
             "Relógio redondo com números de 1 a 12.\n"
             "Ponteiro pequeno (horas): entre o 10 e o 11.\n"
             "Ponteiro grande (minutos): aponta para o 3.\n"
-            "Hora mostrada: 10:15 (dez horas e um quarto)."
+            "Hora mostrada: 10 horas e um quarto (10 h 15 min).\n"
+            "No período da tarde/noite: 22 horas e 15 minutos."
         )
     },
 
@@ -358,13 +376,14 @@ ANCORAS: dict[str, dict] = {
         "conteudo": (
             "DESCRIÇÃO DO RELÓGIO ANALÓGICO:\n"
             "Relógio redondo com números de 1 a 12.\n"
-            "Ponteiro pequeno (horas): aponta para o 6.\n"
+            "Ponteiro pequeno (horas): entre o 6 e o 7.\n"
             "Ponteiro grande (minutos): aponta para o 9.\n"
-            "Hora mostrada: 6:45 (seis horas e quarenta e cinco minutos)."
+            "Hora mostrada: um quarto para as 7 horas (6 h 45 min).\n"
+            "No período da tarde/noite: um quarto para as 19 horas (18 h 45 min)."
         )
     },
 
-    # ── Gráficos de Barras (3ª Classe) ───────────────────────────────────
+    # ── Gráficos de Barras (3ª classe) ───────────────────────────────────
 
     "visual_grafico_barras_fruta": {
         "tipo": "visual",
@@ -428,10 +447,10 @@ ANCORAS: dict[str, dict] = {
     },
 
     # ══════════════════════════════════════════════════════════════════════
-    # 📐 VISUAIS — Matemática 4ª Classe
+    # 📐 VISUAIS — Matemática 4ª CLASSE
     # ══════════════════════════════════════════════════════════════════════
 
-    # ── Ângulos ───────────────────────────────────────────────────────────
+    # ── Ângulos (4ª classe) ───────────────────────────────────────────────
 
     "visual_angulos_1": {
         "tipo": "visual",
@@ -458,21 +477,22 @@ ANCORAS: dict[str, dict] = {
     "visual_angulos_3": {
         "tipo": "visual",
         "conteudo": (
-            "DESCRIÇÃO DE ÂNGULOS NUM TRIÂNGULO:\n"
-            "Triângulo com três ângulos marcados:\n"
-            "Ângulo A (vértice esquerdo): pequeno, menos de 90 graus (agudo).\n"
-            "Ângulo B (vértice direito): também agudo.\n"
-            "Ângulo C (vértice do topo): claramente maior que 90 graus (obtuso).\n"
-            "Nota: a soma dos três ângulos é sempre 180 graus."
+        "TRIÂNGULO OBTUSÂNGULO COM TRÊS ÂNGULOS MARCADOS:\n"
+        "Este triângulo tem exactamente três ângulos interiores que somam 180°.\n"
+        "Ângulo A (vértice esquerdo da base): agudo — menor que 90°.\n"
+        "Ângulo B (vértice direito da base): agudo — menor que 90°.\n"
+        "Ângulo C (vértice do topo): obtuso — maior que 90°.\n"
+        "ATENÇÃO: As perguntas devem referir-se aos ângulos DESTE triângulo específico,\n"
+        "não à definição genérica de ângulo."
         )
     },
 
-    # ── Círculo — Raio e Diâmetro ─────────────────────────────────────────
+    # ── Círculo — Raio e Diâmetro (4ª classe) ────────────────────────────
 
     "visual_circulo_raio_1": {
         "tipo": "visual",
         "conteudo": (
-            "DESCRIÇÃO DO CÍRCULO:\n"
+            "DESCRIÇÃO DO CÍRCULO (4ª classe):\n"
             "Círculo com centro O.\n"
             "Linha do centro ao bordo: raio = 4 cm.\n"
             "Linha que atravessa o centro de ponta a ponta: diâmetro (valor não indicado).\n"
@@ -483,7 +503,7 @@ ANCORAS: dict[str, dict] = {
     "visual_circulo_raio_2": {
         "tipo": "visual",
         "conteudo": (
-            "DESCRIÇÃO DO CÍRCULO:\n"
+            "DESCRIÇÃO DO CÍRCULO (4ª classe):\n"
             "Círculo com centro O.\n"
             "Linha que atravessa o centro de ponta a ponta: diâmetro = 12 cm.\n"
             "Linha do centro ao bordo: raio (valor não indicado).\n"
@@ -494,46 +514,46 @@ ANCORAS: dict[str, dict] = {
     "visual_circulo_raio_3": {
         "tipo": "visual",
         "conteudo": (
-            "DESCRIÇÃO DO CÍRCULO:\n"
+            "DESCRIÇÃO DO CÍRCULO (4ª classe):\n"
             "Círculo com centro O e raio = 7 cm.\n"
             "Quatro pontos no bordo marcados A, B, C, D.\n"
             "Questão: qual é o diâmetro? Qual é a distância de A ao centro O?"
         )
     },
 
-    # ── Triângulos — Classificação pelos Lados ────────────────────────────
+    # ── Triângulos — Classificação pelos Lados (4ª classe) ───────────────
 
-    "visual_triangulos_lados_1": {
-        "tipo": "visual",
-        "conteudo": (
-            "DESCRIÇÃO DE TRIÂNGULOS (pelos lados):\n"
-            "Triângulo A: lados medem 5 cm, 5 cm e 5 cm (equilátero).\n"
-            "Triângulo B: lados medem 4 cm, 4 cm e 6 cm (isósceles).\n"
-            "Triângulo C: lados medem 3 cm, 5 cm e 7 cm (escaleno)."
-        )
-    },
+"visual_triangulos_lados_1": {
+    "tipo": "visual",
+    "conteudo": (
+        "DESCRIÇÃO DE TRIÂNGULOS (pelos lados):\n"
+        "Triângulo A: lados medem 5 cm, 5 cm e 5 cm — equilátero. Todos os ângulos são agudos (60°) — acutângulo.\n"
+        "Triângulo B: lados medem 4 cm, 4 cm e 6 cm — isósceles. Todos os ângulos são agudos — acutângulo.\n"
+        "Triângulo C: lados medem 3 cm, 5 cm e 7 cm — escaleno. Tem um ângulo obtuso — obtusângulo."
+    )
+},
 
-    "visual_triangulos_lados_2": {
-        "tipo": "visual",
-        "conteudo": (
-            "DESCRIÇÃO DE TRIÂNGULOS (pelos lados):\n"
-            "Triângulo A: lados medem 6 cm, 8 cm e 10 cm — todos diferentes (escaleno).\n"
-            "Triângulo B: lados medem 7 cm, 7 cm e 7 cm — todos iguais (equilátero).\n"
-            "Triângulo C: lados medem 5 cm, 5 cm e 8 cm — dois iguais (isósceles)."
-        )
-    },
+"visual_triangulos_lados_2": {
+    "tipo": "visual",
+    "conteudo": (
+        "DESCRIÇÃO DE TRIÂNGULOS (pelos lados):\n"
+        "Triângulo A: lados medem 6 cm, 8 cm e 10 cm — escaleno. Tem um ângulo recto — rectângulo.\n"
+        "Triângulo B: lados medem 7 cm, 7 cm e 7 cm — equilátero. Todos os ângulos são agudos — acutângulo.\n"
+        "Triângulo C: lados medem 5 cm, 5 cm e 8 cm — isósceles. Tem um ângulo obtuso — obtusângulo."
+    )
+},
 
-    # ── Triângulos — Classificação pelos Ângulos ──────────────────────────
+    # ── Triângulos — Classificação pelos Ângulos (4ª classe) ─────────────
 
-    "visual_triangulos_angulos_1": {
-        "tipo": "visual",
-        "conteudo": (
-            "DESCRIÇÃO DE TRIÂNGULOS (pelos ângulos):\n"
-            "Triângulo A: tem um quadradinho num ângulo (90°) — rectângulo.\n"
-            "Triângulo B: os três ângulos são todos menores que 90° — acutângulo.\n"
-            "Triângulo C: tem um ângulo claramente maior que 90° — obtusângulo."
-        )
-    },
+"visual_triangulos_angulos_1": {
+    "tipo": "visual",
+    "conteudo": (
+        "DESCRIÇÃO DE TRIÂNGULOS (pelos ângulos):\n"
+        "Triângulo A: tem um quadradinho num ângulo (90°) — rectângulo.\n"
+        "Triângulo B: os três ângulos são todos menores que 90° (arcos pequenos) — acutângulo.\n"
+        "Triângulo C: tem um ângulo claramente maior que 90° no topo (arco largo) — obtusângulo."
+    )
+},
 
     "visual_triangulos_angulos_2": {
         "tipo": "visual",
@@ -545,7 +565,7 @@ ANCORAS: dict[str, dict] = {
         )
     },
 
-    # ── Quadriláteros ─────────────────────────────────────────────────────
+    # ── Quadriláteros (4ª classe) ─────────────────────────────────────────
 
     "visual_quadrilateros_1": {
         "tipo": "visual",
@@ -570,7 +590,7 @@ ANCORAS: dict[str, dict] = {
         )
     },
 
-    # ── Área por Quadrículas ──────────────────────────────────────────────
+    # ── Área por Quadrículas (4ª classe) ──────────────────────────────────
 
     "visual_area_quadriculas_1": {
         "tipo": "visual",
@@ -603,7 +623,7 @@ ANCORAS: dict[str, dict] = {
         )
     },
 
-    # ── Tabelas e Gráficos de Linhas (4ª Classe) ─────────────────────────
+    # ── Tabelas e Gráficos de Linhas (4ª classe) ─────────────────────────
 
     "visual_tabela_producao_4": {
         "tipo": "visual",

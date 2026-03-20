@@ -1,0 +1,46 @@
+<svg width="100%" viewBox="0 0 680 200" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+    <!-- Título -->
+    <text x="340" y="34" text-anchor="middle" font-size="12" font-weight="500" font-family="sans-serif" fill="#222">Alunos presentes por dia da semana</text>
+
+    <!-- Tabela: x=140..540, 2 colunas, 6 linhas (1 header + 5 dados) -->
+    <!-- Larguras: col1=200, col2=200. Total=400. x_start=140 -->
+    <!-- Linha height=26 -->
+
+    <!-- Fundo header -->
+    <rect x="140" y="44" width="200" height="26" fill="#E8E4D8" stroke="#aaa" stroke-width="0.5"></rect>
+    <rect x="340" y="44" width="200" height="26" fill="#E8E4D8" stroke="#aaa" stroke-width="0.5"></rect>
+    <!-- Header text -->
+    <text x="240" y="61" text-anchor="middle" font-size="12" font-weight="500" font-family="sans-serif" fill="#222">Dia</text>
+    <text x="440" y="61" text-anchor="middle" font-size="12" font-weight="500" font-family="sans-serif" fill="#222">Presentes</text>
+
+    <!-- Linhas de dados -->
+    <!-- Segunda: 28 -->
+    <rect x="140" y="70" width="200" height="24" fill="white" stroke="#aaa" stroke-width="0.5"></rect>
+    <rect x="340" y="70" width="200" height="24" fill="white" stroke="#aaa" stroke-width="0.5"></rect>
+    <text x="240" y="86" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Segunda-feira</text>
+    <text x="440" y="86" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">28</text>
+
+    <!-- Terça: 25 (fundo alternado) -->
+    <rect x="140" y="94" width="200" height="24" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5"></rect>
+    <rect x="340" y="94" width="200" height="24" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5"></rect>
+    <text x="240" y="110" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Terça-feira</text>
+    <text x="440" y="110" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">25</text>
+
+    <!-- Quarta: 30 -->
+    <rect x="140" y="118" width="200" height="24" fill="white" stroke="#aaa" stroke-width="0.5"></rect>
+    <rect x="340" y="118" width="200" height="24" fill="white" stroke="#aaa" stroke-width="0.5"></rect>
+    <text x="240" y="134" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Quarta-feira</text>
+    <text x="440" y="134" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">30</text>
+
+    <!-- Quinta: 27 -->
+    <rect x="140" y="142" width="200" height="24" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5"></rect>
+    <rect x="340" y="142" width="200" height="24" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5"></rect>
+    <text x="240" y="158" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Quinta-feira</text>
+    <text x="440" y="158" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">27</text>
+
+    <!-- Sexta: 22 -->
+    <rect x="140" y="166" width="200" height="24" fill="white" stroke="#aaa" stroke-width="0.5"></rect>
+    <rect x="340" y="166" width="200" height="24" fill="white" stroke="#aaa" stroke-width="0.5"></rect>
+    <text x="240" y="182" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Sexta-feira</text>
+    <text x="440" y="182" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">22</text>
+  </svg>

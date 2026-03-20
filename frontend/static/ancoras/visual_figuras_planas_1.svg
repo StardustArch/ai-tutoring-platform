@@ -1,0 +1,28 @@
+<svg width="100%" viewBox="0 0 680 160" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+  <!-- Figura A â€” TriÃ¢ngulo escaleno (verde preenchido) -->
+  <polygon points="100,130 40,130 80,55" fill="#4CAF7D" stroke="#2E7D52" stroke-width="1.5"></polygon>
+  <text x="70" y="148" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">A</text>
+
+  <!-- Figura B â€” Quadrado (wireframe) -->
+  <rect x="190" y="60" width="70" height="70" fill="none" stroke="#222" stroke-width="1.5"></rect>
+  <!-- Ã¢ngulos rectos nos 4 cantos -->
+  <polyline points="190,72 202,72 202,60" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <polyline points="248,60 248,72 260,72" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <polyline points="260,118 248,118 248,130" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <polyline points="202,130 202,118 190,118" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <text x="225" y="148" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">B</text>
+
+  <!-- Figura C â€” CÃ­rculo (verde preenchido, ponto central) -->
+  <circle cx="360" cy="95" r="40" fill="#4CAF7D" stroke="#2E7D52" stroke-width="1.5"></circle>
+  <circle cx="360" cy="95" r="2.5" fill="#fff"></circle>
+  <text x="360" y="148" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">C</text>
+
+  <!-- Figura D â€” RectÃ¢ngulo (wireframe) -->
+  <rect x="440" y="70" width="100" height="55" fill="none" stroke="#222" stroke-width="1.5"></rect>
+  <!-- Ã¢ngulos rectos -->
+  <polyline points="440,82 452,82 452,70" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <polyline points="528,70 528,82 540,82" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <polyline points="540,113 528,113 528,125" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <polyline points="452,125 452,113 440,113" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <text x="490" y="148" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">D</text>
+</svg>

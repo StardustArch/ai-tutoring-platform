@@ -286,7 +286,7 @@ CONTEXTO: Distribuição equitativa (grupos de alunos, sacos de arroz),
 {
   d: mat.id, c: 3,
   nome: 'Unidade 5: Grandezas e Medidas',
-    ancoras: ['visual_relogio_1', 'visual_relogio_2', 'visual_relogio_3', 'visual_relogio_4'], // 🆕
+    ancoras: ['visual_relogio_1', 'visual_relogio_2', 'visual_relogio_3', 'visual_relogio_4'],
 
   meta: {
     icon: 'Scale', color: 'bg-teal-500',
@@ -302,11 +302,19 @@ SUBCAPÍTULOS:
   5.4 Tempo (p.144)
 
 CONTEÚDOS DETALHADOS:
+
 Comprimento (5.1):
-  - Unidades: centímetro (cm) e metro (m). 1 m = 100 cm.
-  - Medir comprimentos com régua (em cm).
-  - Comparar: "o lápis tem 15 cm, o caderno tem 28 cm → o caderno é maior".
-  - Conversão simples: 2 m = 200 cm ; 350 cm = 3 m e 50 cm.
+  - Unidades: milímetro (mm), centímetro (cm) e metro (m).
+    1 cm = 10 mm ; 1 m = 100 cm.
+  - Medir comprimentos com régua (em cm e mm).
+  - Operações com medidas mistas: 7 cm 5 mm + 3 cm 2 mm = 10 cm 7 mm.
+    (calcular cm com cm e mm com mm separadamente)
+  - Conversão: 2 m = 200 cm ; 350 cm = 3 m e 50 cm ;
+    3 m 20 cm = 320 cm ; 136 cm = 1 m e 36 cm.
+  - Perímetro de triângulos e quadriláteros:
+    Perímetro = soma de todos os lados da figura.
+    Ex: triângulo de lados 7 cm, 3 cm, 5 cm → P = 15 cm.
+    Ex: rectângulo de lados 6 m, 2 m, 6 m, 2 m → P = 16 m.
 
 Massa (5.2):
   - Unidades: grama (g) e quilograma (kg). 1 kg = 1000 g.
@@ -314,32 +322,51 @@ Massa (5.2):
   - Conversão simples: 2 kg = 2000 g.
 
 Capacidade (5.3):
-  - Unidade: litro (l).
-  - Comparar capacidades: "um balde tem 10 l, um copo tem 0,25 l".
-  - Problemas simples com litros (sem decimais complexos).
-  - Metade de um litro = meio litro (não usar 0,5 l).
+  - Unidades: mililitro (mL), decilitro (dL) e litro (L).
+    1 dL = 100 mL ; 1 L = 10 dL ; 1 L = 1000 mL.
+  - Comparar capacidades: recipientes com mais ou menos de 1 L.
+  - Problemas com litros e mililitros.
+  - Conversão: 500 mL = 5 dL ; 1 L 300 mL − 200 mL, etc.
 
 Tempo (5.4):
-  - Unidades: segundos, minutos, horas, dias, semanas, meses, anos.
-  - Leitura de relógio: horas certas, meia hora, quarto de hora.
-  - Relógio digital e analógico.
-  - Calendário: dias da semana (7), meses do ano (12).
+  - Relógio — horas certas e período AM/PM:
+    Ponteiro curto = horas. Horas da tarde/noite: adicionar 12
+    (ex: ponteiro aponta 9 no período da noite → 9 + 12 = 21 h).
+  - Relógio — minutos:
+    Ponteiro comprido = minutos. Cada divisão = 1 minuto.
+    Ler como "X horas e Y minutos" (ex: 9 h 10 min).
+    Leituras alternativas: "meia hora" (ponteiro no 6 = 30 min),
+    "um quarto" (ponteiro no 3 = 15 min),
+    "um quarto para" (ponteiro no 9 = 45 min).
+  - Duração:
+    Duração em horas: diferença entre hora inicial e hora final.
+    Duração em minutos: contar divisões do ponteiro comprido
+    desde a hora inicial até à hora final.
+    "Que horas eram X minutos antes?" / "Que horas serão X minutos depois?"
+  - Calendário:
+    Dias da semana (7): domingo a sábado.
+    Meses do ano (12): Janeiro a Dezembro.
+    Ler um calendário: identificar dia da semana de uma data,
+    contar quantos dias tem um mês.
 
 PROIBIDO:
-  - Decimais em conversões (ex: 1,5 kg — usar "1 kg e 500 g").
-  - Quilómetro ou milímetro (não estão nesta unidade).
+  - Decimais em medidas (usar "1 kg e 500 g", não "1,5 kg").
+  - Quilómetro (km) — não está nesta unidade.
   - Área ou volume.
+  - Relógio digital (o livro usa apenas relógio analógico).
+  - Segundos (não são trabalhados nesta unidade).
 
 CONTEXTO: Medir terreno, pesar caju no mercado, litros de água
-  no poço, horário escolar. Nomes: avó Lurdes, sr. Cossa.`,
+  no poço, horário escolar. Nomes: avó Lurdes, sr. Cossa, Joana, Paulo.`,
     lesson_plan: [
-      { slot: 1, structure: 'Escolher a unidade correcta (m/cm, kg/g, l)',            difficulty: 1 },
-      { slot: 2, structure: 'Comparar medidas de comprimento ou massa',               difficulty: 1 },
-      { slot: 3, structure: 'Leitura de horas no relógio (analógico e digital)',      difficulty: 2, ancora: ['visual_relogio_1', 'visual_relogio_2', 'visual_relogio_3', 'visual_relogio_4'] }, // 🆕
-      { slot: 4, structure: 'Conversão simples de comprimento (m↔cm)',               difficulty: 2 },
-      { slot: 5, structure: 'Problema com Capacidade (litros)',                       difficulty: 3 },
-      { slot: 6, structure: 'Problema com Tempo (dias, semanas, meses)',              difficulty: 3 },
-      { slot: 7, structure: 'Problema misto de Grandezas com contexto real',          difficulty: 4 },
+      { slot: 1, structure: 'Escolher a unidade correcta (m/cm/mm, kg/g, L/mL)',      difficulty: 1 },
+      { slot: 2, structure: 'Medir e comparar comprimentos (cm e mm)',                 difficulty: 1 },
+      { slot: 3, structure: 'Leitura de horas no relógio (horas certas, AM/PM)',       difficulty: 2, ancora: ['visual_relogio_1', 'visual_relogio_2'] },
+      { slot: 4, structure: 'Leitura de horas e minutos no relógio',                   difficulty: 2, ancora: ['visual_relogio_3', 'visual_relogio_4'] },
+      { slot: 5, structure: 'Calcular duração (horas ou minutos entre dois momentos)', difficulty: 3, ancora: ['visual_relogio_3', 'visual_relogio_4'] },
+      { slot: 6, structure: 'Conversão de unidades (m↔cm, cm↔mm, L↔mL)',             difficulty: 3 },
+      { slot: 7, structure: 'Calcular o Perímetro de triângulo ou quadrilátero',       difficulty: 3 },
+      { slot: 8, structure: 'Problema misto de Grandezas com contexto real',           difficulty: 4 },
     ]
   }
 },
@@ -349,43 +376,64 @@ CONTEXTO: Medir terreno, pesar caju no mercado, litros de água
   nome: 'Unidade 6: Fracção',
   meta: {
     icon: 'PieChart', color: 'bg-indigo-500',
-    desc: 'Noção de Fracção: metade, terço e quarto',
+    desc: 'Noção de Fracção, Numerador/Denominador e Comparação',
     ai_rules: `
 TÓPICO: Unidade 6 — Fracção
 (Livro Matemática 3ª Classe, pp. 153–160)
 
-NOTA: Unidade curta (~7 páginas). Trabalha apenas a noção básica.
-  Subcapítulo único: 6.1 Noção de fracção.
+SUBCAPÍTULOS:
+  6.1 Noção de fracção
+  6.2 Fracção e toda a unidade
+  6.3 Comparação de fracções com denominadores iguais
 
-CONTEÚDOS:
-  - Metade (1/2): dividir em 2 partes iguais e tomar 1.
-    Ex: metade de 12 = 6 ; metade de um quadrado = 2 rectângulos iguais.
-  - Terço (1/3): dividir em 3 partes iguais e tomar 1.
-    Ex: terço de 15 = 5.
-  - Quarto (1/4): dividir em 4 partes iguais e tomar 1.
-    Ex: quarto de 20 = 5.
+CONTEÚDOS DETALHADOS:
+
+Noção de fracção (6.1):
+  - Uma fracção representa partes iguais de uma unidade inteira.
+  - Numerador: número acima do traço — indica quantas partes são tomadas.
+  - Denominador: número abaixo do traço — indica em quantas partes
+    a unidade foi dividida.
+  - Traço de fracção: separa numerador e denominador.
+  - Fracções trabalhadas no livro: 1/2, 1/3, 1/4, 2/3, 3/4, 2/5, 4/5,
+    1/6, 1/8, 1/9, 1/10 (surgem nos exercícios).
+  - Leitura: 1/2 = "um meio", 1/3 = "um terço", 2/3 = "dois terços",
+    3/4 = "três quartos", 1/6 = "um sexto", etc.
   - Relacionar fracção com divisão equitativa:
     1/2 de 10 = 10 ÷ 2 = 5.
   - Identificar fracção representada numa figura dividida em partes iguais.
+  - Contexto de medida: 3/4 m significa 3 partes de 1/4 m cada.
+
+Fracção e toda a unidade (6.2):
+  - Quando numerador = denominador, a fracção equivale à unidade inteira.
+    Ex: 4/4 = 1 ; 3/3 = 1 ; 8/8 = 1.
+  - "Quantas partes de 1/4 são necessárias para completar 1 m?"
+
+Comparação de fracções com denominadores iguais (6.3):
+  - Para comparar fracções com o mesmo denominador,
+    comparam-se os numeradores.
+  - Ex: 4/5 > 2/5 porque 4 > 2.
+  - Usar os símbolos > < = entre fracções.
 
 PROIBIDO:
   - Adição ou subtracção de fracções.
-  - Fracções com numerador maior que 1 (ex: 3/4 — só trabalhar 1/2, 1/3, 1/4).
-  - Fracções com denominador > 4.
-  - Frações equivalentes (são da 4ª classe).
+  - Fracções equivalentes (são da 4ª classe).
+  - Comparação de fracções com denominadores DIFERENTES.
+  - Fracções impróprias (numerador > denominador, excepto n/n = 1).
+  - Números mistos (ex: 1 e 1/2).
 
-CONTEXTO: Dividir pão, laranja, campo de futebol em partes iguais.
-  Nomes: Sónia, mãe de Ali.`,
+CONTEXTO: Fita métrica dividida em partes, recipiente de litro
+  dividido em partes iguais. Nomes: Ana, João, Sónia.`,
     lesson_plan: [
-      { slot: 1, structure: 'Identificar a noção de "metade" (1/2) numa figura',      difficulty: 1 },
-      { slot: 2, structure: 'Identificar "terço" (1/3) ou "quarto" (1/4) numa figura',difficulty: 2 },
-      { slot: 3, structure: 'Calcular a metade de um número par pequeno',             difficulty: 2 },
-      { slot: 4, structure: 'Calcular o terço ou quarto de um número simples',        difficulty: 3 },
-      { slot: 5, structure: 'Problema usando metade, terço ou quarto com contexto',   difficulty: 4 },
+      { slot: 1, structure: 'Identificar numerador e denominador de uma fracção',     difficulty: 1 },
+      { slot: 2, structure: 'Ler e escrever fracções simples (1/2, 1/3, 1/4, 2/3, 3/4)', difficulty: 1 },
+      { slot: 3, structure: 'Identificar fracção representada numa figura',            difficulty: 2 },
+      { slot: 4, structure: 'Calcular fracção de uma medida (ex: 3/4 de 1 m)',        difficulty: 2 },
+      { slot: 5, structure: 'Reconhecer quando fracção = unidade inteira (n/n = 1)',  difficulty: 3 },
+      { slot: 6, structure: 'Comparar fracções com denominadores iguais (>, <, =)',   difficulty: 3 },
+      { slot: 7, structure: 'Problema com fracções e contexto real',                  difficulty: 4 },
     ]
   }
 },
-
 {
   d: mat.id, c: 3,
   nome: 'Unidade 7: Literacia Financeira',
@@ -605,7 +653,6 @@ CONTEXTO MOÇAMBICANO: Usar meticais, distâncias em km, população de cidades
     'visual_triangulos_angulos_1', 'visual_triangulos_angulos_2',
     'visual_quadrilateros_1', 'visual_quadrilateros_2',
     'visual_solidos_1', 'visual_solidos_2',
-    'visual_figuras_planas_1',
   ], // 🆕
   meta: {
     icon: 'Shapes', color: 'bg-orange-600',
@@ -666,14 +713,14 @@ CONTEXTO: Usa objectos do quotidiano moçambicano como exemplos variados.
   O aluno deve reconhecer o TIPO DE SÓLIDO a partir de qualquer objecto do dia-a-dia,
   não apenas os exemplos do livro.`,
     lesson_plan: [
-      { slot: 1, structure: 'Identificar o tipo de Ângulo (recto/agudo/obtuso/raso)',  difficulty: 1, ancora: ['visual_angulos_1', 'visual_angulos_2', 'visual_angulos_3'] }, // 🆕
+      { slot: 1, structure: 'Identificar o tipo de Ângulo (recto/agudo/obtuso/raso)',  difficulty: 1, ancora: ['visual_angulos_1', 'visual_angulos_2'] }, // 🆕
       { slot: 2, structure: 'Identificar Centro, Raio e Diâmetro no Círculo',          difficulty: 2, ancora: ['visual_circulo_raio_1', 'visual_circulo_raio_2', 'visual_circulo_raio_3'] }, // 🆕
       { slot: 3, structure: 'Calcular Raio dado o Diâmetro (ou vice-versa)',           difficulty: 2, ancora: ['visual_circulo_raio_1', 'visual_circulo_raio_2', 'visual_circulo_raio_3'] }, // 🆕
       { slot: 4, structure: 'Classificar Triângulo pelos lados',                       difficulty: 2, ancora: ['visual_triangulos_lados_1', 'visual_triangulos_lados_2'] }, // 🆕
       { slot: 5, structure: 'Classificar Triângulo pelos ângulos',                     difficulty: 3, ancora: ['visual_triangulos_angulos_1', 'visual_triangulos_angulos_2'] }, // 🆕
       { slot: 6, structure: 'Identificar o tipo de Quadrilátero',                      difficulty: 3, ancora: ['visual_quadrilateros_1', 'visual_quadrilateros_2'] }, // 🆕
       { slot: 7, structure: 'Identificar o Sólido Geométrico pela descrição',          difficulty: 3, ancora: ['visual_solidos_1', 'visual_solidos_2'] }, // 🆕
-      { slot: 8, structure: 'Classificar figura com DUAS características (ex: triângulo isósceles rectângulo)', difficulty: 4, ancora: ['visual_triangulos_lados_1', 'visual_triangulos_angulos_1'] }, // 🆕
+      { slot: 8, structure: 'Classificar figura com DUAS características (ex: triângulo isósceles rectângulo)', difficulty: 4, ancora: ['visual_triangulos_lados_1', 'visual_triangulos_lados _2'] }, // 🆕
     ]
   }
 },
@@ -781,112 +828,155 @@ CONTEXTO: Produção de caju por aldeias, número de alunos por turmas,
 {
   d: mat.id, c: 4,
   nome: 'Unidade 5: Grandezas e Medidas',
-    ancoras: ['visual_area_quadriculas_1', 'visual_area_quadriculas_2', 'visual_area_quadriculas_3'], // 🆕
-
+    ancoras: ['visual_area_quadriculas_1', 'visual_area_quadriculas_2', 'visual_area_quadriculas_3'],
+ 
   meta: {
     icon: 'Ruler', color: 'bg-teal-600',
     desc: 'Comprimento, Área, Massa e Tempo',
     ai_rules: `
 TÓPICO: Unidade 5 — Grandezas e Medidas
 (Livro Matemática 4ª Classe, pp. 113–134)
-
+ 
 SUBCAPÍTULOS (ordem do livro):
   5.1 Comprimento (p.113)
   5.2 Área (p.120)
   5.3 Massa (p.125)
   5.4 Tempo (p.126)
-
+ 
 CONTEÚDOS DETALHADOS:
+ 
 Comprimento (5.1):
-  - Unidades: mm, cm, dm, m, km.
-  - Conversões: 1 m = 10 dm = 100 cm = 1000 mm ; 1 km = 1000 m.
-  - Medir e comparar comprimentos.
-  - Problemas com conversão de unidades.
-
+  - Unidades: mm, cm, m, km. (NÃO inclui dm — não está no livro desta classe)
+  - Conversões: 1 cm = 10 mm ; 1 m = 100 cm ; 1 km = 1000 m.
+  - Converter metros em quilómetros e vice-versa:
+    ex: 2 km 170 m = 2170 m ; 7460 m = 7 km 460 m.
+  - Problemas com comprimentos e conversão de unidades.
+  - Perímetro de triângulos e quadriláteros (soma de todos os lados).
+ 
 Área (5.2):
   - Noção de área: superfície ocupada por uma figura.
-  - Medir área por contagem de quadrículas (quadrado de 1 cm de lado = 1 cm²).
-  - Unidades: cm² e m².
-  - Comparar áreas de figuras diferentes.
-  - NÃO usar fórmulas (comprimento × largura) — apenas contagem.
-
+  - Unidades: mm², cm², m².
+  - Medir área por contagem de quadrículas (1 cm de lado = 1 cm²).
+  - Para figuras não compostas apenas por quadrados inteiros, as partes
+    incompletas podem ser movidas para formar quadrados de 1 cm².
+  - Área do rectângulo: (comprimento) × (largura).
+  - Área do quadrado: (lado) × (lado).
+  - O livro ENSINA a fórmula — não proibir.
+ 
 Massa (5.3):
-  - Unidades: g e kg. 1 kg = 1000 g.
-  - Conversão simples entre g e kg.
+  - Unidades: g, kg e tonelada (t). 1 kg = 1000 g ; 1 t = 1000 kg.
+  - Converter kg em toneladas e vice-versa:
+    ex: 9500 kg = 9 t 500 kg ; 3 t 800 kg = 3800 kg.
   - Problemas com pesagem de objectos.
-
+ 
 Tempo (5.4):
-  - Unidades: segundos, minutos, horas, dias, semanas, meses, anos.
-  - 1 min = 60 s ; 1 h = 60 min ; 1 dia = 24 h ; 1 semana = 7 dias.
-  - Leitura de calendário: dias da semana, meses do ano.
-  - Calcular duração entre dois momentos simples.
-
+  - Conversão de unidades: 1 min = 60 s ; 1 h = 60 min ; 1 dia = 24 h.
+  - Noção de segundo: unidade menor que o minuto (ponteiro fino do relógio).
+  - Converter minutos e segundos:
+    ex: 94 s = 1 min 34 s ; 1 min 25 s = 85 s.
+  - Calcular duração (tempo que passa) entre dois momentos com minutos,
+    incluindo passagem pela hora certa (estratégia dos dois passos):
+    ex: das 9 h 40 min às 10 h 25 min → 20 min + 25 min = 45 min.
+  - Calcular hora de chegada/saída a partir de duração conhecida.
+  - Calendário avançado:
+    trimestre = 3 meses ; semestre = 6 meses ; ano = 12 meses ;
+    quinquénio = 5 anos ; década = 10 anos ; século = 100 anos ; milénio = 1000 anos.
+ 
 PROIBIDO:
-  - Fórmulas de área (comprimento × largura) — usar apenas contagem de quadrículas.
+  - Decímetro (dm) — não está no livro desta unidade.
   - Volume e capacidade (não estão nesta unidade).
-  - Conversões entre g e toneladas ou entre km e milhas.
-
+  - Conversões entre kg e toneladas de forma complexa com decimais.
+ 
 CONTEXTO: Medir terreno de machamba, pesar caju na balança do mercado,
-  horário escolar moçambicano. Nomes: avó Conceição, Sr. Cossa.`,
+  horário escolar moçambicano. Nomes: avó Conceição, Sr. Cossa, Xiluva.`,
     lesson_plan: [
       { slot: 1, structure: 'Converter unidades de Comprimento (m↔cm, km↔m)',         difficulty: 1 },
-      { slot: 2, structure: 'Medir Área por contagem de quadrículas (em cm²)',        difficulty: 2, ancora: ['visual_area_quadriculas_1', 'visual_area_quadriculas_2', 'visual_area_quadriculas_3'] }, // 🆕
-      { slot: 3, structure: 'Converter unidades de Massa (kg↔g)',                     difficulty: 2 },
-      { slot: 4, structure: 'Calcular duração de Tempo entre dois momentos',          difficulty: 2 },
-      { slot: 5, structure: 'Problema com Comprimento e conversão de unidades',       difficulty: 3 },
-      { slot: 6, structure: 'Comparar áreas de duas figuras em cm²',                  difficulty: 3, ancora: ['visual_area_quadriculas_2', 'visual_area_quadriculas_3'] }, // 🆕
-      { slot: 7, structure: 'Problema misto com Massa e Tempo',                       difficulty: 4 },
+      { slot: 2, structure: 'Calcular Perímetro de triângulo ou quadrilátero',         difficulty: 2 },
+      { slot: 3, structure: 'Medir Área por contagem de quadrículas (em cm²)',        difficulty: 2, ancora: ['visual_area_quadriculas_1', 'visual_area_quadriculas_2', 'visual_area_quadriculas_3'] },
+      { slot: 4, structure: 'Calcular Área do rectângulo ou quadrado com fórmula',    difficulty: 2, ancora: ['visual_area_quadriculas_2', 'visual_area_quadriculas_3'] },
+      { slot: 5, structure: 'Converter unidades de Massa (kg↔g, kg↔t)',               difficulty: 2 },
+      { slot: 6, structure: 'Converter unidades de Tempo (min↔s)',                    difficulty: 2 },
+      { slot: 7, structure: 'Calcular duração entre dois momentos (com minutos)',      difficulty: 3 },
+      { slot: 8, structure: 'Calcular hora de chegada/saída dada duração',            difficulty: 3 },
+      { slot: 9, structure: 'Identificar trimestre, semestre, quinquénio, década etc.', difficulty: 3 },
+      { slot: 10, structure: 'Problema misto com Comprimento, Área ou Massa',          difficulty: 4 },
     ]
   }
 },
-
+ 
 {
   d: mat.id, c: 4,
   nome: 'Unidade 6: Fracções',
   meta: {
     icon: 'PieChart', color: 'bg-indigo-500',
-    desc: 'Tipos, Fracções Equivalentes, Adição e Subtracção',
+    desc: 'Tipos de Fracções, Forma Mista e Adição/Subtracção',
     ai_rules: `
 TÓPICO: Unidade 6 — Fracções
 (Livro Matemática 4ª Classe, pp. 136–161)
-
+ 
 SUBCAPÍTULOS:
   6.1 Tipos de fracções (p.136)
   6.2 Adição e subtracção de fracções (p.148)
-
+ 
 CONTEÚDOS DETALHADOS:
+ 
 Tipos de fracções (6.1):
-  - Noção: fracção = parte de um inteiro. Numerador / Denominador.
-  - Fracção Própria: numerador < denominador (ex: 3/4).
-  - Fracção Imprópria: numerador ≥ denominador (ex: 5/3, 4/4).
-  - Fracção de um inteiro: 1 = 4/4 = 6/6 = n/n.
-  - Fracções Equivalentes: representam a mesma parte
-    (ex: 1/2 = 2/4 = 3/6). Identificar e gerar fracções equivalentes simples.
-  - Representar fracção em figura dividida em partes iguais.
-
+  - Revisão: numerador, denominador, traço de fracção.
+  - Fracção Própria: numerador < denominador (ex: 3/4, 1/6).
+  - Fracção Imprópria: numerador ≥ denominador (ex: 7/4, 4/4).
+  - Fracção de um inteiro: n/n = 1 (ex: 4/4 = 1, 6/6 = 1).
+  - Fracção na Forma Mista: parte inteira + fracção própria (ex: 1 e 3/4).
+    Composta por parte inteira (número natural) e parte fraccionária.
+    Lê-se "um e três quartos".
+  - Representação na recta numérica: próprias entre 0 e 1;
+    impróprias e mistas além de 1.
+  - Converter fracção imprópria → forma mista:
+    dividir numerador pelo denominador; quociente = parte inteira, resto = numerador.
+    Ex: 7/3 = 2 e 1/3 (porque 7 ÷ 3 = 2 resto 1).
+  - Converter forma mista → fracção imprópria:
+    (parte inteira × denominador) + numerador.
+    Ex: 2 e 3/5 = (2×5 + 3)/5 = 13/5.
+  - Comparação de fracções com denominadores iguais:
+    comparam-se os numeradores (próprias, impróprias e mistas).
+    Para mistas: comparar partes inteiras primeiro; se iguais, comparar partes fraccionárias.
+ 
+NOTA IMPORTANTE — NÃO ESTÁ NO LIVRO:
+  - Fracções equivalentes (amplificação/simplificação) NÃO aparecem
+    no livro desta unidade. NÃO ensinar fracções equivalentes.
+  - Comparação de fracções com denominadores DIFERENTES também NÃO está.
+ 
 Adição e Subtracção (6.2):
   - APENAS com o mesmo denominador.
-  - Adição: 1/5 + 2/5 = 3/5.
-  - Subtracção: 4/7 − 1/7 = 3/7.
-  - O denominador não muda — somar/subtrair apenas os numeradores.
-  - Problemas contextualizados.
-
+  - Fracções próprias: 2/6 + 3/6 = 5/6 (somar numeradores, manter denominador).
+  - Fracções próprias ou impróprias: se resultado for impróprio, converter
+    para forma mista ou número natural.
+    Ex: 2/6 + 5/6 = 7/6 = 1 e 1/6.
+    Ex: 7/6 + 5/6 = 12/6 = 2.
+  - Fracções na forma mista (denominadores iguais):
+    Forma 1: somar partes inteiras separadamente das partes fraccionárias.
+    Forma 2: converter para impróprias, somar, converter o resultado.
+    Ex: 1 e 2/4 + 2 e 3/4 = 3 e 5/4 = 4 e 1/4.
+  - Subtracção de fracções próprias: 4/7 − 1/7 = 3/7.
+  - Subtracção de fracções impróprias e mistas (mesmo denominador).
+ 
 PROIBIDO:
   - Fracções com denominadores diferentes.
   - Multiplicação ou divisão de fracções.
-  - Número misto (ex: 2 e 1/3) como foco.
-
-CONTEXTO: Dividir pão, laranja ou campo de futebol em partes iguais.
-  Distribuição de refeição na escola. Nomes: Sónia, Hélio, professora Ana.`,
+  - Fracções equivalentes (não estão no livro).
+ 
+CONTEXTO: Fitas de metro, recipientes de litro divididos em partes.
+  Nomes: senhora Paula, Nayuca, João.`,
     lesson_plan: [
       { slot: 1, structure: 'Identificar Fracção Própria ou Imprópria',               difficulty: 1 },
-      { slot: 2, structure: 'Identificar fracção representada numa figura',            difficulty: 1 },
-      { slot: 3, structure: 'Reconhecer Fracções Equivalentes simples (ex: 1/2=2/4)', difficulty: 2 },
-      { slot: 4, structure: 'Adição de Fracções com o mesmo denominador',             difficulty: 2 },
-      { slot: 5, structure: 'Subtracção de Fracções com o mesmo denominador',         difficulty: 2 },
-      { slot: 6, structure: 'Problema de Adição de Fracções com contexto real',       difficulty: 3 },
-      { slot: 7, structure: 'Comparar duas fracções com mesmo denominador',           difficulty: 3 },
-      { slot: 8, structure: 'Problema misto de Adição e Subtracção de Fracções',      difficulty: 4 },
+      { slot: 2, structure: 'Identificar fracção na Forma Mista e ler correctamente', difficulty: 1 },
+      { slot: 3, structure: 'Converter Fracção Imprópria → Forma Mista',              difficulty: 2 },
+      { slot: 4, structure: 'Converter Forma Mista → Fracção Imprópria',              difficulty: 2 },
+      { slot: 5, structure: 'Representar fracção na Recta Numérica',                  difficulty: 2 },
+      { slot: 6, structure: 'Comparar fracções com denominadores iguais (>, <, =)',   difficulty: 2 },
+      { slot: 7, structure: 'Adição de Fracções com o mesmo denominador',             difficulty: 3 },
+      { slot: 8, structure: 'Subtracção de Fracções com o mesmo denominador',         difficulty: 3 },
+      { slot: 9, structure: 'Adição de Fracções na Forma Mista (denominadores iguais)', difficulty: 3 },
+      { slot: 10, structure: 'Problema misto de Adição e Subtracção de Fracções',     difficulty: 4 },
     ]
   }
 },
@@ -939,43 +1029,55 @@ CONTEXTO: Preços no mercado (25,50 MT), pesagem com balança (2,3 kg),
   }
 },
 
+ 
 {
   d: mat.id, c: 4,
   nome: 'Unidade 8: Literacia Financeira',
   meta: {
     icon: 'Coins', color: 'bg-yellow-600',
-    desc: 'O Metical, Compras e Trocos',
+    desc: 'Orçamento, Receita, Despesa, Saldo e Poupança',
     ai_rules: `
 TÓPICO: Unidade 8 — Literacia Financeira
 (Livro Matemática 4ª Classe, pp. 183–186)
-
-NOTA: Unidade curta (~3 páginas de conteúdo novo). Aplica os decimais
-  e operações das unidades anteriores num contexto financeiro.
-
+ 
+SUBCAPÍTULOS:
+  8.1 Literacia financeira (p.183)
+ 
+NOTA: Esta unidade vai MUITO além de "notas e trocos".
+  O livro ensina orçamento familiar real com receitas e despesas.
+ 
 CONTEÚDOS:
-  - Notas e moedas do Metical moçambicano:
-    Moedas: 1 MT, 2 MT, 5 MT, 10 MT, 20 MT, 50 MT.
-    Notas: 50 MT, 100 MT, 200 MT, 500 MT, 1000 MT.
-  - Calcular o total de uma compra (somar preços).
-  - Calcular o troco: Troco = Valor entregue − Total da compra.
-  - Comparar preços para tomar decisões simples.
-
+  - Orçamento: plano para estimar receitas e despesas para um período de tempo.
+  - Receita: dinheiro que entra (salários, rendimentos).
+  - Despesa: dinheiro que sai (água, electricidade, gás, rancho, transporte, etc.).
+  - Saldo = Receita total − Despesa total.
+  - Poupança: guardar o saldo para uso futuro.
+  - Resolver problemas com tabelas de receitas e despesas:
+    a) Calcular receita total (somar todas as receitas).
+    b) Calcular despesa total (somar todas as despesas).
+    c) Calcular saldo (receita − despesa).
+    d) Calcular uma despesa desconhecida dado o total de despesas.
+  - Valores em meticais (Mt), sem centavos.
+  - Os montantes usados no livro são da ordem das dezenas de milhar (ex: 20 000 Mt).
+ 
 PROIBIDO:
   - Juros, câmbios ou percentagem.
-  - Poupança a longo prazo, orçamentos familiares complexos.
   - Moedas estrangeiras.
-
-CONTEXTO: Mercado moçambicano, barraca da escola, venda de caju.
-  Nomes: vendedeira Lurdes, Sónia compra cadernos, mãe de Ali.`,
+  - Notas e moedas (isso é da 3ª classe — aqui o nível é mais elevado).
+ 
+CONTEXTO: Orçamento familiar moçambicano: salário do pai, salário da mãe,
+  despesas de água, electricidade, gás, rancho, transporte. Preparar festa de família.
+  Nomes: família Mazive, família Mutimuculo, Rui, senhor Aziz.`,
     lesson_plan: [
-      { slot: 1, structure: 'Identificar notas e moedas do Metical',                  difficulty: 1 },
-      { slot: 2, structure: 'Calcular o total de uma compra simples',                 difficulty: 2 },
-      { slot: 3, structure: 'Calcular o troco numa compra',                           difficulty: 3 },
-      { slot: 4, structure: 'Problema: comparar preços e escolher a opção mais barata', difficulty: 4 },
+      { slot: 1, structure: 'Calcular Receita Total (somar rendimentos)',              difficulty: 1 },
+      { slot: 2, structure: 'Calcular Despesa Total (somar gastos)',                   difficulty: 2 },
+      { slot: 3, structure: 'Calcular Saldo (receita total − despesa total)',          difficulty: 2 },
+      { slot: 4, structure: 'Calcular valor desconhecido de uma despesa dado total',  difficulty: 3 },
+      { slot: 5, structure: 'Problema completo de Orçamento familiar',                difficulty: 4 },
     ]
   }
 },
-
+ 
 {
   d: mat.id, c: 4,
   nome: 'Unidade 9: Equações',
@@ -1068,15 +1170,19 @@ CONTEXTO: Produção de caju por mês, temperatura em Maputo ao longo
   }
 },
 
-   // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 // 📕 PORTUGUÊS - 3ª CLASSE
-// Baseado no índice real do Livro de Português 3ª Classe (INDE/Moçambique)
-// Corrigido em relação ao seed anterior:
-//   - Conteúdos reposicionados para a unidade correcta
-//   - Slots duplicados eliminados
-//   - difficulty máximo 4 (escala consistente)
-//   - Nº de slots proporcional ao tamanho da unidade
-//   - Conteúdos em falta adicionados
+// Corrigido com base no livro real (INDE/Moçambique)
+// Principais correcções:
+//   - U1: "Passado" → "Pretérito Perfeito"; "Futuro" → "Futuro Perifrástico";
+//         Modo Indicativo adicionado como conceito; Fábula adicionada
+//   - U2: Futuro Simples adicionado como conteúdo NOVO da U2
+//   - U3: Expressões para criticar/elogiar/pedir ajuda adicionadas;
+//         Maiúsculas: nomes geográficos/instituições/factos históricos adicionados
+//   - U4: Verbo ESTAR com Futuro Simples adicionado; Pronomes indefinidos expandidos
+//         (pouco, todo, quanto, cada); Flexão de nomes: ensina artigos como marcadores de género
+//   - U5: Verbos FALAR e COMER incluem Futuro Simples e Futuro Perifrástico
+//   - U7: Verbo ANDAR inclui Futuro Simples e Futuro Perifrástico
 // ══════════════════════════════════════════════════════════════
 
 {
@@ -1085,53 +1191,71 @@ CONTEXTO: Produção de caju por mês, temperatura em Maputo ao longo
   ancoras: ['texto_familia_ana', 'texto_familia_retrato'],
   meta: {
     icon: 'Users', color: 'bg-blue-500',
-    desc: 'Verbos Ser/Estar, Retrato, Sinónimos e Sílaba',
+    desc: 'Verbos Ser/Estar, Modo Indicativo, Retrato, Sinónimos e Sílaba',
     ai_rules: `
 TÓPICO: Unidade 1 — A Família (Livro Português 3ª Classe, pp. 7–35)
 
 CONTEÚDOS PERMITIDOS:
-Textos base: "Ana", "A ratinha Lili" (retrato), "A sala" (texto descritivo),
-  "Carpinteiro Joaquim", "A casa dos meus sonhos".
+Textos base: "Ana", "Formiga Juju" (fábula), "A ratinha Lili" (retrato),
+  "A sala" (texto descritivo), "Carpinteiro Joaquim", "A casa dos meus sonhos".
+Tipos de texto:
+  - Fábula: história em que as personagens são animais, plantas ou objectos.
+    Identificar personagens e moral da fábula.
 Gramática:
-  - Verbos SER e ESTAR: conjugação no Presente, Passado e Futuro.
-  - Variação verbal: Tempo (Presente/Passado/Futuro), Número (Singular/Plural), Pessoa (1ª/2ª/3ª).
+  - Verbos como classe de palavras que variam em tempo, número, pessoa e modo.
+  - Variação em Tempo — os três tempos principais:
+    Pretérito Perfeito (acção passada, terminada): "Ontem dancei."
+    Presente (acção agora): "Hoje danço."
+    Futuro Perifrástico (acção futura, com dois verbos): "Amanhã vou dançar."
+  - Variação em Número e Pessoa: 1ª/2ª/3ª + singular/plural.
+  - Variação em Modo — Modo Indicativo: exprime uma acção real.
+  - Verbos SER e ESTAR no Modo Indicativo:
+    Pretérito Perfeito, Presente e Futuro Perifrástico (hei-de ser / vou ser).
+    Quadro completo com eu/tu/ele/nós/vós/eles para ambos os verbos.
   - Parágrafo: identificar e separar parágrafos num texto.
-  - Sinónimos: palavras com significado semelhante (ex: feliz/contente, bonito/lindo).
+  - Sinonímia: palavras com significado semelhante (ex: feliz/contente, bonito/lindo).
   - Família de palavras com raiz "casa" (casa, casinha, casarão, caseiro).
   - Divisão silábica: separar palavras em sílabas.
 Vocabulário:
   - Retrato e caracterização física (alto, baixo, gordo, magro, cabelo liso/encaracolado).
-  - Expressões para pedir permissão ("Posso...?"), aceitar ("Claro!", "Pode ser.") e recusar ("Não posso porque...").
+  - Expressões para pedir permissão ("Posso...?"), aceitar ("Claro!", "Pode ser.")
+    e recusar ("Não posso porque...").
+
+TERMINOLOGIA CORRECTA:
+  - Usar SEMPRE "Pretérito Perfeito" (não "Passado").
+  - Usar SEMPRE "Futuro Perifrástico" (não apenas "Futuro") para a U1.
+  - Futuro Simples NÃO é ensinado na U1 (é conteúdo novo da U2).
 
 PROIBIDO:
-  - Verbo TER como foco gramatical (é apenas vocabulário de contexto).
+  - Futuro Simples como foco (só aparece na Unidade 2).
   - Modos Subjuntivo ou Condicional.
   - Tempos compostos (tenho feito, tinha ido...).
   - Antónimos (são conteúdo da Unidade 2).
   - Adjectivos como categoria gramatical (são da Unidade 5).
 
-CONTEXTO MOÇAMBICANO: Usa nomes como Ana, Josina, Carlos, Fatima.
+CONTEXTO MOÇAMBICANO: Usa nomes como Ana, Josina, Carlos, Fátima.
   Família típica moçambicana, machamba, casa de capim.`,
-lesson_plan: [
-  { slot: 1, structure: 'Interpretação de texto narrativo curto sobre família',   difficulty: 1, ancora: 'texto_familia_ana'      },
-  { slot: 2, structure: 'Retrato: descrever características físicas de alguém',   difficulty: 1, ancora: 'texto_familia_retrato'  },
-  { slot: 3, structure: 'Conjugar Ser ou Estar no Presente do Indicativo',        difficulty: 2 },
-  { slot: 4, structure: 'Identificar o Tempo do verbo na frase (Pres/Pas/Fut)',   difficulty: 2 },
-  { slot: 5, structure: 'Encontrar Sinónimos de palavras simples',                difficulty: 2 },
-  { slot: 6, structure: 'Divisão silábica de palavras do quotidiano',             difficulty: 3 },
-  { slot: 7, structure: 'Família de palavras com raiz "casa"',                    difficulty: 3 },
-  { slot: 8, structure: 'Completar frase com Ser ou Estar no tempo correcto',     difficulty: 4 },
-]
+    lesson_plan: [
+      { slot: 1, structure: 'Interpretação de texto narrativo curto sobre família',     difficulty: 1, ancora: 'texto_familia_ana'     },
+      { slot: 2, structure: 'Identificar elementos de uma Fábula (personagens e moral)', difficulty: 1 },
+      { slot: 3, structure: 'Retrato: descrever características físicas de alguém',     difficulty: 1, ancora: 'texto_familia_retrato' },
+      { slot: 4, structure: 'Conjugar Ser ou Estar no Presente do Indicativo',           difficulty: 2 },
+      { slot: 5, structure: 'Identificar o Tempo do verbo (Pret. Perfeito/Pres./Fut. Perifrástico)', difficulty: 2 },
+      { slot: 6, structure: 'Encontrar Sinónimos de palavras simples',                   difficulty: 2 },
+      { slot: 7, structure: 'Divisão silábica de palavras do quotidiano',                difficulty: 3 },
+      { slot: 8, structure: 'Família de palavras com raiz "casa"',                       difficulty: 3 },
+      { slot: 9, structure: 'Completar frase com Ser ou Estar no tempo correcto',        difficulty: 4 },
+    ]
   }
 },
 
 {
   d: port.id, c: 3,
   nome: 'Unidade 2: A Escola',
-   ancoras: ['texto_bilhete_fatima'],
+  ancoras: ['texto_bilhete_fatima'],
   meta: {
     icon: 'School', color: 'bg-yellow-500',
-    desc: 'Bilhete, Antonímia, Pontuação e Verbos ir/estudar',
+    desc: 'Bilhete, Antonímia, Pontuação, Futuro Simples e Verbos ir/estudar/escrever',
     ai_rules: `
 TÓPICO: Unidade 2 — A Escola (Livro Português 3ª Classe, pp. 39–64)
 
@@ -1139,16 +1263,24 @@ CONTEÚDOS PERMITIDOS:
 Textos base: "O reencontro", "A galinha espertinha", "Água", "O bilhete",
   "Eu vou para a escola", "A idade dos porquês".
 Tipos de texto:
+  - Texto Narrativo: identificar início, desenvolvimento e fim.
   - Bilhete: identificar destinatário, mensagem, remetente e data.
   - Relato de acontecimentos: ordenar eventos no tempo.
 Gramática:
   - Antonímia: palavras de sentido contrário (ex: grande/pequeno, entrar/sair).
-  - Sinais de pontuação: ponto final (.), ponto de interrogação (?), 
+  - Sinais de pontuação: ponto final (.), ponto de interrogação (?),
     ponto de exclamação (!), vírgula (,). Uso e identificação.
   - Frase interrogativa e introdutores interrogativos: Quem, O quê, Onde, Quando, Como, Porquê.
   - Letra maiúscula: início de frase e nomes próprios.
-  - Verbos ir, estudar, escrever: conjugação nos três tempos principais.
+  - Tempos verbais — NOVIDADE DA U2: o Futuro Simples (forma-se com uma palavra):
+    "Amanhã estudarei Matemática." (contrasta com o Futuro Perifrástico da U1)
+  - Verbos IR, ESTUDAR e ESCREVER no Modo Indicativo:
+    Pretérito Perfeito, Presente e Futuro Simples. Quadro completo eu/tu/ele/nós/vós/eles.
   - Preposições simples de lugar e movimento: em, de, para, com, por, a.
+
+TERMINOLOGIA CORRECTA:
+  - Esta unidade apresenta o FUTURO SIMPLES pela primeira vez ("estudarei", "irei").
+  - O aluno já conhece Pretérito Perfeito e Futuro Perifrástico da U1.
 
 PROIBIDO:
   - Orações subordinadas.
@@ -1157,26 +1289,27 @@ PROIBIDO:
 
 CONTEXTO: Escola moçambicana, sala de aula, recreio.
   Usa nomes: Saide, Fátima, Professor João, escola da Beira.`,
-lesson_plan: [
-  { slot: 1, structure: 'Identificar os elementos de um Bilhete',                     difficulty: 1, ancora: 'texto_bilhete_fatima'   },
-  { slot: 2, structure: 'Encontrar o antónimo de palavras simples',                    difficulty: 1 },
-  { slot: 3, structure: 'Escolher o sinal de pontuação correcto para a frase',         difficulty: 2 },
-  { slot: 4, structure: 'Identificar introdutores interrogativos (Quem/Onde/Quando...)',difficulty: 2 },
-  { slot: 5, structure: 'Aplicar a regra da Letra Maiúscula',                          difficulty: 3 },
-  { slot: 6, structure: 'Conjugar o verbo Ir no Presente, Passado e Futuro',           difficulty: 3 },
-  { slot: 7, structure: 'Substituir palavra na frase pelo seu antónimo',               difficulty: 4 },
-  { slot: 8, structure: 'Pontuar um texto curto correctamente',                        difficulty: 4 },
-]
+    lesson_plan: [
+      { slot: 1, structure: 'Identificar os elementos de um Bilhete',                      difficulty: 1, ancora: 'texto_bilhete_fatima' },
+      { slot: 2, structure: 'Encontrar o antónimo de palavras simples',                     difficulty: 1 },
+      { slot: 3, structure: 'Escolher o sinal de pontuação correcto para a frase',          difficulty: 2 },
+      { slot: 4, structure: 'Identificar introdutores interrogativos (Quem/Onde/Quando...)', difficulty: 2 },
+      { slot: 5, structure: 'Aplicar a regra da Letra Maiúscula',                           difficulty: 3 },
+      { slot: 6, structure: 'Conjugar verbo Ir/Estudar/Escrever no Futuro Simples',         difficulty: 3 },
+      { slot: 7, structure: 'Distinguir Futuro Simples de Futuro Perifrástico na frase',    difficulty: 3 },
+      { slot: 8, structure: 'Substituir palavra na frase pelo seu antónimo',                difficulty: 4 },
+      { slot: 9, structure: 'Pontuar um texto curto correctamente',                         difficulty: 4 },
+    ]
   }
 },
 
 {
   d: port.id, c: 3,
   nome: 'Unidade 3: A Comunidade',
-  ancoras: ['texto_poema_comunidade', 'texto_convite_aniversario'], 
+  ancoras: ['texto_poema_comunidade', 'texto_convite_aniversario'],
   meta: {
     icon: 'MapPin', color: 'bg-orange-500',
-    desc: 'Texto Poético, Família de Palavras, Verbo Vir e Ortografia',
+    desc: 'Texto Poético, Família de Palavras, Verbo Vir, Expressões e Ortografia',
     ai_rules: `
 TÓPICO: Unidade 3 — A Comunidade (Livro Português 3ª Classe, pp. 69–83)
 
@@ -1184,45 +1317,60 @@ CONTEÚDOS PERMITIDOS:
 Textos base: "Para contar estrelas" (texto poético), "Os serviços sociais" (texto didáctico),
   "O pequeno Saíde", "O aniversário do Luís".
 Tipos de texto:
-  - Texto poético: identificar versos, estrofes, rima. Interpretar sentimento expresso.
+  - Texto Poético: identificar versos, estrofes, rima. Interpretar sentimento expresso.
+  - Texto Didáctico: transmite informação de forma clara e organizada.
   - Convite: identificar destinatário, motivo, local, data e hora.
 Gramática:
   - Família de palavras: identificar palavras com a mesma raiz
     (ex: trabalho/trabalhador/trabalhar/trabalhoso).
-  - Verbo VIR: conjugação no Presente (venho, vens, vem, vimos, vêm).
+  - Verbo VIR: conjugação no Presente do Indicativo
+    (venho, vens, vem, vimos, vêm).
   - Expressões temporais Antes/Agora/Depois para ordenar acções no tempo.
-  - Ortografia: letra O com valor fonético de U (ex: bonito → [bunitu]);
-    letra E com valor fonético de I (ex: beber → [bibér]).
-  - Letra maiúscula: revisão + nomes de instituições e localidades.
+  - Ortografia — a vogal "o" pode pronunciar-se como "u":
+    1. No fim da palavra: ex. copo, saco, garfo.
+    A vogal "e" pode pronunciar-se como "i":
+    1. No início da palavra: ex. emenda, exame.
+    2. No meio da palavra, antes de a ou o: ex. petróleo, fêmea.
+    3. Como conjunção "e": ex. O João e a Maria.
+  - Letra maiúscula (continuação — casos novos da U3):
+    1. Nomes geográficos (localidades, ruas, rios): ex. Zambeze, Maputo, Gorongosa.
+    2. Nomes de instituições, repartições e escolas: ex. Escola Primária Samora Machel.
+    3. Designação de factos históricos e comemorações: ex. Dia da Independência.
+  - Expressões para criticar, elogiar e pedir ajuda:
+    Criticar: "Fizeste mal!", "Comportaste-te mal!", "Não devias ter feito isso!"
+    Elogiar: "Parabéns!", "Fizeste bem!", "Continua assim!", "Bravo!"
+    Pedir ajuda: "Socorro!", "Ajuda-me!", "Peço ajuda!"
 
 PROIBIDO:
   - Derivação com prefixos e sufixos complexos.
   - Advérbios de lugar (são da Unidade 7).
-  - Familia de palavras com raiz "casa" (já foi na Unidade 1).
+  - Família de palavras com raiz "casa" (já foi na Unidade 1).
+  - Casos de letra maiúscula da U2 (início de frase e nomes próprios simples)
+    como conteúdo novo — são revisão.
 
 CONTEXTO: Comunidade, serviços sociais moçambicanos (hospital, escola, mercado).
   Símbolos nacionais de Moçambique. Nomes: Luís, Saíde, avó Conceição.`,
-lesson_plan: [
-  { slot: 1, structure: 'Interpretação de um Texto Poético (versos e estrofes)',      difficulty: 1, ancora: 'texto_poema_comunidade'    },
-  { slot: 2, structure: 'Identificar os elementos de um Convite',                     difficulty: 1, ancora: 'texto_convite_aniversario' },
-  { slot: 3, structure: 'Encontrar palavras da mesma Família (mesma raiz)',            difficulty: 2 },
-  { slot: 4, structure: 'Conjugar o verbo Vir no Presente do Indicativo',             difficulty: 2 },
-  { slot: 5, structure: 'Ordenar acções usando Antes, Agora e Depois',                difficulty: 3 },
-  { slot: 6, structure: 'Ortografia: identificar som U escrito com O (ex: bonito)',   difficulty: 3 },
-  { slot: 7, structure: 'Completar frase com a forma correcta do verbo Vir',          difficulty: 4 },
-  { slot: 8, structure: 'Interpretar versos de um Poema simples',                     difficulty: 4, ancora: 'texto_poema_comunidade' },
-]
- 
+    lesson_plan: [
+      { slot: 1, structure: 'Interpretação de um Texto Poético (versos e estrofes)',       difficulty: 1, ancora: 'texto_poema_comunidade'    },
+      { slot: 2, structure: 'Identificar os elementos de um Convite',                      difficulty: 1, ancora: 'texto_convite_aniversario' },
+      { slot: 3, structure: 'Encontrar palavras da mesma Família (mesma raiz)',             difficulty: 2 },
+      { slot: 4, structure: 'Conjugar o verbo Vir no Presente do Indicativo',              difficulty: 2 },
+      { slot: 5, structure: 'Ordenar acções usando Antes, Agora e Depois',                 difficulty: 2 },
+      { slot: 6, structure: 'Usar Expressões para criticar, elogiar ou pedir ajuda',       difficulty: 3 },
+      { slot: 7, structure: 'Ortografia: identificar som U escrito com O (ex: bonito)',    difficulty: 3 },
+      { slot: 8, structure: 'Aplicar regras de Letra Maiúscula (nomes geográficos e inst.)',difficulty: 3 },
+      { slot: 9, structure: 'Completar frase com a forma correcta do verbo Vir',           difficulty: 4 },
+    ]
   }
 },
 
 {
   d: port.id, c: 3,
   nome: 'Unidade 4: O Ambiente',
-   ancoras: ['texto_conversa_direta_animais'],
+  ancoras: ['texto_conversa_direta_animais'],
   meta: {
     icon: 'TreePine', color: 'bg-green-600',
-    desc: 'Nomes, Formas de Frase, Verbos Dar/Fazer e Pronomes Indefinidos',
+    desc: 'Nomes, Formas de Frase, Verbos Dar/Fazer/Estar e Pronomes Indefinidos',
     ai_rules: `
 TÓPICO: Unidade 4 — O Ambiente (Livro Português 3ª Classe, pp. 87–106)
 
@@ -1231,36 +1379,51 @@ Textos base: "Casamento de bichos", "Os animais da quinta", "O meio ambiente em 
   "Visita a Manjacaze", "Estado do tempo" (conversa directa),
   "A união faz a força" (banda desenhada), "A fábula da raposa e do galo".
 Tipos de texto:
-  - Banda desenhada: identificar personagens, balões de fala, acção.
-  - Fábula: identificar moral/moraleja.
-  - Conversa directa: identificar falas com travessão (—).
+  - Banda desenhada: identificar personagens, balões de fala, acção e sequência.
+  - Fábula: identificar moral/moraleja (revisão da U1).
+  - Conversa directa: identificar falas com travessão (—). Linguagem natural e não cuidada.
 Gramática:
-  - Nomes Próprios vs Nomes Comuns: distinguir e exemplificar.
-  - Flexão dos Nomes em Género: masculino/feminino (regular: aluno/aluna, gato/gata).
-  - Flexão dos Nomes em Número: singular/plural (regular: livro/livros, flor/flores).
+  - Nomes Próprios vs Nomes Comuns:
+    Próprios: nomes de pessoas, localidades, rios, montes — começam com maiúscula.
+    Comuns: designam seres, coisas, lugares em geral — letra minúscula.
+  - Flexão dos Nomes em Género:
+    Masculino: precedido por o, os, um, uns (ex: o menino).
+    Feminino: precedido por a, as, uma, umas (ex: a menina).
+    Identificar género pelo artigo que precede o nome.
+  - Flexão dos Nomes em Número: singular e plural.
+    Exemplos do livro: maçã/maçãs, armazém/armazéns, cor/cores.
+    Passar frases do plural para o singular e vice-versa.
   - Formas de frase Afirmativa e Negativa: transformar usando "não".
-  - Verbos DAR e FAZER: conjugação no Presente do Indicativo.
-  - Pronomes Indefinidos: tudo, nada, alguém, ninguém, algum/alguma, nenhum/nenhuma.
-  - Verbo ESTAR: revisão e consolidação.
+  - Verbos DAR e FAZER: conjugação no Presente, Pretérito Perfeito e Futuro Simples
+    no Modo Indicativo. (O livro pede reescrever frases nos três tempos.)
+  - Verbo ESTAR: conjugação completa com Futuro Simples e Futuro Perifrástico.
+    Pretérito Perfeito | Presente | Futuro Simples | Futuro Perifrástico.
+    (Revisão e consolidação — o aluno já conhece Pret. Perfeito, Pres. e Fut. Perifrástico da U1.)
+  - Pronomes Indefinidos — variáveis e invariáveis:
+    Variáveis: algum/alguma/alguns/algumas, nenhum/nenhuma/nenhuns/nenhumas,
+      pouco/pouca/poucos/poucas, todo/toda/todos/todas, quanto/quanta/quantos/quantas.
+    Invariáveis: alguém, ninguém, tudo, nada, cada.
+  - Expressões sobre o estado do tempo: "Está a chover.", "Está quente.", "Está frio.", "Está sol."
 
 PROIBIDO:
-  - Plurais irregulares complexos (ex: mão/mãos fica, mas não cão/cães como foco).
+  - Plurais irregulares complexos como foco (cão/cães não é o foco, mas maçã/maçãs sim).
   - Ortografia O→U (já foi na Unidade 3).
   - Adjectivos como categoria (são da Unidade 5).
   - Preposições (já foram na Unidade 2).
 
 CONTEXTO: Ambiente natural moçambicano, animais da savana e da quinta,
   Parque Nacional da Gorongosa, Manjacaze (Gaza). Nomes: Ali, Sónia, professor Mateus.`,
-lesson_plan: [
-  { slot: 1, structure: 'Distinguir Nome Próprio de Nome Comum na frase',             difficulty: 1 },
-  { slot: 2, structure: 'Passar Nomes para o Feminino ou Masculino',                  difficulty: 1 },
-  { slot: 3, structure: 'Passar Nomes para o Plural',                                 difficulty: 2 },
-  { slot: 4, structure: 'Transformar frase Afirmativa em Negativa com "não"',         difficulty: 2 },
-  { slot: 5, structure: 'Conjugar os verbos Dar e Fazer no Presente',                 difficulty: 3 },
-  { slot: 6, structure: 'Identificar o Pronome Indefinido na frase',                  difficulty: 3 },
-  { slot: 7, structure: 'Identificar fala de personagem em Conversa Directa',         difficulty: 3, ancora: 'texto_conversa_direta_animais' },
-  { slot: 8, structure: 'Completar frase com o Pronome Indefinido correcto',          difficulty: 4 },
-]
+    lesson_plan: [
+      { slot: 1, structure: 'Distinguir Nome Próprio de Nome Comum na frase',              difficulty: 1 },
+      { slot: 2, structure: 'Identificar género pelo artigo (o/a/um/uma)',                 difficulty: 1 },
+      { slot: 3, structure: 'Passar Nomes para o Feminino ou Masculino',                   difficulty: 2 },
+      { slot: 4, structure: 'Passar Nomes para o Plural (ou singular)',                    difficulty: 2 },
+      { slot: 5, structure: 'Transformar frase Afirmativa em Negativa com "não"',          difficulty: 2 },
+      { slot: 6, structure: 'Conjugar os verbos Dar e Fazer nos três tempos',              difficulty: 3 },
+      { slot: 7, structure: 'Conjugar o verbo Estar (incluindo Futuro Simples)',           difficulty: 3 },
+      { slot: 8, structure: 'Identificar o Pronome Indefinido na frase',                   difficulty: 3, ancora: 'texto_conversa_direta_animais' },
+      { slot: 9, structure: 'Completar frase com o Pronome Indefinido correcto',           difficulty: 4 },
+    ]
   }
 },
 
@@ -1269,11 +1432,11 @@ lesson_plan: [
   nome: 'Unidade 5: O Corpo Humano',
   meta: {
     icon: 'User', color: 'bg-red-400',
-    desc: 'Adjectivos e Verbos de Acção',
+    desc: 'Adjectivos e Verbos Falar/Comer (com todos os tempos)',
     ai_rules: `
 TÓPICO: Unidade 5 — O Corpo Humano (Livro Português 3ª Classe, pp. 109–118)
 
-NOTA: Unidade curta (~9 páginas). Foca dois conteúdos gramaticais principais.
+NOTA: Unidade curta (~9 páginas). Dois conteúdos gramaticais principais.
 
 CONTEÚDOS PERMITIDOS:
 Textos base: "Uma menina solitária", "Jorge", "Pescador".
@@ -1281,26 +1444,30 @@ Tema transversal: Respeito e solidariedade com pessoas com necessidades especiai
 Gramática:
   - Adjectivos: noção de qualidade do nome (ex: casa grande, menino alegre).
     Identificar o adjectivo na frase. Associar adjectivo adequado ao nome.
-  - Verbos COMER e FALAR: conjugação no Presente do Indicativo.
-    Servem de modelo para verbos regulares em -ER e -AR.
-Vocabulário:
-  - Partes do corpo humano como contexto dos textos (não é conteúdo gramatical isolado).
-  - Atitudes de inclusão e respeito (contexto dos textos).
+  - Verbos FALAR (1ª conjugação, -ar) e COMER (2ª conjugação, -er)
+    no Modo Indicativo com TODOS os tempos:
+    Pretérito Perfeito | Presente | Futuro Simples | Futuro Perifrástico.
+    Servem de modelo para verbos regulares em -AR e -ER.
+    O aluno deve saber identificar a conjugação (1ª ou 2ª) pelo infinitivo.
+
+TERMINOLOGIA:
+  - O livro usa "1ª conjugação" (verbos em -ar) e "2ª conjugação" (verbos em -er).
 
 PROIBIDO:
   - Graus dos adjectivos (Comparativo e Superlativo — são da 4ª classe).
   - Concordância adjectivo-nome em género/número (é consolidada na Unidade 6).
   - Anatomia médica.
-  - Conteúdos das unidades anteriores como foco principal.
 
 CONTEXTO: Escola moçambicana inclusiva. Criança com deficiência visual ou motora.
   Nomes: Jorge, Sónia, Professora Amélia.`,
     lesson_plan: [
-      { slot: 1, structure: 'Identificar o Adjectivo na frase',                           difficulty: 1 },
-      { slot: 2, structure: 'Escolher o Adjectivo adequado para descrever o nome',        difficulty: 2 },
-      { slot: 3, structure: 'Conjugar o verbo Comer ou Falar no Presente',                difficulty: 2 },
-      { slot: 4, structure: 'Interpretação: atitudes de respeito e inclusão no texto',    difficulty: 3 },
-      { slot: 5, structure: 'Completar frase com o Adjectivo correcto',                   difficulty: 4 },
+      { slot: 1, structure: 'Identificar o Adjectivo na frase',                            difficulty: 1 },
+      { slot: 2, structure: 'Escolher o Adjectivo adequado para descrever o nome',         difficulty: 2 },
+      { slot: 3, structure: 'Identificar se o verbo é 1ª ou 2ª conjugação (-ar / -er)',   difficulty: 2 },
+      { slot: 4, structure: 'Conjugar Falar ou Comer no Presente do Indicativo',           difficulty: 2 },
+      { slot: 5, structure: 'Conjugar Falar ou Comer no Futuro Simples',                   difficulty: 3 },
+      { slot: 6, structure: 'Interpretação: atitudes de respeito e inclusão no texto',     difficulty: 3 },
+      { slot: 7, structure: 'Completar frase com Adjectivo e Verbo correcto',              difficulty: 4 },
     ]
   }
 },
@@ -1310,38 +1477,39 @@ CONTEXTO: Escola moçambicana inclusiva. Criança com deficiência visual ou mot
   nome: 'Unidade 6: Saúde e Higiene',
   meta: {
     icon: 'Heart', color: 'bg-rose-500',
-    desc: 'Concordância do Adjectivo e Verbos Lavar/Limpar',
+    desc: 'Concordância do Adjectivo em Género e Número e Verbos Lavar/Limpar',
     ai_rules: `
 TÓPICO: Unidade 6 — Saúde e Higiene (Livro Português 3ª Classe, pp. 121–130)
 
-NOTA: Unidade curta (~9 páginas). Dois conteúdos gramaticais + revisão.
+NOTA: Unidade curta (~9 páginas).
 
 CONTEÚDOS PERMITIDOS:
-Textos base: "A diarreia", "A malária", "A conjuntivite".
-Tema transversal: Prevenção de doenças (malária, diarreia, conjuntivite) e higiene pessoal.
+Textos base: "A diarreia", "A malária", "A conjuntivite", "SIDA",
+  "Porque temos de lavar as mãos várias vezes ao dia?", "Prevenção de acidentes".
+Tema transversal: Prevenção de doenças (malária, diarreia, conjuntivite, SIDA) e higiene pessoal.
 Gramática:
-  - Concordância do Adjectivo com o Nome em Género
-    (ex: menino doente / menina doente; rio limpo / água limpa).
-  - Concordância do Adjectivo com o Nome em Número
-    (ex: dente saudável / dentes saudáveis).
-  - Verbos LAVAR e LIMPAR: conjugação no Presente. Modelo para verbos regulares em -AR.
-  - REVISÃO: Formas de frase Afirmativa e Negativa (conteúdo da Unidade 4 — reforço).
-    Usar apenas como exercício de consolidação, não como conteúdo novo.
+  - Adjectivo: número e género — os adjectivos concordam em número e em género
+    com o nome a que se referem.
+    Ex: o leão rápido → a leoa rápida → os leões rápidos → as leoas rápidas.
+    Ex (do livro): menino doente/menina doente; dentes saudáveis; rio limpo/água limpa.
+  - Verbos LAVAR e LIMPAR: conjugação no Modo Indicativo.
+    Servem de modelo para verbos regulares em -AR (1ª conjugação).
+  - REVISÃO: Formas de frase Afirmativa e Negativa (conteúdo da U4 — exercício de revisão).
 
 PROIBIDO:
-  - Medicamentos específicos ou jargão científico/médico.
-  - Nomes de parasitas ou bactérias.
+  - Medicamentos específicos ou jargão científico/médico aprofundado.
+  - Nomes de parasitas ou bactérias como foco gramatical.
   - Conteúdo novo de frases negativas (é revisão — não apresentar como novo).
 
 CONTEXTO: Hábitos de higiene moçambicanos. Centro de saúde rural.
   Prevenção da malária (rede mosquiteira), água potável (poço, torneira).
-  Nomes: mãe da Fátima, enfermeiro Hélio.`,
+  Nomes: mãe da Fátima, enfermeiro Hélio, Atija, Ana.`,
     lesson_plan: [
-      { slot: 1, structure: 'Concordância do Adjectivo com o Nome em Género',            difficulty: 1 },
-      { slot: 2, structure: 'Concordância do Adjectivo com o Nome em Número',            difficulty: 2 },
-      { slot: 3, structure: 'Conjugar o verbo Lavar ou Limpar no Presente',              difficulty: 2 },
-      { slot: 4, structure: 'Transformar frase Afirmativa em Negativa (revisão)',         difficulty: 3 },
-      { slot: 5, structure: 'Concordância Adjectivo-Nome em Género E Número combinados', difficulty: 4 },
+      { slot: 1, structure: 'Concordância do Adjectivo com o Nome em Género',             difficulty: 1 },
+      { slot: 2, structure: 'Concordância do Adjectivo com o Nome em Número',             difficulty: 2 },
+      { slot: 3, structure: 'Conjugar o verbo Lavar ou Limpar no Presente',               difficulty: 2 },
+      { slot: 4, structure: 'Transformar frase Afirmativa em Negativa (revisão)',          difficulty: 3 },
+      { slot: 5, structure: 'Concordância Adjectivo-Nome em Género E Número combinados',  difficulty: 4 },
     ]
   }
 },
@@ -1349,42 +1517,51 @@ CONTEXTO: Hábitos de higiene moçambicanos. Centro de saúde rural.
 {
   d: port.id, c: 3,
   nome: 'Unidade 7: Meios de Transporte e Vias de Comunicação',
-   ancoras: ['visual_sinal_stop', 'visual_sinal_passadeira', 'visual_sinal_proibido_entrada'],
+  ancoras: ['visual_sinal_stop', 'visual_sinal_passadeira', 'visual_sinal_proibido_entrada'],
   meta: {
     icon: 'Car', color: 'bg-slate-600',
-    desc: 'Advérbios de Lugar, Verbo Andar e Segurança Rodoviária',
+    desc: 'Advérbios de Lugar, Verbo Andar (todos os tempos) e Segurança Rodoviária',
     ai_rules: `
 TÓPICO: Unidade 7 — Meios de Transporte e Vias de Comunicação
 (Livro Português 3ª Classe, pp. 133–143)
 
 CONTEÚDOS PERMITIDOS:
-Textos base: "Os meios de transporte", "Carlos vai à aventura", "Carlos visita o museu",
+Textos base: "Os meios de transporte", "Carlos visita Maputo",
+  "Carlos vai à aventura", "Carlos visita o museu",
   "Sinais de trânsito", "Regras de trânsito".
 Gramática:
   - Advérbios de Lugar: aqui, ali, lá.
-    (ATENÇÃO: o livro trabalha APENAS estes três — não incluir acolá, perto, longe).
-  - Verbo ANDAR: conjugação no Presente do Indicativo.
-  - Sinais de trânsito: interpretar (sinal de STOP, passadeira, proibido...).
-  - Regras básicas de segurança rodoviária para peões e ciclistas.
+    ATENÇÃO: o livro trabalha APENAS estes três. Não incluir outros.
+    aqui = perto de quem fala; ali = perto de quem ouve; lá = longe de ambos.
+    Ex: "Aqui está o livro." / "Ali vai a mãe da Teresa." / "Vamos lá?"
+  - Verbo ANDAR (1ª conjugação, verbo regular) no Modo Indicativo:
+    Pretérito Perfeito | Presente | Futuro Simples | Futuro Perifrástico.
+    Quadro completo eu/tu/ele/nós/vós/eles.
+  - Tipos de meios de transporte: terrestres, aquáticos, aéreos.
+  - Sinais de trânsito: interpretar (pista para peões, pista para velocípedes,
+    trânsito proibido a peões, passagem para peões, paragem de transportes colectivos).
+  - Regras básicas de segurança rodoviária para peões:
+    usar passadeira, olhar para esquerda e direita, respeitar semáforos.
 
 PROIBIDO:
   - Advérbios de modo (rapidamente, devagar...).
   - Advérbios de tempo (já foram na Unidade 3).
+  - perto/longe/acolá como advérbios de lugar (não estão no livro desta unidade).
   - Código da estrada avançado (prioridades, licenças).
-  - Perto/longe/acolá como advérbios de lugar (não estão no livro desta unidade).
 
-CONTEXTO: Transporte público em Moçambique (chapa 100, machimbombo).
-  Bicicleta, motorizada. Estrada de Maputo para Matola.
-  Nomes: Carlos, professora Ana.`,
-lesson_plan: [
-  { slot: 1, structure: 'Vocabulário: Meios de Transporte em Moçambique',            difficulty: 1 },
-  { slot: 2, structure: 'Identificar Advérbio de Lugar (aqui/ali/lá) na frase',      difficulty: 1 },
-  { slot: 3, structure: 'Conjugar o verbo Andar no Presente do Indicativo',          difficulty: 2 },
-  { slot: 4, structure: 'Completar frase com o Advérbio de Lugar correcto',          difficulty: 2 },
-  { slot: 5, structure: 'Interpretar um Sinal de Trânsito',                          difficulty: 3, ancora: 'visual_sinal_stop'       },
-  { slot: 6, structure: 'Regras de Segurança Rodoviária para peões',                 difficulty: 3, ancora: 'visual_sinal_passadeira' },
-  { slot: 7, structure: 'Distinguir Advérbio de Lugar de Advérbio de Tempo na frase',difficulty: 4 },
-]
+CONTEXTO: Transportes em Moçambique (LAM, autocarro, bicicleta, chapa 100).
+  Aeroporto de Mavalane, Avenida 24 de Julho, Museu de História Natural.
+  Nomes: Carlos, tio, primo.`,
+    lesson_plan: [
+      { slot: 1, structure: 'Identificar tipos de Meios de Transporte (terrestre/aquático/aéreo)', difficulty: 1 },
+      { slot: 2, structure: 'Identificar Advérbio de Lugar (aqui/ali/lá) na frase',       difficulty: 1 },
+      { slot: 3, structure: 'Completar frase com o Advérbio de Lugar correcto',           difficulty: 2 },
+      { slot: 4, structure: 'Conjugar o verbo Andar no Presente do Indicativo',           difficulty: 2 },
+      { slot: 5, structure: 'Conjugar o verbo Andar no Futuro Simples',                   difficulty: 3 },
+      { slot: 6, structure: 'Interpretar um Sinal de Trânsito',                           difficulty: 3, ancora: 'visual_sinal_stop'       },
+      { slot: 7, structure: 'Regras de Segurança Rodoviária para peões',                  difficulty: 3, ancora: 'visual_sinal_passadeira' },
+      { slot: 8, structure: 'Distinguir Advérbio de Lugar de outro advérbio na frase',    difficulty: 4 },
+    ]
   }
 },
 

@@ -67,7 +67,7 @@ const USER_KEY = 'user';
 
 // Variável para controlar se já estamos a fazer refresh (evita race conditions)
 let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
+let refreshSubscribers: ((token: string | null) => void)[] = [];
 
 // --- Helpers de Cookies ---
 
@@ -88,13 +88,14 @@ function deleteCookie(name: string) {
 const { subscribe, set, update } = writable<AuthState>({ ...initialState });
 
 // --- Funções Auxiliares Internas ---
-
-const onRefreshed = (token: string) => {
+// 2. onRefreshed a aceitar string ou null
+const onRefreshed = (token: string | null) => {
   refreshSubscribers.forEach((cb) => cb(token));
-  refreshSubscribers = [];
+  refreshSubscribers = []; 
 };
 
-const addRefreshSubscriber = (cb: (token: string) => void) => {
+// 3. addRefreshSubscriber com a mesma tipagem
+const addRefreshSubscriber = (cb: (token: string | null) => void) => {
   refreshSubscribers.push(cb);
 };
 
@@ -269,11 +270,11 @@ function createAuthStore() {
   }
 
   // Wrapper para fetch que lida com 401
-  const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
+const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
     let token = get({ subscribe }).accessToken;
 
     if (!token && browser) {
-      token = localStorage.getItem(ACCESS_TOKEN_KEY);
+      token = localStorage.getItem(ACCESS_TOKEN_KEY); // ou a tua constante ACCESS_TOKEN_KEY
     }
 
     const headers = {
@@ -284,26 +285,42 @@ function createAuthStore() {
 
     let response = await fetch(url, { ...options, headers });
 
-    if (response.status === 401) {
+    // Se bater no 401 (Não Autorizado)
+if (response.status === 401) {
       if (!isRefreshing) {
         isRefreshing = true;
         try {
-          const newToken = await refresh();
+          const newToken = await refresh(); // Como o teu refresh() está perfeito, vai estourar aqui se falhar!
           isRefreshing = false;
-          onRefreshed(newToken);
+          onRefreshed(newToken); // Sucesso: avisa a malta!
         } catch (e) {
           isRefreshing = false;
-          return response;
+          onRefreshed(null); // Avisa a malta que o barco afundou
+
+          if (browser) {
+            // Um chuto tradicional que nunca falha (ignora o router do SvelteKit que pode estar bloqueado)
+            window.location.href = '/login';
+          }
+          
+          // 👇 A MUDANÇA DRÁSTICA: Em vez de "return response;", lançamos um ERRO 👇
+          throw new Error('SessionExpired');
         }
       }
 
-      return new Promise((resolve) => {
+      // ── A Fila de Espera ──
+      // Repara que agora também passamos o "reject" para matar as Promises presas!
+      return new Promise((resolve, reject) => { 
         addRefreshSubscriber((newToken) => {
-          const newHeaders = {
-            ...options.headers,
-            'Authorization': `Bearer ${newToken}`
-          } as HeadersInit;
-          resolve(fetch(url, { ...options, headers: newHeaders }));
+          if (newToken) {
+            const newHeaders = {
+              ...options.headers,
+              'Authorization': `Bearer ${newToken}`
+            } as HeadersInit;
+            resolve(fetch(url, { ...options, headers: newHeaders }));
+          } else {
+            // 👇 E AQUI TAMBÉM: Rejeitamos em vez de devolver a resposta 401 👇
+            reject(new Error('SessionExpired'));
+          }
         });
       });
     }

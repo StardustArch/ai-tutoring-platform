@@ -1,0 +1,62 @@
+<svg width="100%" viewBox="0 0 680 170" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+    <!-- A: Quadrado — 4 ângulos rectos, 4 lados iguais -->
+  <g transform="translate(30,100)">
+    <rect x="0" y="-60" width="60" height="60" fill="none" stroke="#222" stroke-width="1.5"></rect>
+    <rect x="0" y="-14" width="14" height="14" fill="none" stroke="#222" stroke-width="1"></rect>
+    <rect x="46" y="-14" width="14" height="14" fill="none" stroke="#222" stroke-width="1"></rect>
+    <rect x="0" y="-60" width="14" height="14" fill="none" stroke="#222" stroke-width="1"></rect>
+    <rect x="46" y="-60" width="14" height="14" fill="none" stroke="#222" stroke-width="1"></rect>
+    <!-- ticks 4 lados iguais -->
+    <line x1="28" y1="-64" x2="28" y2="-55" stroke="#222" stroke-width="1.5"></line>
+    <line x1="64" y1="-33" x2="55" y2="-33" stroke="#222" stroke-width="1.5"></line>
+    <line x1="29" y1="-4" x2="29" y2="5" stroke="#222" stroke-width="1.5"></line>
+    <line x1="-5" y1="-33" x2="4" y2="-33" stroke="#222" stroke-width="1.5"></line>
+  </g>
+  <text x="60" y="120" text-anchor="middle" font-size="10" font-family="sans-serif" fill="#444">A — quadrado</text>
+
+  <!-- B: Rectângulo -->
+  <g transform="translate(120,100)">
+    <rect x="0" y="-45" width="90" height="45" fill="none" stroke="#222" stroke-width="1.5"></rect>
+    <rect x="0" y="-14" width="14" height="14" fill="none" stroke="#222" stroke-width="1"></rect>
+    <rect x="76" y="-14" width="14" height="14" fill="none" stroke="#222" stroke-width="1"></rect>
+    <rect x="0" y="-45" width="14" height="14" fill="none" stroke="#222" stroke-width="1"></rect>
+    <rect x="76" y="-45" width="14" height="14" fill="none" stroke="#222" stroke-width="1"></rect>
+    <!-- ticks lados opostos iguais -->
+    <line x1="48" y1="-50" x2="48" y2="-40" stroke="#222" stroke-width="1.5"></line>
+    <line x1="47" y1="-5" x2="47" y2="4" stroke="#222" stroke-width="1.5"></line>
+    <line x1="-5" y1="-25" x2="5" y2="-25" stroke="#222" stroke-width="1.5"></line>
+    <line x1="85" y1="-25" x2="95" y2="-25" stroke="#222" stroke-width="1.5"></line>
+  </g>
+  <text x="165" y="120" text-anchor="middle" font-size="10" font-family="sans-serif" fill="#444">B — rectângulo</text>
+
+  <!-- C: Losango — 4 lados iguais, inclinado -->
+  <g transform="translate(250,100)">
+    <polygon points="35,-60 70,-30 35,0 0,-30" fill="none" stroke="#222" stroke-width="1.5"></polygon>
+    <line x1="14" y1="-48" x2="20" y2="-42" stroke="#222" stroke-width="1.5"></line>
+    <line x1="59" y1="-47" x2="51" y2="-40" stroke="#222" stroke-width="1.5"></line>
+    <line x1="50" y1="-18" x2="56" y2="-12" stroke="#222" stroke-width="1.5"></line>
+    <line x1="22" y1="-19.5" x2="14" y2="-12" stroke="#222" stroke-width="1.5"></line>
+  </g>
+  <text x="285" y="120" text-anchor="middle" font-size="10" font-family="sans-serif" fill="#444">C — losango</text>
+  
+  <!-- D: Paralelogramo — setas nos lados paralelos -->
+  <g transform="translate(390,100)">
+    <polygon points="20,-50 100,-50 80,0 0,0" fill="none" stroke="#222" stroke-width="1.5"></polygon>
+    <!-- setas nos lados paralelos (cima e baixo) -->
+    <polygon points="58,-52 54,-48 62,-48" fill="#222"></polygon>
+    <polygon points="38,-2 34,2 42,2" fill="#222"></polygon>
+    <!-- setas nos lados laterais -->
+    <polygon points="8,-27 4,-23 12,-23" fill="#222"></polygon>
+    <polygon points="88,-27 84,-23 92,-23" fill="#222"></polygon>
+  </g>
+  <text x="440" y="120" text-anchor="middle" font-size="10" font-family="sans-serif" fill="#444">D — paralelogramo</text>
+
+  <!-- E: Trapézio — só um par paralelo -->
+  <g transform="translate(530,100)">
+    <polygon points="15,-50 95,-50 110,0 0,0" fill="none" stroke="#222" stroke-width="1.5"></polygon>
+    <!-- setas só no par paralelo (topo e base) -->
+    <polygon points="53,-52 49,-48 57,-48" fill="#222"></polygon>
+    <polygon points="53,-2 49,2 57,2" fill="#222"></polygon>
+  </g>
+  <text x="585" y="120" text-anchor="middle" font-size="10" font-family="sans-serif" fill="#444">E — trapézio</text>
+</svg>

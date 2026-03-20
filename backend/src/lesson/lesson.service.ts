@@ -189,6 +189,18 @@ export class LessonService {
     });
     if (!exercicio) throw new NotFoundException('Exercício não encontrado');
 
+    const estado = progresso.estado as unknown as LicaoEstado;
+    const slotAResponder = estado.fase === 'normal' ? estado.currentSlotIndex : estado.revisaoQueue[0];
+
+    // 👇 NOVO BLOCO: GUARD PARA PREVENIR RACE CONDITIONS 👇
+    const exercicioEsperadoNoSlot = estado.slotExercicioMap[slotAResponder];
+    if (exercicioEsperadoNoSlot && exercicioEsperadoNoSlot !== exercicioId) {
+        this.logger.warn(`⚠️ Race condition travada: Slot ${slotAResponder} esperava o exercício ${exercicioEsperadoNoSlot}, mas recebeu ${exercicioId}. Ignorando o duplo clique.`);
+        return {
+            acertou: false, explanation: "Duplo clique ignorado.", done: false,
+            revisaoCount: estado.fase === 'revisao' ? estado.revisaoQueue.length : 0, nextReady: true
+        };
+    }
     // 🆕 Comparação normalizada — essencial para Direct Input
     // "540 000" == "540.000" == "540000"
     const normalizar = (s: string) =>
@@ -198,8 +210,6 @@ export class LessonService {
         .replace(/[\s.,]/g, '');
     const acertou =
       normalizar(respostaAluno) === normalizar(exercicio.resposta);
-
-    const estado = progresso.estado as unknown as LicaoEstado;
 
     await this.prisma.exercicioResultado.create({
       data: {
@@ -481,13 +491,27 @@ export class LessonService {
     // 🆕 Resolver ancora (string ou array → sempre string | undefined)
     const ancora = this._resolveSlotAncora((slot as any).ancora);
 
+    let finalStructure = slot.structure;
+    const structureLower = finalStructure.toLowerCase();
+
+    if (
+      structureLower.includes('recta numérica') ||
+      structureLower.includes('reta numérica')
+    ) {
+      const isGrade4 = topico.nivelClasse >= 4;
+      const rangeHint = isGrade4
+        ? ' Os números da sequência devem estar na casa dos milhares ou dezenas de milhares, adequados à 4ª classe.'
+        : '';
+      finalStructure = `${finalStructure} | OBRIGATÓRIO: A pergunta DEVE mostrar uma sequência com padrão aritmético explícito (Ex: 10, 20, ___, 40). NUNCA usar 'entre X e Y' sem padrão.${rangeHint}`;
+    }
+
     const pergunta = await this.cache.getQuestion({
       classe: topico.nivelClasse,
       disciplina: topico.disciplina?.nome?.toLowerCase() || 'matematica',
       topicoId: topico.id,
       dificuldade: slot.difficulty,
       historicoRecente: estado.perguntasRespondidas,
-      structure: slot.structure,
+      structure: finalStructure,
       ancora, // 🆕 sempre string | undefined — nunca array
     });
 

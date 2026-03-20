@@ -201,6 +201,25 @@ export class ChatService {
         this.httpService.post(this.aiServiceUrl, aiRequest),
       );
       finalResponse = response.data.response_text;
+      try {
+        const parsed = JSON.parse(finalResponse);
+        if (parsed.interaction_data && Array.isArray(parsed.interaction_data.options)) {
+          parsed.interaction_data.options = parsed.interaction_data.options.filter((opt: string) => {
+            const s = opt.trim().toLowerCase();
+            // Remove se começar com parênteses ou contiver verbos de instrução interna
+            if (s.startsWith('(') || s.startsWith('[')) return false;
+            if (s.includes('avalia tu') || s.includes('escolhe') || s.includes('usa a')) return false;
+            return true;
+          });
+          // Se o filtro apagar todas as opções por acidente, coloca um fallback de segurança
+          if (parsed.interaction_data.options.length === 0) {
+             parsed.interaction_data.options = ['Continuar'];
+          }
+          finalResponse = JSON.stringify(parsed);
+        }
+      } catch (e) {
+        this.logger.warn(`Falha ao sanitizar opções do chat: ${e.message}`);
+      }
     } catch (error) {
       this.logger.error(`ERRO IA: ${error.message}`);
       finalResponse = JSON.stringify({

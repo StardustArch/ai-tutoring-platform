@@ -31,6 +31,7 @@ REGRAS DE OURO (OBRIGATÓRIAS):
 3. DISTRATORES: Gere exatamente 4 "options" ÚNICAS.
 4. RESPOSTA CORRETA: A "correct_answer" DEVE ser uma cópia exata de uma das opções.
 5. SEM MARKDOWN: Não use ```json.
+6. RECTA NUMÉRICA: Se a pergunta for sobre completar a recta/sequência, DEVE haver um padrão aritmético claro (ex: 10, 20, __, 40). É ESTRITAMENTE PROIBIDO usar "qual número fica entre X e Y".
 
 LINGUAGEM (OBRIGATÓRIO):
 - Fale como uma criança fala! Frases curtas e simples.
@@ -237,12 +238,7 @@ Tipo de pergunta obrigatório: "{forced_structure}"
 REGRAS OBRIGATÓRIAS:
 1. A tua pergunta DEVE ser exclusivamente sobre o {ancora_label_lower} acima.
 2. NÃO inventes outro texto, cartaz ou sinal — usa APENAS o que está acima.
-3. A pergunta DEVE começar por uma referência à âncora, por exemplo:
-   - "Observando a figura acima, ..."
-   - "De acordo com o texto acima, ..."
-   - "Olhando para o cartaz descrito, ..."
-   - "Com base na descrição acima, ..."
-   NÃO comeces a pergunta directamente com o conteúdo sem a referenciar.
+3. {ancora_ref_instrucao}
 4. Respeita o currículo: {context_rules}
 5. Gera exactamente 4 opções únicas.
 6. A "correct_answer" DEVE ser uma cópia exacta de uma das opções.
@@ -1061,39 +1057,47 @@ def _extract_geometric_pair(question: str) -> tuple[str, str] | None:
     return (obj_key, found_solid)
 
 
-def _is_duplicate(new_question: str, recent_questions: list[str]) -> bool:
+def _is_duplicate(new_question: str, recent_questions: list[str], has_ancora: bool = False) -> bool:
     def normalize(text: str) -> str:
         return re.sub(r'[\d\.,]+', 'N', text.lower().strip())
 
     new_norm  = normalize(new_question)
     new_start = " ".join(new_question.lower().split()[:8])
 
-    # ── 1. Verificação literal (original) ────────────────────────────────────
     for prev in recent_questions:
         prev_norm  = normalize(prev)
         prev_start = " ".join(prev.lower().split()[:8])
-        if new_start == prev_start:
+
+        # ── check de início — desactivado quando há âncora ──────────────────
+        if not has_ancora and new_start == prev_start:
             print(f"🔁 [DuplicateCheck] Início idêntico: '{prev[:70]}'", flush=True)
             return True
-        if new_norm[:80] == prev_norm[:80]:
-            print(f"🔁 [DuplicateCheck] Template idêntico: '{prev[:70]}'", flush=True)
-            return True
 
-    # ── 2. Verificação semântica: mesmo par (objecto, sólido) ─────────────────
+        # ── check de template — compara a partir da palavra 8 se há âncora ──
+        if has_ancora:
+            # ignora os primeiros 8 tokens (referência à figura) e compara o resto
+            new_core  = " ".join(new_question.lower().split()[8:])
+            prev_core = " ".join(prev.lower().split()[8:])
+            new_core_norm  = normalize(new_core)
+            prev_core_norm = normalize(prev_core)
+            if new_core_norm and new_core_norm[:60] == prev_core_norm[:60]:
+                print(f"🔁 [DuplicateCheck] Core idêntico (âncora): '{prev[:70]}'", flush=True)
+                return True
+        else:
+            if new_norm[:80] == prev_norm[:80]:
+                print(f"🔁 [DuplicateCheck] Template idêntico: '{prev[:70]}'", flush=True)
+                return True
+
+    # check semântico (par objecto/sólido) — mantém igual
     new_pair = _extract_geometric_pair(new_question)
     if new_pair:
         for prev in recent_questions:
             prev_pair = _extract_geometric_pair(prev)
             if prev_pair and new_pair == prev_pair:
-                print(
-                    f"🔁 [DuplicateCheck] Par semântico idêntico: "
-                    f"obj='{new_pair[0]}' sólido='{new_pair[1]}' | prev='{prev[:60]}'",
-                    flush=True
-                )
+                print(f"🔁 [DuplicateCheck] Par semântico idêntico: obj='{new_pair[0]}' sólido='{new_pair[1]}'", flush=True)
                 return True
 
     return False
-
 # ══════════════════════════════════════════════════════════════════════════════
 # SUBSTITUIR _sanitize_rush_payload no rush_service.py pela versão abaixo.
 #
@@ -1138,6 +1142,29 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
                     f"afirmação diz {tipo_afirmado} → resposta devia ser {resposta_esperada}"
                 )
 
+        decomp_match = re.search(r'([\d\.]+)\s*=\s*([\d\.\s\+]+)', question)
+        if decomp_match:
+            try:
+                target_num_str = decomp_match.group(1).replace('.', '')
+                target_num = int(target_num_str)
+                
+                # Extrai as parcelas da soma (ex: 900.000 + 40.000...)
+                parts_str = decomp_match.group(2).split('+')
+                parts = [int(p.replace('.', '').strip()) for p in parts_str if p.strip().replace('.', '').isdigit()]
+                
+                if parts:
+                    real_sum = sum(parts)
+                    is_correct = (target_num == real_sum)
+                    expected_ans = "Verdadeiro" if is_correct else "Falso"
+                    
+                    if clean_correct != expected_ans:
+                        print(f"🔧 [Sanitize] TF Decomposição: Modelo diz '{clean_correct}', mas a soma real é {real_sum} (alvo: {target_num}). Forçando '{expected_ans}'.")
+                        clean_correct = expected_ans
+                        explanation = f"A soma de {' + '.join(str(p) for p in parts)} é {real_sum}, por isso a afirmação é {expected_ans.lower()}."
+            except Exception as e:
+                print(f"⚠️ Erro ao validar decomposição TF: {e}")
+        # 👆 FIM DO NOVO BLOCO 👆
+
         return {"type": "true_false", "question": question, "options": options,
                 "correct_answer": clean_correct, "explanation": explanation}
 
@@ -1177,18 +1204,41 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
     if not isinstance(raw_options, list):
         raise ValueError("Opções inválidas")
 
-    options = list(dict.fromkeys([
-        str(opt).strip().strip('"').strip("'").strip(".")
-        for opt in raw_options if str(opt).strip()
-    ]))
+    # 👇 NOVO BLOCO 1: Filtro de Opções Proibidas (ex: "Não sei") 👇
+    OPCOES_PROIBIDAS = ["não sei", "nao sei", "nenhuma", "nenhum dos", "nenhuma das", "todas as", "todas opções"]
+    options = []
+    for opt in raw_options:
+        s_opt = str(opt).strip().strip('"').strip("'").strip(".")
+        s_lower = s_opt.lower()
+        if s_opt and not any(p in s_lower for p in OPCOES_PROIBIDAS):
+            options.append(s_opt)
+
+    options = list(dict.fromkeys(options))
 
     if len(options) < 3:
-        raise ValueError("Menos de 3 opções únicas")
+        raise ValueError("Menos de 3 opções válidas após remover proibidas.")
+    # 👆 FIM DO BLOCO 1 👆
 
     clean_correct = raw_correct.strip('"').strip("'").strip(".")
     if clean_correct not in options:
-        raise ValueError("Resposta correta não corresponde às opções")
+        raise ValueError("Resposta correta não corresponde às opções válidas.")
 
+    # 👇 NOVO BLOCO 2: Verificação Factual de Distâncias (Maputo-Beira) 👇
+    q_lower = question.lower()
+    if "maputo" in q_lower and "beira" in q_lower and ("distância" in q_lower or "km" in q_lower or "quilómetros" in q_lower):
+        nums = re.findall(r'\d+', clean_correct.replace('.', ''))
+        if nums:
+            val = int(nums[0])
+            if not (1100 <= val <= 1300): # Maputo-Beira por estrada é ~1200km
+                raise ValueError(f"Distância Maputo-Beira absurda: {val} km (real ~1200 km). Forçando nova geração.")
+    # 👆 FIM DO BLOCO 2 👆
+
+    # 👇 NOVO BLOCO 3: Validador de Recta Numérica Aberta 👇
+    if "recta" in q_lower or "reta" in q_lower or "sequência" in q_lower:
+        # Se o modelo tentar a marosca do "número entre X e Y" (onde várias respostas podem estar certas)
+        if "entre" in q_lower and re.search(r'\d+\s+e\s+\d+', q_lower):
+            raise ValueError("Intervalo aberto na recta numérica detectado. Forçando nova geração para garantir padrão aritmético único.")
+    # 👆 FIM DO BLOCO 3 👆
     detected = _detect_question_type(question)
     if subject == "matematica" and detected == "explicit_arithmetic":
         try:
@@ -1254,9 +1304,10 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
  
     FREE_MODELS = [
         "llama-3.3-70b-versatile",
+        "openai/gpt-oss-120b",
         "llama-3.1-8b-instant",
     ]
- 
+    session_blacklist = set()
     for tentativa in range(5):
  
         # 🆕 BLOCO NOVO — escolha do forced_structure
@@ -1264,14 +1315,14 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
         # usa directamente. Caso contrário, sorteia como antes (Rush/Cron).
         if request.forced_structure_override:
             forced_structure = request.forced_structure_override
-            print(
-                f"📌 [ForcedStructure] Override do LessonService: '{forced_structure}'",
-                flush=True
-            )
         else:
-            forced_structure = _pick_forced_structure_with_diversity(
-                subtopic, request.context_rules, request.recent_questions
-            )
+            # 👈 NOVO: Garante que não escolhe uma que já foi para a blacklist
+            for _ in range(5):
+                forced_structure = _pick_forced_structure_with_diversity(
+                    subtopic, request.context_rules, request.recent_questions
+                )
+                if forced_structure not in session_blacklist:
+                    break
  
         # ── A partir daqui o código é 100% igual ao original ─────────────────
  
@@ -1305,6 +1356,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
  
         if _domain_conflict:
             finite_data = None
+            session_blacklist.add(forced_structure) # 👈 NOVO: Mete na blacklist!
             print(
                 f"🚫 [FiniteDomain] Bloqueado — conflito de domínio: "
                 f"subtopic='{subtopic}' vs structure='{forced_structure}'",
@@ -1328,7 +1380,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
  
             # Decide se usa prompt simples ou com narrativa contextual
             NARRATIVE_TYPES = {
-                "roman", "ordinal", "fraction", "metical_total",
+                "roman", "fraction", "metical_total",
                 "metical_troco", "conversao", "calendario",
                 "verbo_vir", "verbo_irregular",
             }
@@ -1375,11 +1427,19 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
  
             if ancora_data:
                 if ancora_data["tipo"] == "visual":
-                    ancora_label       = "DESCRIÇÃO VISUAL (Cartaz ou Sinal)"
-                    ancora_label_lower = "cartaz ou sinal descrito"
+                    ancora_label        = "FIGURA / IMAGEM DESCRITA"
+                    ancora_label_lower  = "figura acima"
+                    ancora_ref_instrucao = (
+                        'A pergunta DEVE começar com "Na figura acima," ou "Observando a figura acima,"\n'
+                        '   — NUNCA usar "De acordo com o texto" ou "Olhando para o cartaz".'
+                    )
                 else:
-                    ancora_label       = "TEXTO DE SUPORTE"
-                    ancora_label_lower = "texto acima"
+                    ancora_label        = "TEXTO DE SUPORTE"
+                    ancora_label_lower  = "texto acima"
+                    ancora_ref_instrucao = (
+                        'A pergunta DEVE começar com "De acordo com o texto acima," ou "Com base no texto acima,"\n'
+                        '   — NUNCA usar "Observando a figura" ou "Na imagem".'
+                    )
  
                 prompt = PROMPT_ANCORA.format(
                     student_class=request.student_class,
@@ -1390,6 +1450,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                     ancora_label=ancora_label,
                     ancora_label_lower=ancora_label_lower,
                     ancora_conteudo=ancora_data["conteudo"],
+                    ancora_ref_instrucao=ancora_ref_instrucao,
                     context_rules=request.context_rules,
                     exclude_list=exclude_list,
                 )
@@ -1510,7 +1571,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
  
             clean_data = _sanitize_rush_payload(obj, subject, subtopic)
  
-            if _is_duplicate(clean_data["question"], request.recent_questions):
+            if _is_duplicate(clean_data["question"], request.recent_questions, has_ancora=bool(ancora_data)):
                 raise ValueError("Pergunta duplicada.")
  
             print(f"✅ [{override_type}] SUCESSO com {chosen_model}")

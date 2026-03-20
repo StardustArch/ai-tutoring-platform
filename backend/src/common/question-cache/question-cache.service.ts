@@ -112,7 +112,11 @@ const result = await this.generateAndCache(
   topico.nome,
   false,
 );
-
+if (!structure) { // Fazemos refill apenas no modo Rush genérico (sem structure fixa)
+      this.refillStock(topicoId, 3, true).catch(e => 
+        this.logger.warn(`Background refill ignorado: ${e.message}`)
+      );
+    }
 return {
   ...result,
   ancora: result.ancora_chave ? {

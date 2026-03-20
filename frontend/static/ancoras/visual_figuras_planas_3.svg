@@ -1,0 +1,22 @@
+<svg width="100%" viewBox="0 0 680 160" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Figura A â€” CÃ­rculo com ponto O no centro -->
+  <circle cx="100" cy="90" r="55" fill="#4CAF7D" stroke="#2E7D52" stroke-width="1.5"></circle>
+  <circle cx="100" cy="90" r="3" fill="#fff"></circle>
+  <text x="108" y="86" font-size="11" font-family="sans-serif" fill="#fff" font-weight="500">O</text>
+  <text x="100" y="158" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">A</text>
+
+  <!-- Figura B â€” CÃ­rculo dividido em duas metades por linha -->
+  <circle cx="310" cy="90" r="55" fill="#4CAF7D" stroke="#2E7D52" stroke-width="1.5"></circle>
+  <line x1="255" y1="90" x2="365" y2="90" stroke="#fff" stroke-width="1.5"></line>
+  <circle cx="310" cy="90" r="3" fill="#fff"></circle>
+  <text x="310" y="158" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">B</text>
+
+  <!-- Figura C â€” RectÃ¢ngulo com 4 cantos marcados (wireframe) -->
+  <rect x="450" y="55" width="150" height="80" fill="none" stroke="#222" stroke-width="1.5"></rect>
+  <polyline points="450,70 464,70 464,55" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <polyline points="586,55 586,70 600,70" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <polyline points="600,120 586,120 586,135" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <polyline points="464,135 464,120 450,120" fill="none" stroke="#222" stroke-width="1"></polyline>
+  <text x="525" y="158" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">C</text>
+</svg>
