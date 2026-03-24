@@ -1,4 +1,5 @@
 <script lang="ts">
+import { browser } from '$app/environment';
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { Battery, BatteryWarning } from 'lucide-svelte';
 
@@ -19,23 +20,27 @@
            : percentage > 20 ? 'bg-yellow-500'
            : 'bg-red-500';
 
-  function startInterval() {
+function startInterval() {
     if (interval) clearInterval(interval);
     interval = setInterval(() => {
       if (paused) return; // congela sem parar o interval
       if (timeLeft > 0) {
         timeLeft--;
-        localStorage.setItem(timerKey, timeLeft.toString());
+        if (browser) localStorage.setItem(timerKey, timeLeft.toString()); // Guarda com segurança
       } else {
         clearInterval(interval!);
         interval = null;
-        localStorage.removeItem(timerKey);
+        if (browser) localStorage.removeItem(timerKey); // Remove com segurança
         dispatch('timeup');
       }
     }, 1000);
   }
 
+
+
+
   onMount(() => {
+
     // Recupera o tempo guardado para ESTA chave específica
     const saved = localStorage.getItem(timerKey);
     if (saved !== null) {
@@ -48,8 +53,8 @@
     startInterval();
   });
 
-  // Quando a timerKey muda (nova sessão) → reseta o timer
-  $: if (timerKey) {
+  // Quando a timerKey muda (nova sessão) → reseta o timer COM GUARD
+  $: if (timerKey && browser) { // 👇 BROWSER GUARD ADICIONADO AQUI
     const saved = localStorage.getItem(timerKey);
     if (saved === null) {
       // Nova chave sem valor guardado → reinicia a partir do máximo

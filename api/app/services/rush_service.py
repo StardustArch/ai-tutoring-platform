@@ -7,6 +7,10 @@ from app.services.llm_client import get_rush_clients, get_rush_groq_clients
 from app.models.schemas import RushRequest, RushResponse
 from app.config import LANG_VARIANT
 from openai import RateLimitError
+from app.utils.textos_ancora import get_ancora
+from app.utils.finite_domains import get_finite_domain_data
+from app.utils.prompts_finite  import PROMPT_FINITE_DOMAIN, PROMPT_FINITE_WITH_NARRATIVE
+from app.utils.geometry_validator import validate_geometry_answer
 
 # ─── PROMPT GERAL ────────────────────────────────────────────────────────────
 PROMPT_RUSH_JSON = """
@@ -15,7 +19,7 @@ O seu objetivo é gerar APENAS UMA pergunta de escolha múltipla perfeita em for
 
 Disciplina: {subject}
 Tópico Específico: {subtopic}
-Nível de Dificuldade: {difficulty_level} (1 a 5)
+Nível de Dificuldade: {difficulty_level} (1 a 4)
 
 🎯 TIPO DE PERGUNTA OBRIGATÓRIO: "{forced_structure}"
 Você TEM de fazer uma pergunta deste tipo exato. Não escolhas. Não decides. Só executa este tipo.
@@ -27,11 +31,26 @@ REGRAS DE OURO (OBRIGATÓRIAS):
 3. DISTRATORES: Gere exatamente 4 "options" ÚNICAS.
 4. RESPOSTA CORRETA: A "correct_answer" DEVE ser uma cópia exata de uma das opções.
 5. SEM MARKDOWN: Não use ```json.
+6. RECTA NUMÉRICA: Se a pergunta for sobre completar a recta/sequência, DEVE haver um padrão aritmético claro (ex: 10, 20, __, 40). É ESTRITAMENTE PROIBIDO usar "qual número fica entre X e Y".
 
 LINGUAGEM (OBRIGATÓRIO):
 - Fale como uma criança fala! Frases curtas e simples.
 - PROIBIDO usar: "algarismo", "valor posicional", "centenas de milhar", "ordem numérica", "classe decimal".
 - Substitua por: "Quanto vale o 4 no número...?", "Quem está na casa dos milhares?".
+
+⚠️ VERIFICAÇÃO FACTUAL OBRIGATÓRIA (lê antes de gerar):
+- A tua "correct_answer" DEVE ser factualmente correcta e verificável.
+- Se a pergunta usar "cada X" (cada pé, cada mão, cada lado, cada asa...),
+  a resposta refere-se a UMA unidade, NÃO ao total de duas ou mais.
+  Exemplos de erros a NUNCA cometer:
+    ❌ "Dedos em cada pé?" → 10  (cada pé tem 5, não 10)
+    ❌ "Lados de cada triângulo?" → 4  (são 3)
+    ❌ "Patas de cada cadeira?" → 8  (são 4)
+  Exemplos correctos:
+    ✅ "Dedos em cada pé?" → 5
+    ✅ "Lados de um triângulo?" → 3
+- Se tiveres dúvida sobre o facto, escolhe outro aspecto do tópico.
+- O "_logic" deve confirmar: "Verifiquei que a resposta é factualmente correcta."
 
 HISTÓRICO RECENTE (PROIBIDO REPETIR QUALQUER PERGUNTA DESTE GÉNERO):
 {exclude_list}
@@ -134,28 +153,34 @@ FORMATO OBRIGATÓRIO:
 """
 
 # ─── PROMPT TRUE/FALSE ────────────────────────────────────────────────────────
-PROMPT_TRUE_FALSE = """
+PROMPT_TRUE_FALSE_LESSON = """
 Você é um professor criativo de Moçambique, criando um quiz interativo para alunos da {student_class}ª classe.
 O seu objetivo é gerar UMA pergunta do tipo Verdadeiro ou Falso.
-
+ 
 Disciplina: {subject}
 Tópico Específico: {subtopic}
-Nível de Dificuldade: {difficulty_level} (1 a 5)
-
-🎯 TIPO OBRIGATÓRIO: "{forced_structure}"
-
+Nível de Dificuldade: {difficulty_level} (1 a 4)
+ 
+🎯 CONTEÚDO A AVALIAR: "{forced_structure}"
+Use este conteúdo para criar a afirmação. O tipo é Verdadeiro/Falso — não mudes isso.
+ 
 REGRAS DE OURO:
-1. Crie uma afirmação direta que o aluno deve avaliar. Contextualize com a realidade moçambicana (nomes, meticais, machamba).
+1. Crie uma afirmação directa e clara. Contextualize com Moçambique (nomes locais, Meticais).
 2. Siga rigorosamente estas restrições curriculares:
 {context_rules}
-3. A "correct_answer" DEVE ser exatamente "Verdadeiro" ou "Falso".
-4. As "options" DEVEM ser EXATAMENTE ["Verdadeiro", "Falso"].
+3. A "correct_answer" DEVE ser exactamente "Verdadeiro" ou "Falso".
+4. As "options" DEVEM ser EXACTAMENTE ["Verdadeiro", "Falso"].
 5. Não repita perguntas passadas: {exclude_list}
-
+ 
+⚠️ VERIFICAÇÃO FACTUAL OBRIGATÓRIA:
+- A afirmação DEVE ser factualmente correcta ou incorrecta de forma inequívoca.
+- Evita afirmações ambíguas ou dependentes de contexto.
+- Quando tiveres dúvida sobre um facto, escolhe outro aspecto do tópico.
+ 
 FORMATO OBRIGATÓRIO (JSON PURO):
 {{
   "type": "true_false",
-  "question": "O número 540.000 tem 5 dezenas de milhar.",
+  "question": "...",
   "options": ["Verdadeiro", "Falso"],
   "correct_answer": "Verdadeiro",
   "explanation": "Explicação clara do porquê."
@@ -163,32 +188,78 @@ FORMATO OBRIGATÓRIO (JSON PURO):
 """
 
 # ─── PROMPT CLOZE ─────────────────────────────────────────────────────────────
-PROMPT_CLOZE = """
+PROMPT_CLOZE_LESSON = """
 Você é um professor criativo de Moçambique, criando um quiz interativo para alunos da {student_class}ª classe.
 O seu objetivo é gerar UMA pergunta de "Completar a Lacuna".
-
+ 
 Disciplina: {subject}
 Tópico Específico: {subtopic}
-Nível de Dificuldade: {difficulty_level} (1 a 5)
-
-🎯 TIPO OBRIGATÓRIO: "{forced_structure}"
-
+Nível de Dificuldade: {difficulty_level} (1 a 4)
+ 
+🎯 CONTEÚDO A TRABALHAR: "{forced_structure}"
+Use este conteúdo para criar a frase com lacuna. O tipo é Completar a Lacuna — não mudes isso.
+ 
 REGRAS DE OURO:
 1. A "question" DEVE conter uma lacuna representada por três sublinhados: "___". Contextualize com Moçambique.
 2. Siga rigorosamente estas restrições curriculares:
 {context_rules}
-3. Gere exatamente 4 "options" únicas. Uma delas é a resposta que encaixa perfeitamente na lacuna.
+3. Gere exactamente 4 "options" únicas. Uma delas é a resposta que encaixa perfeitamente na lacuna.
 4. A "correct_answer" DEVE ser a opção correta.
 5. Não repita perguntas passadas: {exclude_list}
-
+ 
+⚠️ VERIFICAÇÃO FACTUAL OBRIGATÓRIA:
+- A palavra ou forma que preenche a lacuna DEVE ser factualmente correcta.
+- Quando tiveres dúvida sobre um facto, escolhe outro aspecto do tópico.
+ 
 FORMATO OBRIGATÓRIO (JSON PURO):
 {{
   "type": "cloze",
-  "question": "O número que vem imediatamente depois de 999.999 é o ___.",
-  "options": ["1.000.000", "99.000", "10.000", "1.000.001"],
-  "correct_answer": "1.000.000",
+  "question": "O Ali ___ para a escola todos os dias.",
+  "options": ["vai", "vou", "vão", "vais"],
+  "correct_answer": "vai",
   "explanation": "Explicação clara."
 }}
+"""
+
+PROMPT_ANCORA = """
+Você é um professor criativo de Moçambique, criando um quiz para alunos da {student_class}ª classe.
+O seu objetivo é gerar APENAS UMA pergunta de escolha múltipla em formato JSON puro.
+ 
+Disciplina: {subject}
+Tópico: {subtopic}
+Nível de Dificuldade: {difficulty_level} (1 a 4)
+Tipo de pergunta obrigatório: "{forced_structure}"
+ 
+══════════════════════════════════════════════
+{ancora_label}:
+"{ancora_conteudo}"
+══════════════════════════════════════════════
+ 
+REGRAS OBRIGATÓRIAS:
+1. A tua pergunta DEVE ser exclusivamente sobre o {ancora_label_lower} acima.
+2. NÃO inventes outro texto, cartaz ou sinal — usa APENAS o que está acima.
+3. {ancora_ref_instrucao}
+4. Respeita o currículo: {context_rules}
+5. Gera exactamente 4 opções únicas.
+6. A "correct_answer" DEVE ser uma cópia exacta de uma das opções.
+7. Linguagem simples para crianças de 8-10 anos.
+8. Contexto moçambicano (nomes: Ali, Fátima, Sónia, Hélio).
+9. SEM MARKDOWN. Só JSON puro.
+ 
+HISTÓRICO RECENTE (NÃO REPETIR):
+{exclude_list}
+ 
+FORMATO OBRIGATÓRIO:
+{{
+  "_logic": "Vou fazer uma pergunta do tipo '{forced_structure}' sobre o {ancora_label_lower} fornecido.",
+  "topico": "{subtopic}",
+  "question": "...",
+  "options": ["...", "...", "...", "..."],
+  "correct_answer": "...",
+  "explanation": "..."
+}}
+ 
+Gera agora o JSON:
 """
 
 current_rush_client_index = 0
@@ -271,14 +342,62 @@ def _is_positional_structure(structure: str) -> bool:
                 "milhar", "centena", "dezena", "unidade de milhar"]
     return any(k in structure.lower() for k in keywords)
 
-def _is_true_false_structure(structure: str) -> bool:
-    keywords = ["verdadeiro ou falso", "verdadeiro/falso", "true/false", "v ou f", "v/f"]
-    return any(k in structure.lower() for k in keywords)
-
-def _is_cloze_structure(structure: str) -> bool:
-    keywords = ["completar a lacuna", "completar a frase", "preencher a lacuna",
-                "completar com", "lacuna", "cloze", "completar o espaço"]
-    return any(k in structure.lower() for k in keywords)
+ 
+def _resolve_interaction_type(structure: str) -> str:
+    """
+    Dado o texto descritivo de uma structure do seed, devolve o tipo
+    de interacção mais adequado:
+      "true_false"       — afirmação a avaliar V/F
+      "cloze"            — frase com lacuna a completar
+      "multiple_choice"  — escolha múltipla (default)
+ 
+    REGRAS:
+    - "Completar" + frase/lacuna → cloze
+    - "Distinguir" / "Verdadeiro ou Falso" / "Afirmar se" → true_false
+    - "Identificar" / "Escolher" / "Classificar" / "Interpretar" → multiple_choice
+    - "Conjugar" / "Passar" / "Ordenar" → multiple_choice
+    - "Calcular" / "Ler valor" → multiple_choice
+ 
+    Critério: cloze quando há uma transformação directa com lacuna óbvia.
+              true_false quando é uma avaliação binária.
+              multiple_choice em tudo o resto.
+    """
+    s = structure.lower().strip()
+ 
+    # ── TRUE / FALSE ──────────────────────────────────────────────────
+    TF_PATTERNS = [
+        r"\bverdadeiro ou falso\b",
+        r"\bafirmar se\b",
+        r"\bdizer se.*é\b",
+        r"\bidentificar se\b",
+        r"\bdistinguir\b",          # "distinguir X de Y" → TF: é X ou é Y?
+        r"\bé (?:correcto|certo|verdadeiro)\b",
+        r"\bapenas\b.*\bcorrect[ao]\b",
+        r"\bsom(?:ente)? uma\b",
+    ]
+    for pat in TF_PATTERNS:
+        if re.search(pat, s):
+            return "true_false"
+ 
+    # ── CLOZE ─────────────────────────────────────────────────────────
+    CLOZE_PATTERNS = [
+        r"\bcompletar? (?:a |uma )?frase\b",
+        r"\bcompletar? (?:com|o|a)\b",
+        r"\bpreencher\b",
+        r"\bsubstituir\b",          # "Substituir palavra pelo antónimo" → cloze
+        r"\bpassar (?:para|os?|as?)\b",   # "Passar para o Feminino" → cloze
+        r"\bpontu(?:ar|ação)\b",    # "Pontuar um texto" → cloze
+        r"\bordenar\b",             # "Ordenar acções" → cloze
+        r"\bformar?\b.*\bplural\b",
+        r"\bcolocar?\b.*\btempos?\b",
+        r"\bforma correct[ao]\b",
+    ]
+    for pat in CLOZE_PATTERNS:
+        if re.search(pat, s):
+            return "cloze"
+ 
+    # ── MULTIPLE CHOICE (default) ─────────────────────────────────────
+    return "multiple_choice"
 
 
 # ─── CONSTRUTOR TRUE/FALSE ────────────────────────────────────────────────────
@@ -446,110 +565,53 @@ def _classify_recent_types(recent_questions: list[str]) -> list[str]:
 
 def _pick_forced_structure(subtopic: str, context_rules: str, recent_questions: list[str]) -> str:
 
-    # ── 1. Colecta as estruturas disponíveis ──────────────────────────────────
-    structures_mc   = []   # estruturas que geram multiple_choice
-    structures_tf   = []   # estruturas que geram true_false
-    structures_cloze = []  # estruturas que geram cloze
-
-    raw_structures = []
-    in_permitido = False
-    for line in context_rules.splitlines():
-        line = line.strip()
-        if "PERMITIDO" in line.upper():
-            in_permitido = True
-            continue
-        if "PROIBIDO" in line.upper():
-            in_permitido = False
-            continue
-        if in_permitido and line.startswith("-"):
-            s = line.lstrip("- ").strip()
-            if s:
-                raw_structures.append(s)
-
+    # ── 1. Extracção de estruturas ─────────────────────────────────────────
+    raw_structures = _parse_structures_from_rules(context_rules)
     if not raw_structures:
-        sub = subtopic.lower()
-        for key, vals in FALLBACK_STRUCTURES.items():
-            if key in sub:
-                raw_structures = list(vals)
-                break
-        if not raw_structures:
-            raw_structures = [
-                "Escrita por extenso",
-                "Valor de um dígito",
-                "Identificar a casa do dígito",
-                "Decompor o número",
-                "Verdadeiro ou Falso sobre o número",
-                "Completar a lacuna",
-            ]
+        raw_structures = _get_structured_fallback(subtopic, context_rules)
 
-    # Mapeia estruturas vagas para concretas
-    VAGUE_MAP = {
-        "leitura e compreensão":    ["Escrita por extenso", "Decomposição do número"],
-        "identificação de classes": ["Valor posicional", "Identificar a casa do dígito"],
-        "identificação de ordens":  ["Valor posicional", "Identificar a casa do dígito"],
-    }
-    expanded: list[str] = []
-    seen: set = set()
+    # ── 2. Separa por tipo de interacção ───────────────────────────────────
+    structures_mc, structures_tf, structures_cloze = [], [], []
     for s in raw_structures:
-        replaced = False
-        for vague_key, concretes in VAGUE_MAP.items():
-            if vague_key in s.lower():
-                for c in concretes:
-                    if c not in seen:
-                        expanded.append(c)
-                        seen.add(c)
-                replaced = True
-                break
-        if not replaced and s not in seen:
-            expanded.append(s)
-            seen.add(s)
-
-    # Separa por tipo
-    for s in expanded:
-        if _is_true_false_structure(s):
+        t = _resolve_interaction_type(s)
+        if t == "true_false":
             structures_tf.append(s)
-        elif _is_cloze_structure(s):
+        elif t == "cloze":
             structures_cloze.append(s)
         else:
             structures_mc.append(s)
 
-    # Garante que TF e Cloze têm sempre pelo menos uma opção genérica
+    # Garante pelo menos 1 opção em cada tipo
     if not structures_tf:
-        structures_tf = [f"Verdadeiro ou Falso sobre {subtopic.split()[0].lower() if subtopic else 'o tema'}"]
+        structures_tf = [f"Distinguir se a afirmação sobre {subtopic.split()[0].lower()} é verdadeira"]
     if not structures_cloze:
-        structures_cloze = [f"Completar a lacuna sobre {subtopic.split()[0].lower() if subtopic else 'o tema'}"]
+        structures_cloze = [f"Completar a lacuna sobre {subtopic.split()[0].lower()}"]
     if not structures_mc:
-        structures_mc = ["Escolha múltipla sobre o tópico"]
+        structures_mc = ["Identificar o conceito correcto"]
 
-    # ── 2. Roulette com pesos baseado nos tipos recentes ─────────────────────
+    # ── 3. Roulette com pesos baseado nos tipos recentes ──────────────────
     recent_types = _classify_recent_types(recent_questions)
     last_type    = recent_types[-1] if recent_types else "multiple_choice"
     last_2_types = recent_types[-2:] if len(recent_types) >= 2 else recent_types
 
-    # Pesos base
     weight_mc    = 5
     weight_tf    = 3
     weight_cloze = 3
 
-    # Se a última foi MC, aumenta a probabilidade de TF ou Cloze
     if last_type == "multiple_choice":
         weight_tf    += 4
         weight_cloze += 3
 
-    # Se as últimas 2 foram MC, força ainda mais a variedade
     if all(t == "multiple_choice" for t in last_2_types) and len(last_2_types) == 2:
         weight_tf    += 5
         weight_cloze += 5
 
-    # Se a última foi TF, reduz TF para não repetir
     if last_type == "true_false":
-        weight_tf    = max(1, weight_tf - 6)
+        weight_tf = max(1, weight_tf - 6)
 
-    # Se a última foi Cloze, reduz Cloze para não repetir
     if last_type == "cloze":
         weight_cloze = max(1, weight_cloze - 6)
 
-    # Sorteia o tipo
     type_pool = (
         ["mc"]    * weight_mc +
         ["tf"]    * weight_tf +
@@ -571,6 +633,309 @@ def _pick_forced_structure(subtopic: str, context_rules: str, recent_questions: 
     )
     return chosen
 
+# ══════════════════════════════════════════════════════════════════════════════
+# SUBSTITUIR as duas funções abaixo no rush_service.py
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _parse_structures_from_rules(context_rules: str) -> list[str]:
+    """
+    Extrai estruturas exercitáveis do context_rules do seed.
+    Nunca devolve linhas cruas de definição — só structures accionáveis.
+    """
+    # Mapeamento: padrão encontrado na linha → structure pedagógica accionável
+    DEFINITION_TO_STRUCTURE = [
+        # Ângulos
+        (r"recto.*90|90.*recto",                   "Identificar o ângulo recto (90°) numa descrição"),
+        (r"agudo.*<\s*90|<\s*90.*agudo",            "Identificar o ângulo agudo (menor que 90°)"),
+        (r"obtuso.*>\s*90|>\s*90.*obtuso",          "Identificar o ângulo obtuso (entre 90° e 180°)"),
+        (r"raso.*180|180.*raso",                    "Identificar o ângulo raso (180°)"),
+        (r"tipo.*ângulo|identificar.*ângulo|noção.*ângulo", "Classificar o ângulo pela descrição (recto/agudo/obtuso/raso)"),
+        # Circunferência/Círculo
+        (r"raio.*diâmetro|diâmetro.*raio|2.*raio|raio.*÷",  "Calcular o raio ou diâmetro do círculo"),
+        (r"centro|circunferência.*fechada|região interior",  "Identificar centro, raio e diâmetro no círculo"),
+        # Triângulos — lados
+        (r"equilátero.*3|3.*iguais.*equilátero",    "Classificar triângulo como equilátero (3 lados iguais)"),
+        (r"isósceles.*2|2.*iguais.*isósceles",      "Classificar triângulo como isósceles (2 lados iguais)"),
+        (r"escaleno.*diferentes|diferentes.*escaleno", "Classificar triângulo como escaleno (3 lados diferentes)"),
+        (r"pelos lados|classificaç.*lado",          "Classificar triângulo pelos lados (equilátero/isósceles/escaleno)"),
+        # Triângulos — ângulos
+        (r"rectângulo.*ângulo recto|ângulo recto.*triâng", "Identificar triângulo rectângulo (tem 90°)"),
+        (r"acutângulo|todos.*agudos",               "Identificar triângulo acutângulo (todos ângulos agudos)"),
+        (r"obtusângulo|ângulo obtuso.*triâng",      "Identificar triângulo obtusângulo (tem ângulo obtuso)"),
+        (r"pelos ângulos|classificaç.*ângulo.*triâng", "Classificar triângulo pelos ângulos (rectângulo/acutângulo/obtusângulo)"),
+        # Quadriláteros
+        (r"quadrado.*4 lados iguais.*4 ângulos|4 lados iguais.*4 ângulos rectos.*quadrado", "Identificar o quadrado pela descrição"),
+        (r"rectângulo.*lados opostos|lados opostos.*4 ângulos rectos", "Identificar o rectângulo pela descrição"),
+        (r"paralelogramo.*paralelos",               "Identificar o paralelogramo pela descrição"),
+        (r"losango.*4 lados iguais",                "Identificar o losango pela descrição"),
+        (r"trapézio.*par.*paralelos",               "Identificar o trapézio (único par de lados paralelos)"),
+        (r"5 tipos.*quadrilátero|quadrilátero.*5 tipos", "Classificar o quadrilátero (quadrado/rectângulo/losango/trapézio/paralelogramo)"),
+        # Sólidos
+        (r"identificar.*cubo|paralelepípedo|esfera|cilindro|cone|pirâmide", "Identificar o sólido geométrico pela descrição"),
+        (r"faces.*arestas.*vértices|vértices.*faces|noção básica",          "Contar faces, arestas ou vértices de um sólido"),
+    ]
+
+    import re
+
+    STOP_HEADERS = re.compile(
+        r'^(PROIBIDO|CONTEXTO|NOTAS?|ATENÇÃO)',
+        re.IGNORECASE
+    )
+    CONTENT_HEADERS = re.compile(
+        r'^(PERMITIDO|CONTEÚDOS DETALHADOS|CONTEÚDOS|GRAMÁTICA|VOCABULÁRIO'
+        r'|TIPOS DE TEXTO|SUBCAPÍTULOS)',
+        re.IGNORECASE
+    )
+
+    found: list[str] = []
+    seen: set[str] = set()
+    in_content = False
+
+    for raw_line in context_rules.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if STOP_HEADERS.match(line.rstrip(':')):
+            in_content = False
+            continue
+        if CONTENT_HEADERS.match(line.rstrip(':')):
+            in_content = True
+            continue
+        if re.match(r'^\d+\.\d+\s+\w', line):
+            in_content = True
+            continue
+
+        if in_content and line.startswith('-'):
+            content = line.lstrip('- ').strip()
+            if not content or len(content) < 4:
+                continue
+            # Tenta mapear a linha crua para uma structure accionável
+            mapped = False
+            for pattern, structure in DEFINITION_TO_STRUCTURE:
+                if re.search(pattern, content, re.IGNORECASE):
+                    if structure not in seen:
+                        found.append(structure)
+                        seen.add(structure)
+                    mapped = True
+                    break
+            # Se não mapeou E a linha já é uma structure accionável (tem verbo),
+            # usa directamente (ex: seeds que já têm "Identificar X")
+            if not mapped:
+                ACTION_WORDS = re.compile(
+                    r'^(identificar|classificar|calcular|conjugar|distinguir|comparar'
+                    r'|ordenar|completar|substituir|transformar|reconhecer|ler|interpretar'
+                    r'|aplicar|usar|escolher|encontrar|converter|associar|resolver'
+                    r'|decompor|escrever|passar|construir|expandir|flexionar)',
+                    re.IGNORECASE
+                )
+                if ACTION_WORDS.match(content) and content not in seen:
+                    found.append(content)
+                    seen.add(content)
+
+    return found
+
+
+def _pick_forced_structure_with_diversity(
+    subtopic: str,
+    context_rules: str,
+    recent_questions: list,
+) -> str:
+    """
+    Sorteia o TIPO primeiro, depois escolhe structure compatível.
+    Garante que structures de Português nunca aparecem em tópicos de Matemática.
+    """
+    sub_lower = subtopic.lower()
+    cr_lower  = context_rules.lower()
+
+    is_geometria = any(k in sub_lower or k in cr_lower for k in [
+        "espaço", "forma", "ângulo", "triângulo", "quadrilátero",
+        "sólido", "circunferência", "círculo"
+    ])
+    is_numeros = any(k in sub_lower for k in [
+        "número", "milhão", "fração", "decimal", "medida"
+    ])
+
+    is_port = (not is_geometria and not is_numeros) and (
+    "portugu" in sub_lower or any(
+        k in cr_lower for k in ["verbo", "frase", "pronome", "sinónimo"]
+        # REMOVER "palavra" e "texto" — aparecem em context_rules de matemática
+    )
+    )
+    tipo = random.choices(
+        ["multiple_choice", "true_false", "cloze"],
+        weights=[50, 25, 25],
+        k=1
+    )[0]
+
+    if tipo == "true_false":
+        if is_port:
+            pool = [
+                "Distinguir se a frase está correctamente formada",
+                "Identificar se o verbo está no tempo correcto",
+                "Distinguir se a afirmação sobre a palavra é verdadeira",
+            ]
+        elif is_geometria:
+            pool = [
+                "Distinguir se a afirmação sobre a figura geométrica é verdadeira",
+                "Identificar se o sólido descrito tem ou não vértices",
+                "Distinguir se o ângulo descrito é agudo ou obtuso",
+                "Identificar se o quadrilátero descrito é um quadrado ou rectângulo",
+                "Distinguir se a afirmação sobre o triângulo é verdadeira",
+                "Identificar se o triângulo descrito é equilátero ou isósceles",
+            ]
+        elif is_numeros:
+            pool = [
+                "Distinguir se a afirmação sobre o número é verdadeira ou falsa",
+                "Identificar se o número é par ou ímpar",
+                "Verificar se a decomposição do número está correcta",
+            ]
+        else:
+            pool = [
+                "Distinguir se a afirmação sobre o tema é verdadeira ou falsa",
+            ]
+        return random.choice(pool)
+
+    elif tipo == "cloze":
+        if is_port:
+            pool = [
+                "Completar frase com o verbo conjugado correctamente",
+                "Completar frase com a palavra na forma correcta",
+                "Completar frase com o pronome correcto",
+            ]
+        elif is_geometria:
+            pool = [
+                "Completar a frase identificando o nome da figura geométrica",
+                "Completar a frase com o tipo de ângulo correcto",
+                "Completar a frase com o nome do sólido geométrico correcto",
+                "Completar a frase com o tipo de triângulo correcto",
+            ]
+        elif is_numeros:
+            pool = [
+                "Completar a operação com o número em falta",
+                "Completar a sequência numérica com o valor correcto",
+                "Completar a frase com a unidade de medida correcta",
+            ]
+        else:
+            pool = ["Completar a frase com o termo correcto"]
+        return random.choice(pool)
+
+    else:
+        # multiple_choice — usa _pick_forced_structure que lê o seed
+        return _pick_forced_structure(subtopic, context_rules, recent_questions)
+        
+STRUCTURED_FALLBACKS: dict[str, list[str]] = {
+    # Matemática — Espaço e Forma
+    "ângulo":        ["Classificar o ângulo (recto/agudo/obtuso/raso)",
+                      "Identificar ângulo recto numa figura descrita",
+                      "Distinguir se o ângulo descrito é agudo ou obtuso"],
+    "circunferência": ["Identificar centro, raio e diâmetro no círculo",
+                       "Calcular o raio dado o diâmetro",
+                       "Calcular o diâmetro dado o raio"],
+    "círculo":       ["Identificar centro, raio e diâmetro no círculo",
+                      "Calcular o raio dado o diâmetro"],
+    "triângulo":     ["Classificar triângulo pelos lados (equilátero/isósceles/escaleno)",
+                      "Classificar triângulo pelos ângulos (rectângulo/acutângulo/obtusângulo)",
+                      "Identificar número de lados de um triângulo"],
+    "quadrilátero":  ["Identificar o quadrilátero pela descrição (quadrado/rectângulo/losango/trapézio/paralelogramo)",
+                      "Distinguir quadrado de rectângulo",
+                      "Identificar o número de ângulos rectos do quadrilátero"],
+    "sólido":        ["Identificar o sólido geométrico pela descrição (cubo/esfera/cilindro/cone/pirâmide)",
+                      "Contar faces de um cubo ou paralelepípedo",
+                      "Associar objecto do quotidiano ao sólido geométrico correcto"],
+    # Matemática — Operações
+    "adição":        ["Calcular soma de dois números",
+                      "Problema de história com adição",
+                      "Completar a lacuna na adição"],
+    "subtracção":    ["Calcular diferença de dois números",
+                      "Problema de história com subtracção"],
+    "multiplicação": ["Calcular produto (tabuada)",
+                      "Multiplicar por 10 ou 100",
+                      "Problema de história com multiplicação"],
+    "divisão":       ["Calcular quociente e resto",
+                      "Divisão exacta (sem resto)",
+                      "Problema de distribuição equitativa"],
+    "fracção":       ["Identificar fracção própria ou imprópria",
+                      "Adicionar fracções com mesmo denominador",
+                      "Reconhecer fracções equivalentes simples"],
+    "decimal":       ["Ler número decimal (décimas/centésimas)",
+                      "Comparar dois decimais",
+                      "Adicionar decimais alinhando a vírgula"],
+    # Português — estruturas genéricas
+    "verbo":         ["Conjugar verbo no Presente do Indicativo",
+                      "Identificar o verbo na frase",
+                      "Completar frase com verbo no tempo correcto"],
+    "nome":          ["Passar nome para o feminino",
+                      "Passar nome para o plural",
+                      "Distinguir nome próprio de nome comum"],
+    "adjectivo":     ["Identificar adjectivo na frase",
+                      "Concordar adjectivo com nome em género e número"],
+    "pronome":       ["Identificar pronome possessivo na frase",
+                      "Escolher pronome demonstrativo correcto pela distância"],
+    "frase":         ["Transformar frase afirmativa em negativa",
+                      "Construir frase interrogativa",
+                      "Identificar sujeito e predicado"],
+}
+ 
+ 
+def _get_structured_fallback(subtopic: str, context_rules: str) -> list[str]:
+    """
+    Devolve estruturas pedagógicas específicas baseadas no subtopic e/ou
+    no conteúdo do context_rules. Muito mais preciso que o FALLBACK_STRUCTURES
+    anterior que usava só uma palavra-chave genérica.
+    """
+    combined = (subtopic + " " + context_rules).lower()
+    results: list[str] = []
+    seen: set[str] = set()
+ 
+    for keyword, structs in STRUCTURED_FALLBACKS.items():
+        if keyword in combined:
+            for s in structs:
+                if s not in seen:
+                    results.append(s)
+                    seen.add(s)
+ 
+    # Se ainda nada, devolve estruturas completamente genéricas
+    if not results:
+        results = [
+            "Identificar o conceito correcto pela descrição",
+            "Escolher a opção correcta de entre as alternativas",
+            "Distinguir se a afirmação sobre o tópico é verdadeira ou falsa",
+            "Completar a frase com o termo correcto",
+        ]
+ 
+    return results
+ 
+ 
+# ──────────────────────────────────────────────────────────────────────────────
+# FIX 3: Remover secção CONTEXTO do context_rules antes de enviar ao modelo
+# Evita que o modelo se fixe nos exemplos do CONTEXTO (pote→esfera, lata→cilindro)
+# ──────────────────────────────────────────────────────────────────────────────
+ 
+def _strip_contexto_section(context_rules: str) -> str:
+    """
+    Remove a secção 'CONTEXTO:' do context_rules antes de enviar ao modelo.
+    Versão robusta: funciona mesmo quando CONTEXTO: é a última linha do texto.
+    """
+    import re
+    # Tenta remover até ao próximo cabeçalho maiúsculo
+    cleaned = re.sub(
+        r'\nCONTEXTO\s*:.*?(?=\n[A-ZÁÉÍÓÚÀÃÕÇ]{2,}[^a-záéíóúàãõç\n]*:|\Z)',
+        '',
+        context_rules,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    # Se não mudou nada (CONTEXTO no fim sem cabeçalho a seguir),
+    # remove tudo a partir de CONTEXTO: até ao fim
+    if cleaned == context_rules:
+        cleaned = re.sub(
+            r'\nCONTEXTO\s*:.*$',
+            '',
+            context_rules,
+            flags=re.DOTALL | re.IGNORECASE
+        )
+    return cleaned.strip()
+ 
 
 # ─── UTILITÁRIOS ─────────────────────────────────────────────────────────────
 
@@ -625,7 +990,74 @@ def _generate_smart_distractors(correct_value: int):
     return distractors[:3]
 
 
-def _is_duplicate(new_question: str, recent_questions: list[str]) -> bool:
+# ══════════════════════════════════════════════════════════════════════════════
+# SUBSTITUIR a função _is_duplicate no rush_service.py pela versão abaixo.
+# Adiciona verificação semântica: bloqueia quando o mesmo par
+# (objecto, sólido/figura) já apareceu nas perguntas recentes,
+# mesmo que o tipo de interacção seja diferente (cloze vs true_false vs MC).
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Nomes de sólidos e figuras geométricas que o modelo usa
+_SOLIDOS = [
+    "paralelepípedo", "cilindro", "esfera", "cubo", "cone", "pirâmide",
+    "triângulo", "quadrado", "rectângulo", "losango", "trapézio",
+    "paralelogramo", "circunferência", "círculo",
+    "equilátero", "isósceles", "escaleno",
+    "acutângulo", "obtusângulo",
+]
+
+# Palavras-chave que indicam que a pergunta é sobre identificar um objecto→sólido
+_OBJETO_KEYWORDS = [
+    "é um exemplo de", "tem a forma de", "é chamado de",
+    "é um sólido", "é um tipo de sólido", "chamado de",
+    "tem faces", "tem arestas", "tem vértices",
+]
+
+
+def _extract_geometric_pair(question: str) -> tuple[str, str] | None:
+    """
+    Extrai o par (objecto_contexto, sólido_geométrico) de uma pergunta.
+    Ex: "Um tijolo é um exemplo de paralelepípedo" → ("tijolo", "paralelepípedo")
+    Ex: "Um ângulo de 45° é um ângulo agudo" → ("angulo_45", "agudo")
+    Devolve None se não conseguir extrair.
+    """
+    q = question.lower().strip().rstrip('.')
+
+    # Detecta o sólido/figura mencionado
+    found_solid = None
+    for s in _SOLIDOS:
+        if s in q:
+            found_solid = s
+            break
+
+    if not found_solid:
+        # Tenta ângulos (recto/agudo/obtuso/raso)
+        for angulo in ["recto", "agudo", "obtuso", "raso"]:
+            if angulo in q:
+                found_solid = angulo
+                break
+
+    if not found_solid:
+        return None
+
+    # Detecta o objecto do contexto (palavra antes do padrão "é um exemplo de...")
+    # Estratégia: pegar as primeiras 2-3 palavras significativas da pergunta
+    # como identificador do objecto
+    words = re.sub(r'[^\w\s]', ' ', q).split()
+    # Remove artigos, preposições comuns
+    stopwords = {'um', 'uma', 'o', 'a', 'os', 'as', 'de', 'do', 'da',
+                 'que', 'é', 'em', 'com', 'para', 'por', 'se', 'no', 'na'}
+    content_words = [w for w in words[:8] if w not in stopwords and len(w) > 2]
+
+    if not content_words:
+        return None
+
+    # Usa as primeiras 2 palavras de conteúdo como chave do objecto
+    obj_key = "_".join(content_words[:2])
+    return (obj_key, found_solid)
+
+
+def _is_duplicate(new_question: str, recent_questions: list[str], has_ancora: bool = False) -> bool:
     def normalize(text: str) -> str:
         return re.sub(r'[\d\.,]+', 'N', text.lower().strip())
 
@@ -635,14 +1067,44 @@ def _is_duplicate(new_question: str, recent_questions: list[str]) -> bool:
     for prev in recent_questions:
         prev_norm  = normalize(prev)
         prev_start = " ".join(prev.lower().split()[:8])
-        if new_start == prev_start:
+
+        # ── check de início — desactivado quando há âncora ──────────────────
+        if not has_ancora and new_start == prev_start:
             print(f"🔁 [DuplicateCheck] Início idêntico: '{prev[:70]}'", flush=True)
             return True
-        if new_norm[:80] == prev_norm[:80]:
-            print(f"🔁 [DuplicateCheck] Template idêntico: '{prev[:70]}'", flush=True)
-            return True
-    return False
 
+        # ── check de template — compara a partir da palavra 8 se há âncora ──
+        if has_ancora:
+            # ignora os primeiros 8 tokens (referência à figura) e compara o resto
+            new_core  = " ".join(new_question.lower().split()[8:])
+            prev_core = " ".join(prev.lower().split()[8:])
+            new_core_norm  = normalize(new_core)
+            prev_core_norm = normalize(prev_core)
+            if new_core_norm and new_core_norm[:60] == prev_core_norm[:60]:
+                print(f"🔁 [DuplicateCheck] Core idêntico (âncora): '{prev[:70]}'", flush=True)
+                return True
+        else:
+            if new_norm[:80] == prev_norm[:80]:
+                print(f"🔁 [DuplicateCheck] Template idêntico: '{prev[:70]}'", flush=True)
+                return True
+
+    # check semântico (par objecto/sólido) — mantém igual
+    new_pair = _extract_geometric_pair(new_question)
+    if new_pair:
+        for prev in recent_questions:
+            prev_pair = _extract_geometric_pair(prev)
+            if prev_pair and new_pair == prev_pair:
+                print(f"🔁 [DuplicateCheck] Par semântico idêntico: obj='{new_pair[0]}' sólido='{new_pair[1]}'", flush=True)
+                return True
+
+    return False
+# ══════════════════════════════════════════════════════════════════════════════
+# SUBSTITUIR _sanitize_rush_payload no rush_service.py pela versão abaixo.
+#
+# O único problema: validate_geometry_answer só era chamado no caminho
+# multiple_choice. Perguntas true_false e cloze saíam antes.
+# Agora a validação é feita para os 3 tipos.
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
     if not isinstance(raw_obj, dict):
@@ -655,17 +1117,61 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
 
     # ── TRUE/FALSE ────────────────────────────────────────────────────────────
     if q_type == "true_false":
-        options       = ["Verdadeiro", "Falso"]
+        options = ["Verdadeiro", "Falso"]
         clean_correct = raw_correct if raw_correct in options else "Verdadeiro"
         if not question or not explanation:
             raise ValueError("Pergunta ou explicação vazia (true_false)")
+
+        # Validação específica para ângulos em TF
+        # Detecta padrão "X° é um ângulo Y" e verifica se V/F está correcto
+        angulo_match = re.search(r'(\d+)°.*ângulo\s+(recto|agudo|obtuso|raso)', question.lower())
+        if angulo_match:
+            graus = int(angulo_match.group(1))
+            tipo_afirmado = angulo_match.group(2)
+            tipo_correcto = (
+                "recto" if graus == 90 else
+                "agudo" if graus < 90 else
+                "raso"  if graus == 180 else
+                "obtuso"
+            )
+            afirmacao_correcta = (tipo_afirmado == tipo_correcto)
+            resposta_esperada = "Verdadeiro" if afirmacao_correcta else "Falso"
+            if clean_correct != resposta_esperada:
+                raise ValueError(
+                    f"TF ângulo errado: {graus}° é {tipo_correcto}, "
+                    f"afirmação diz {tipo_afirmado} → resposta devia ser {resposta_esperada}"
+                )
+
+        decomp_match = re.search(r'([\d\.]+)\s*=\s*([\d\.\s\+]+)', question)
+        if decomp_match:
+            try:
+                target_num_str = decomp_match.group(1).replace('.', '')
+                target_num = int(target_num_str)
+                
+                # Extrai as parcelas da soma (ex: 900.000 + 40.000...)
+                parts_str = decomp_match.group(2).split('+')
+                parts = [int(p.replace('.', '').strip()) for p in parts_str if p.strip().replace('.', '').isdigit()]
+                
+                if parts:
+                    real_sum = sum(parts)
+                    is_correct = (target_num == real_sum)
+                    expected_ans = "Verdadeiro" if is_correct else "Falso"
+                    
+                    if clean_correct != expected_ans:
+                        print(f"🔧 [Sanitize] TF Decomposição: Modelo diz '{clean_correct}', mas a soma real é {real_sum} (alvo: {target_num}). Forçando '{expected_ans}'.")
+                        clean_correct = expected_ans
+                        explanation = f"A soma de {' + '.join(str(p) for p in parts)} é {real_sum}, por isso a afirmação é {expected_ans.lower()}."
+            except Exception as e:
+                print(f"⚠️ Erro ao validar decomposição TF: {e}")
+        # 👆 FIM DO NOVO BLOCO 👆
+
         return {"type": "true_false", "question": question, "options": options,
                 "correct_answer": clean_correct, "explanation": explanation}
 
     # ── CLOZE ─────────────────────────────────────────────────────────────────
     if q_type == "cloze":
-        if "___" not in question:
-            raise ValueError("Pergunta cloze sem lacuna ___")
+        if question.count("___") != 1:
+            raise ValueError("Cloze deve ter exactamente uma lacuna ___")
         raw_options = raw_obj.get("options", [])
         options = list(dict.fromkeys([
             str(opt).strip().strip('"').strip("'").strip(".")
@@ -676,10 +1182,16 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
             raise ValueError("Resposta cloze não corresponde às opções")
         if not question or not explanation:
             raise ValueError("Pergunta ou explicação vazia (cloze)")
+
+        # Validação factual — cobre "Uma garrafa de ___ → Pirâmide"
+        geo_error = validate_geometry_answer(question, clean_correct, options)
+        if geo_error:
+            raise ValueError(f"Facto geométrico incorrecto (cloze): {geo_error}")
+
         return {"type": "cloze", "question": question, "options": options,
                 "correct_answer": clean_correct, "explanation": explanation}
 
-    # ── MULTIPLE CHOICE (caminho original) ────────────────────────────────────
+    # ── MULTIPLE CHOICE ───────────────────────────────────────────────────────
     if len(question.split()) < 6 and not _is_math_strict_topic(subtopic):
         raise ValueError("Pergunta demasiado simples (< 6 palavras)")
 
@@ -692,24 +1204,47 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
     if not isinstance(raw_options, list):
         raise ValueError("Opções inválidas")
 
-    options = list(dict.fromkeys([
-        str(opt).strip().strip('"').strip("'").strip(".")
-        for opt in raw_options if str(opt).strip()
-    ]))
+    # 👇 NOVO BLOCO 1: Filtro de Opções Proibidas (ex: "Não sei") 👇
+    OPCOES_PROIBIDAS = ["não sei", "nao sei", "nenhuma", "nenhum dos", "nenhuma das", "todas as", "todas opções"]
+    options = []
+    for opt in raw_options:
+        s_opt = str(opt).strip().strip('"').strip("'").strip(".")
+        s_lower = s_opt.lower()
+        if s_opt and not any(p in s_lower for p in OPCOES_PROIBIDAS):
+            options.append(s_opt)
+
+    options = list(dict.fromkeys(options))
 
     if len(options) < 3:
-        raise ValueError("Menos de 3 opções únicas")
+        raise ValueError("Menos de 3 opções válidas após remover proibidas.")
+    # 👆 FIM DO BLOCO 1 👆
 
     clean_correct = raw_correct.strip('"').strip("'").strip(".")
     if clean_correct not in options:
-        raise ValueError("Resposta correta não corresponde às opções")
+        raise ValueError("Resposta correta não corresponde às opções válidas.")
 
+    # 👇 NOVO BLOCO 2: Verificação Factual de Distâncias (Maputo-Beira) 👇
+    q_lower = question.lower()
+    if "maputo" in q_lower and "beira" in q_lower and ("distância" in q_lower or "km" in q_lower or "quilómetros" in q_lower):
+        nums = re.findall(r'\d+', clean_correct.replace('.', ''))
+        if nums:
+            val = int(nums[0])
+            if not (1100 <= val <= 1300): # Maputo-Beira por estrada é ~1200km
+                raise ValueError(f"Distância Maputo-Beira absurda: {val} km (real ~1200 km). Forçando nova geração.")
+    # 👆 FIM DO BLOCO 2 👆
+
+    # 👇 NOVO BLOCO 3: Validador de Recta Numérica Aberta 👇
+    if "recta" in q_lower or "reta" in q_lower or "sequência" in q_lower:
+        # Se o modelo tentar a marosca do "número entre X e Y" (onde várias respostas podem estar certas)
+        if "entre" in q_lower and re.search(r'\d+\s+e\s+\d+', q_lower):
+            raise ValueError("Intervalo aberto na recta numérica detectado. Forçando nova geração para garantir padrão aritmético único.")
+    # 👆 FIM DO BLOCO 3 👆
     detected = _detect_question_type(question)
     if subject == "matematica" and detected == "explicit_arithmetic":
         try:
-            correct_number  = int(re.findall(r'\d+', clean_correct)[0])
+            correct_number    = int(re.findall(r'\d+', clean_correct)[0])
             smart_distractors = _generate_smart_distractors(correct_number)
-            options = [str(correct_number)] + [str(d) for d in smart_distractors]
+            options       = [str(correct_number)] + [str(d) for d in smart_distractors]
             random.shuffle(options)
             clean_correct = str(correct_number)
         except (IndexError, ValueError):
@@ -718,6 +1253,19 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
     if not question or not explanation:
         raise ValueError("Pergunta ou explicação vazia")
 
+    geo_error = validate_geometry_answer(question, clean_correct, options)
+    if geo_error:
+        raise ValueError(f"Facto geométrico incorrecto: {geo_error}")
+    # Em _sanitize_rush_payload, antes do return final de multiple_choice:
+    q_lower = question.lower()
+    # Detecta "cada lado mede X" ou "todos os lados medem X" → todos iguais → não pode ser rectângulo
+    if re.search(r'cada lado|todos os lados', q_lower):
+        if clean_correct.lower() == "rectângulo":
+            raise ValueError("Contradição: todos os lados iguais → Quadrado, não Rectângulo")
+
+    if "quatro lados iguais" in q_lower or "4 lados iguais" in q_lower:
+        if clean_correct.lower() == "rectângulo":
+            raise ValueError("Contradição: 4 lados iguais → Quadrado, não Rectângulo")
     return {
         "type": "multiple_choice",
         "question": question,
@@ -726,142 +1274,278 @@ def _sanitize_rush_payload(raw_obj: dict, subject: str, subtopic: str) -> dict:
         "explanation": explanation,
     }
 
-
 # ─── LÓGICA PRINCIPAL ─────────────────────────────────────────────────────────
-
+# ── 2. generate_rush_question_logic — início da função ───────────────────────
+#
+# Substituir APENAS o bloco onde o forced_structure é escolhido.
+# Antes era SEMPRE _pick_forced_structure().
+# Agora verifica primeiro se veio override do NestJS.
+ 
 async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
-
+ 
     print(f"\n🚀 [RushService] Chamado!\n{request}", flush=True)
-
+ 
     global current_rush_client_index
-
+ 
     clients = get_rush_groq_clients()
     if not clients:
         raise Exception("Nenhum cliente Groq configurado.")
-
-    subject  = request.subject.lower()
+ 
+    subject = request.subject.lower()
     if subject not in ("matematica", "portugues"):
         subject = "matematica"
-
+ 
     subtopic     = request.subtopic if request.subtopic else "Geral"
     last_3       = request.recent_questions[-3:] if request.recent_questions else []
     exclude_list = "\n- ".join(last_3) if last_3 else "Nenhuma pergunta anterior."
-
-    is_math_operation    = _is_math_strict_topic(subtopic)
-    dynamic_temperature  = 0.4 if is_math_operation else 0.85
-
-    # 🔥 Modelos actualizados — os anteriores davam 404
+ 
+    is_math_operation   = _is_math_strict_topic(subtopic)
+    dynamic_temperature = 0.4 if is_math_operation else 0.85
+ 
     FREE_MODELS = [
         "llama-3.3-70b-versatile",
+        "openai/gpt-oss-120b",
         "llama-3.1-8b-instant",
-        "gemma2-9b-it",
     ]
-
+    session_blacklist = set()
     for tentativa in range(5):
-        forced_structure = _pick_forced_structure(
-            subtopic, request.context_rules, request.recent_questions
-        )
-
-        is_decomp     = "decomposição" in forced_structure.lower() or "decomp" in forced_structure.lower()
-        is_positional = _is_positional_structure(forced_structure)
-        is_tf         = _is_true_false_structure(forced_structure)
-        is_cloze_q    = _is_cloze_structure(forced_structure)
-
-        math_data     = None
-        override_type = "multiple_choice"
-
-       # ── TRUE/FALSE ────────────────────────────────────────────────────────
-        if is_tf:
-            override_type = "true_false"
-            prompt = PROMPT_TRUE_FALSE.format(
-                student_class=request.student_class,
-                subject=subject,
-                subtopic=subtopic,
-                difficulty_level=request.difficulty_level,
-                context_rules=request.context_rules,
-                forced_structure=forced_structure,
-                exclude_list=exclude_list,
+ 
+        # 🆕 BLOCO NOVO — escolha do forced_structure
+        # Se o NestJS enviou um override (vem do lesson_plan do slot),
+        # usa directamente. Caso contrário, sorteia como antes (Rush/Cron).
+        if request.forced_structure_override:
+            forced_structure = request.forced_structure_override
+        else:
+            # 👈 NOVO: Garante que não escolhe uma que já foi para a blacklist
+            for _ in range(5):
+                forced_structure = _pick_forced_structure_with_diversity(
+                    subtopic, request.context_rules, request.recent_questions
+                )
+                if forced_structure not in session_blacklist:
+                    break
+ 
+        # ── A partir daqui o código é 100% igual ao original ─────────────────
+ 
+        _fs_lower = forced_structure.lower()
+        _sub_lower = subtopic.lower()
+ 
+        # Detecta se a forced_structure é claramente de Português
+        _is_port_structure = any(k in _fs_lower for k in [
+            "verbo", "frase", "pronome", "palavra", "plural", "sinónimo",
+            "afirmativa", "negativa", "pontuad", "conjugad"
+        ])
+        # Detecta se o subtopic é de Matemática
+        _is_math_subtopic = any(k in _sub_lower for k in [
+            "matemática", "número", "espaço", "forma", "medida", "fração",
+            "decimal", "adição", "subtração", "multiplicação", "divisão",
+            "ângulo", "triângulo", "quadrilátero", "sólido", "circunferência"
+        ])
+        # Detecta se a forced_structure é claramente de Matemática
+        _is_math_structure = any(k in _fs_lower for k in [
+            "ângulo", "triângulo", "quadrilátero", "sólido", "circunferência",
+            "número", "decomp", "milhar", "fração", "decimal", "calcular"
+        ])
+        # Detecta se o subtopic é de Português
+        _is_port_subtopic = any(k in _sub_lower for k in [
+            "português", "leitura", "escrita", "gramática"
+        ])
+ 
+        # Bloqueia FiniteDomain se há conflito de domínio
+        _domain_conflict = (_is_port_structure and _is_math_subtopic) or \
+                           (_is_math_structure and _is_port_subtopic)
+ 
+        if _domain_conflict:
+            finite_data = None
+            session_blacklist.add(forced_structure) # 👈 NOVO: Mete na blacklist!
+            print(
+                f"🚫 [FiniteDomain] Bloqueado — conflito de domínio: "
+                f"subtopic='{subtopic}' vs structure='{forced_structure}'",
+                flush=True,
             )
-            # NOTA: math_data continua = None para deixar a IA brilhar
-
-        # ── CLOZE ─────────────────────────────────────────────────────────────
-        elif is_cloze_q:
-            override_type = "cloze"
-            prompt = PROMPT_CLOZE.format(
-                student_class=request.student_class,
-                subject=subject,
-                subtopic=subtopic,
-                difficulty_level=request.difficulty_level,
-                context_rules=request.context_rules,
-                forced_structure=forced_structure,
-                exclude_list=exclude_list,
+        else:
+            finite_data = get_finite_domain_data(
+                forced_structure,
+                request.student_class,
+                request.difficulty_level,
             )
-            # NOTA: math_data continua = None
-            
-        # ── DECOMPOSIÇÃO ──────────────────────────────────────────────────────
-        elif is_decomp:
-            decomp    = _build_decomposition_question(request.difficulty_level)
-            narrative = _pick_narrative(decomp["number_fmt"])
-            prompt = PROMPT_POSICIONAL_DECOMP.format(
-                student_class=request.student_class,
-                subtopic=subtopic,
-                number_fmt=decomp["number_fmt"],
-                correct_answer=decomp["correct_answer"],
-                options_json=decomp["options_json"],
-                narrative=narrative,
-            )
-            math_data = decomp
-            print(f"🔢 [Decomposição] {decomp['number_fmt']}", flush=True)
+ 
+        ancora_data = None
+        if request.ancora:
+            ancora_data = get_ancora(request.ancora)
 
-        # ── POSICIONAL ────────────────────────────────────────────────────────
-        elif is_positional:
-            positional = _build_positional_question(subtopic, request.difficulty_level)
-            q_type     = positional["type"]
-            narrative  = _pick_narrative(positional["number_fmt"])
-            if q_type == "valor":
-                prompt = PROMPT_POSICIONAL_VALOR.format(
+        if finite_data:
+            # Valores pré-calculados — IA só escreve narrativa + explicação
+            override_type = "multiple_choice"
+            math_data     = finite_data   # reutiliza o mecanismo já existente
+ 
+            # Decide se usa prompt simples ou com narrativa contextual
+            NARRATIVE_TYPES = {
+                "roman", "fraction", "metical_total",
+                "metical_troco", "conversao", "calendario",
+                "verbo_vir", "verbo_irregular",
+            }
+            use_narrative = finite_data.get("type") in NARRATIVE_TYPES
+ 
+            if use_narrative:
+                calculated_data_str = "\n".join([
+                    f'- Pergunta base: "{finite_data["question_template"]}"',
+                    f'- Opções: {finite_data["options_json"]}',
+                    f'- Resposta correcta: "{finite_data["correct_answer"]}"',
+                ])
+                prompt = PROMPT_FINITE_WITH_NARRATIVE.format(
                     student_class=request.student_class,
                     subtopic=subtopic,
-                    number_fmt=positional["number_fmt"],
-                    digit=positional["digit"],
-                    correct_value=positional["correct_value"],
-                    house_name=positional["house_name"],
-                    options_json=positional["options_json"],
-                    narrative=narrative,
+                    calculated_data=calculated_data_str,
+                    options_json=finite_data["options_json"],
+                    correct_answer=finite_data["correct_answer"],
                 )
             else:
-                prompt = PROMPT_POSICIONAL_CASA.format(
+                prompt = PROMPT_FINITE_DOMAIN.format(
                     student_class=request.student_class,
                     subtopic=subtopic,
-                    number_fmt=positional["number_fmt"],
-                    digit=positional["digit"],
-                    house_name=positional["house_name"],
-                    options_json=positional["options_json"],
+                    question_template=finite_data["question_template"],
+                    options_json=finite_data["options_json"],
+                    correct_answer=finite_data["correct_answer"],
+                )
+ 
+            print(
+                f"🔒 [FiniteDomain] type={finite_data['type']} | "
+                f"correct='{finite_data['correct_answer']}' | struct='{forced_structure}'",
+                flush=True,
+            )
+ 
+        else:
+            # ── NÃO é domínio finito — fluxo original ────────────────────────
+            math_data     = None
+            override_type = "multiple_choice"
+ 
+            is_decomp     = "decomposição" in forced_structure.lower() or "decomp" in forced_structure.lower()
+            is_positional = _is_positional_structure(forced_structure)
+            interaction_type = _resolve_interaction_type(forced_structure)
+            is_tf      = interaction_type == "true_false"
+            is_cloze_q = interaction_type == "cloze" 
+ 
+            if ancora_data:
+                if ancora_data["tipo"] == "visual":
+                    ancora_label        = "FIGURA / IMAGEM DESCRITA"
+                    ancora_label_lower  = "figura acima"
+                    ancora_ref_instrucao = (
+                        'A pergunta DEVE começar com "Na figura acima," ou "Observando a figura acima,"\n'
+                        '   — NUNCA usar "De acordo com o texto" ou "Olhando para o cartaz".'
+                    )
+                else:
+                    ancora_label        = "TEXTO DE SUPORTE"
+                    ancora_label_lower  = "texto acima"
+                    ancora_ref_instrucao = (
+                        'A pergunta DEVE começar com "De acordo com o texto acima," ou "Com base no texto acima,"\n'
+                        '   — NUNCA usar "Observando a figura" ou "Na imagem".'
+                    )
+ 
+                prompt = PROMPT_ANCORA.format(
+                    student_class=request.student_class,
+                    subject=subject,
+                    subtopic=subtopic,
+                    difficulty_level=request.difficulty_level,
+                    forced_structure=forced_structure,
+                    ancora_label=ancora_label,
+                    ancora_label_lower=ancora_label_lower,
+                    ancora_conteudo=ancora_data["conteudo"],
+                    ancora_ref_instrucao=ancora_ref_instrucao,
+                    context_rules=request.context_rules,
+                    exclude_list=exclude_list,
+                )
+                override_type = "multiple_choice"
+                print(
+                    f"⚓ [Âncora/{ancora_data['tipo']}] '{request.ancora}' | struct='{forced_structure}'",
+                    flush=True,
+                )
+ 
+            elif is_tf:
+                override_type = "true_false"
+                prompt = PROMPT_TRUE_FALSE_LESSON.format(
+                    student_class=request.student_class,
+                    subject=subject,
+                    subtopic=subtopic,
+                    difficulty_level=request.difficulty_level,
+                    context_rules=request.context_rules,
+                    forced_structure=forced_structure,
+                    exclude_list=exclude_list,
+                )
+ 
+            elif is_cloze_q:
+                override_type = "cloze"
+                prompt = PROMPT_CLOZE_LESSON.format(
+                    student_class=request.student_class,
+                    subject=subject,
+                    subtopic=subtopic,
+                    difficulty_level=request.difficulty_level,
+                    context_rules=request.context_rules,
+                    forced_structure=forced_structure,
+                    exclude_list=exclude_list,
+                )
+ 
+            elif is_decomp:
+                decomp    = _build_decomposition_question(request.difficulty_level)
+                narrative = _pick_narrative(decomp["number_fmt"])
+                prompt = PROMPT_POSICIONAL_DECOMP.format(
+                    student_class=request.student_class,
+                    subtopic=subtopic,
+                    number_fmt=decomp["number_fmt"],
+                    correct_answer=decomp["correct_answer"],
+                    options_json=decomp["options_json"],
                     narrative=narrative,
                 )
-            math_data = positional
-            print(f"🔢 [Posicional/{q_type}] {positional['number_fmt']}", flush=True)
-
-        # ── MÚLTIPLA ESCOLHA GERAL ────────────────────────────────────────────
-        else:
-            prompt = PROMPT_RUSH_JSON.format(
-                student_class=request.student_class,
-                subject=subject,
-                subtopic=subtopic,
-                exclude_list=exclude_list,
-                difficulty_level=request.difficulty_level,
-                context_rules=request.context_rules,
-                forced_structure=forced_structure,
-            )
-
+                math_data = decomp
+                print(f"🔢 [Decomposição] {decomp['number_fmt']}", flush=True)
+ 
+            elif is_positional:
+                positional = _build_positional_question(subtopic, request.difficulty_level)
+                q_type     = positional["type"]
+                narrative  = _pick_narrative(positional["number_fmt"])
+                if q_type == "valor":
+                    prompt = PROMPT_POSICIONAL_VALOR.format(
+                        student_class=request.student_class,
+                        subtopic=subtopic,
+                        number_fmt=positional["number_fmt"],
+                        digit=positional["digit"],
+                        correct_value=positional["correct_value"],
+                        house_name=positional["house_name"],
+                        options_json=positional["options_json"],
+                        narrative=narrative,
+                    )
+                else:
+                    prompt = PROMPT_POSICIONAL_CASA.format(
+                        student_class=request.student_class,
+                        subtopic=subtopic,
+                        number_fmt=positional["number_fmt"],
+                        digit=positional["digit"],
+                        house_name=positional["house_name"],
+                        options_json=positional["options_json"],
+                        narrative=narrative,
+                    )
+                math_data = positional
+                print(f"🔢 [Posicional/{q_type}] {positional['number_fmt']}", flush=True)
+ 
+            else:
+                clean_rules = _strip_contexto_section(request.context_rules)
+                prompt = PROMPT_RUSH_JSON.format(
+                    student_class=request.student_class,
+                    subject=subject,
+                    subtopic=subtopic,
+                    exclude_list=exclude_list,
+                    difficulty_level=request.difficulty_level,
+                    context_rules=clean_rules,
+                    forced_structure=forced_structure,
+                )
+ 
         client      = clients[current_rush_client_index]
         used_index  = current_rush_client_index
         current_rush_client_index = (current_rush_client_index + 1) % len(clients)
         chosen_model = FREE_MODELS[tentativa % len(FREE_MODELS)]
-
+ 
         try:
             print(f"🔄 Rush #{used_index+1} | {chosen_model} | {forced_structure} | {override_type}")
-
+ 
             completion = client.chat.completions.create(
                 model=chosen_model,
                 messages=[{"role": "user", "content": prompt}],
@@ -872,28 +1556,29 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
                 max_tokens=400,
                 response_format={"type": "json_object"}
             )
-
+ 
             raw = completion.choices[0].message.content
             print(f"👀 RAW ({chosen_model}): {raw}", flush=True)
-
+ 
             obj = safe_load_json_object(raw)
             if not obj:
                 raise ValueError("JSON inválido.")
-
-            # Sobrescreve SEMPRE com os valores calculados pelo código
+ 
             if math_data:
                 obj["correct_answer"] = math_data["correct_answer"]
                 obj["options"]        = math_data["options"]
             obj["type"] = override_type
-
+ 
             clean_data = _sanitize_rush_payload(obj, subject, subtopic)
-
-            if _is_duplicate(clean_data["question"], request.recent_questions):
+ 
+            if _is_duplicate(clean_data["question"], request.recent_questions, has_ancora=bool(ancora_data)):
                 raise ValueError("Pergunta duplicada.")
-
+ 
             print(f"✅ [{override_type}] SUCESSO com {chosen_model}")
-            return RushResponse(**clean_data)
-
+            return RushResponse(**clean_data,     ancora_chave=request.ancora or None,
+    ancora_tipo=ancora_data["tipo"] if ancora_data else None,
+    ancora_conteudo=ancora_data["conteudo"] if ancora_data else None,)
+ 
         except RateLimitError:
             print(f"⚠️ Rate limit em {chosen_model}.")
             await asyncio.sleep(1)
@@ -902,7 +1587,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
             print(f"⚠️ Erro em {chosen_model}: {e}")
             await asyncio.sleep(1)
             continue
-
+ 
     return RushResponse(
         type="multiple_choice",
         question="Ocorreu uma pequena falha técnica. Qual é a capital de Moçambique?",
@@ -910,3 +1595,4 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
         correct_answer="Maputo",
         explanation="O servidor precisou de um descanso, mas seguimos em frente!"
     )
+ 

@@ -1,0 +1,44 @@
+<!-- PASSADEIRA MELHORADA -->
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  
+  <!-- Fundo azul -->
+  <rect x="10" y="10" width="180" height="180" rx="16"
+        fill="#1E88E5" stroke="#1565C0" stroke-width="4"/>
+
+  <!-- Triângulo branco -->
+  <polygon points="100,40 160,140 40,140"
+           fill="white"/>
+
+  <!-- Faixas da passadeira (em perspectiva) -->
+  <polygon points="70,120 85,120 75,140 60,140" fill="#111"/>
+  <polygon points="90,120 105,120 95,140 80,140" fill="#111"/>
+  <polygon points="110,120 125,120 115,140 100,140" fill="#111"/>
+  <polygon points="130,120 145,120 135,140 120,140" fill="#111"/>
+
+  <!-- Figura humana (preta, estilo mais realista) -->
+  <!-- Cabeça -->
+  <circle cx="100" cy="75" r="8" fill="#111"/>
+
+  <!-- Corpo -->
+  <line x1="100" y1="83" x2="100" y2="110"
+        stroke="#111" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Braços -->
+  <line x1="100" y1="90" x2="88" y2="102"
+        stroke="#111" stroke-width="4" stroke-linecap="round"/>
+  <line x1="100" y1="90" x2="112" y2="100"
+        stroke="#111" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Pernas -->
+  <line x1="100" y1="110" x2="88" y2="130"
+        stroke="#111" stroke-width="4" stroke-linecap="round"/>
+  <line x1="100" y1="110" x2="112" y2="130"
+        stroke="#111" stroke-width="4" stroke-linecap="round"/>
+
+</svg>
+
+
+
+
+
+

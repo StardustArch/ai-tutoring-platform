@@ -8,6 +8,9 @@ class RushRequest(BaseModel):
     recent_questions: List[str] = []
     difficulty_level: int = 3
     context_rules: str = ""
+    forced_structure_override: Optional[str] = None
+    ancora: Optional[str] = None  # 🆕 chave da âncora (ex: 'texto_bilhete_fatima')
+
 
 class RushResponse(BaseModel):
     type: str = "multiple_choice"   # "multiple_choice" | "true_false" | "cloze"
@@ -15,6 +18,9 @@ class RushResponse(BaseModel):
     options: List[str]
     correct_answer: str
     explanation: str
+    ancora_chave: Optional[str] = None
+    ancora_tipo: Optional[str] = None
+    ancora_conteudo: Optional[str] = None
 
 
 class ChatRequest(BaseModel):
@@ -30,6 +36,7 @@ class ChatRequest(BaseModel):
     last_question: Optional[str] = None
     last_correct_answer: Optional[str] = None
     last_interaction_type: Optional[str] = None
+    ancoras: list[str] = []
 
 class ChatResponse(BaseModel):
     response_text: str

@@ -4,6 +4,7 @@ from app.services.llm_client import get_rush_clients, generate_tutor_response
 from app.services.voice_service import generate_voice_audio
 from app.models.schemas import ChatRequest, ChatResponse
 from app.utils.text_helpers import remove_broken_emojis
+from app.utils.textos_ancora import get_ancora
 from app.config import LANG_VARIANT
 
 # ==============================================================================
@@ -113,6 +114,39 @@ CRITICAL — "correct_answer" field is MANDATORY:
 - DRAG_DROP: items joined by space in correct order.
 """
 
+
+PROMPT_TEST_COM_ANCORA = """
+Você é o Kani, tutor educativo moçambicano para alunos da {student_class}ª classe.
+Disciplina: {subject} | Tópico: {topic}
+ 
+══════════════════════════════════════════════
+{ancora_label}:
+"{ancora_conteudo}"
+══════════════════════════════════════════════
+ 
+FASE: TEST — faz UMA pergunta de avaliação sobre o {ancora_label_lower} acima.
+A pergunta deve ser directamente baseada no {ancora_label_lower} — NÃO inventes outro texto ou imagem.
+ 
+Regras do tópico:
+{context_rules}
+ 
+Histórico da conversa:
+{history}
+ 
+Última mensagem do aluno: "{user_query}"
+ 
+Responde APENAS em JSON válido:
+{{
+  "messages": ["pergunta clara e directa sobre o {ancora_label_lower}"],
+  "emotion": "CURIOUS",
+  "interaction_type": "CHIPS",
+  "assessment": null,
+  "phase": "TEST",
+  "interaction_data": {{
+    "options": ["opção A", "opção B", "opção C", "opção D"]
+  }}
+}}
+"""
 # ==============================================================================
 # PROMPT 3a — FEEDBACK CORRECT
 # Kani elogia. assessment já foi calculado pelo Python como "CORRECT".
@@ -356,12 +390,46 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
         )
 
     elif phase == "TEST":
-        system_text = PROMPT_TEST.format(
-            subject=subject, topic=topic,
-            context_rules=context_rules,
-            lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
-        )
-
+ 
+        # 🆕 Resolver âncora aleatória se o tópico tiver âncoras
+        ancora_data = None
+        if request.ancoras:
+            ancora_data = get_ancora(request.ancoras)  # get_ancora aceita lista → escolhe aleatório
+ 
+        if ancora_data:
+            # Âncora disponível → injeta no prompt de TEST
+            if ancora_data["tipo"] == "visual":
+                ancora_label       = "DESCRIÇÃO VISUAL (Cartaz ou Sinal)"
+                ancora_label_lower = "cartaz ou sinal descrito"
+            else:
+                ancora_label       = "TEXTO DE SUPORTE"
+                ancora_label_lower = "texto acima"
+ 
+            system_text = PROMPT_TEST_COM_ANCORA.format( # ⬅️ MUDOU DE prompt PARA system_text
+                student_class=request.student_class,
+                subject=request.subject,
+                topic=request.topic,
+                context_rules=request.context_rules,
+                ancora_label=ancora_label,
+                ancora_label_lower=ancora_label_lower,
+                ancora_conteudo=ancora_data["conteudo"],
+                history=request.history,                 # ⬅️ MUDOU DE formatted_history PARA request.history
+                user_query=request.user_query,
+            )
+            print(f"⚓ [Tutor/TEST] Âncora '{request.ancoras}' → {ancora_data['tipo']}", flush=True)
+ 
+        else:
+            # Sem âncora → usa o prompt TEST original
+            system_text = PROMPT_TEST.format(          
+                student_class=request.student_class,
+                subject=request.subject,
+                topic=request.topic,
+                context_rules=request.context_rules,
+                history=request.history,                
+                user_query=request.user_query,
+                lang_block=_LANG_BLOCK,    # 👇 ISTO FALTAVA E CAUSAVA O CRASH
+                math_block=_MATH_BLOCK,
+            )
     elif phase == "FEEDBACK":
         # ── Assessment calculado deterministicamente ───────────────────────────
         # O Python compara a resposta do aluno com a correcta.
@@ -400,7 +468,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
                 subject=subject, topic=topic,
                 lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
                 user_answer=user_answer,
-                correct_answer="(avalia tu com base na pergunta e na resposta do aluno)",
+                correct_answer="INFERIR_DO_CONTEXTO_DO_ALUNO",
                 last_question=request.last_question or "",
                 last_interaction_type=last_itype,
             )
@@ -420,7 +488,10 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
             user_query=request.user_query,
             history=request.history,
         )
-
+        # 👇 ADICIONA ESTAS DUAS LINHAS 👇
+        if phase == "TEST" and 'ancora_data' in locals() and ancora_data:
+            json_obj["ancora"] = ancora_data
+        # 👆 FIM DA ADIÇÃO 👆
         # Assessment: sobrescreve SEMPRE com o valor calculado (nunca do modelo)
         if assessment_override is not None:
             json_obj["assessment"] = assessment_override

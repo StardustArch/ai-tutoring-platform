@@ -70,4 +70,5 @@ export class MicroserviceChatRequestDto {
   last_question?: string;
   last_correct_answer?: string;
   last_interaction_type?: string;
+  ancoras?: string[]; 
 }

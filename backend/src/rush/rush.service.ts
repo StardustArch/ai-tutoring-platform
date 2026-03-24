@@ -27,8 +27,7 @@ export class RushService {
             'INICIANTE': 1,
             'ABAIXO_MEDIA': 2,
             'NA_MEDIA': 3,
-            'AVANCADO': 4,
-            'EXPERT': 5
+            'AVANCADO': 4
         };
         if (proficiencia.nivel !== 'NAO_DIAGNOSTICADO') {
             return mapProf[proficiencia.nivel] || 3;
@@ -41,7 +40,7 @@ export class RushService {
 
     if (diagnostic && new Date() < diagnostic.validoAte) {
         const mapDiag: Record<string, number> = {
-            'MUITO_FACIL': 1, 'FACIL': 2, 'MEDIO': 3, 'DIFICIL': 4, 'MUITO_DIFICIL': 5
+            'MUITO_FACIL': 1, 'FACIL': 2, 'MEDIO': 3, 'DIFICIL': 4
         };
         return mapDiag[diagnostic.nivelDiagnosticado] || 3;
     }
@@ -49,24 +48,56 @@ export class RushService {
     return 3;
   }
 
+  // ── HELPER — adicionar no topo do ficheiro (ou no fim, antes do }) ────
+ 
+/**
+ * Escolhe uma âncora aleatória da lista de âncoras do tópico.
+ * Devolve undefined se o tópico não tiver âncoras definidas.
+ */
+ _resolveAncoraAleatoria(ancoras: string[] | null | undefined): string | undefined {
+  if (!ancoras || ancoras.length === 0) return undefined;
+  return ancoras[Math.floor(Math.random() * ancoras.length)];
+}
+
   // --- 2. GERAR PERGUNTA (REFATORADA COM CACHE) ---
 
-  async getNextQuestion(alunoId: number, classe: number, disciplina: string, subtopico: string) {
+    async getNextQuestion(alunoId: number, classe: number, disciplina: string, subtopico: string) {
     const subject = (disciplina || 'matematica').toLowerCase();
     const subtopicName = subtopico || 'Geral';
     const classeInt = Number(classe);
-
+ 
+    // 🆕 incluir ancoras no findFirst
     let topicoDb = await this.prisma.topico.findFirst({
-      where: { nome: subtopicName, nivelClasse: classeInt }
+      where: { nome: subtopicName, nivelClasse: classeInt },
+      select: {
+        id: true,
+        nome: true,
+        nivelClasse: true,
+        disciplinaId: true,
+        metadata: true,
+        ancoras: true,   // 🆕
+      }
     });
-
+ 
     let topicoId: number;
     if (topicoDb) {
       topicoId = topicoDb.id;
     } else {
       topicoId = await this.getOrCreateTopicoId(subject, subtopicName, classeInt);
-      topicoDb = await this.prisma.topico.findUnique({ where: { id: topicoId } });
+      // 🆕 rebuscar com ancoras após criar
+      topicoDb = await this.prisma.topico.findUnique({
+        where: { id: topicoId },
+        select: {
+          id: true,
+          nome: true,
+          nivelClasse: true,
+          disciplinaId: true,
+          metadata: true,
+          ancoras: true,   // 🆕
+        }
+      });
     }
+ 
 
     if (alunoId) {
       const proficiencia = await this.prisma.alunoProficienciaTopico.findUnique({
@@ -93,14 +124,18 @@ export class RushService {
       : [];
 
     const dificuldade = await this.getDifficultyLevel(alunoId, topicoId, subject);
-      
+const ancoras = (topicoDb as any)?.ancoras ?? [];
+const usarAncora = ancoras.length > 0 && Math.random() < 0.20;
+const ancora = usarAncora ? this._resolveAncoraAleatoria(ancoras) : undefined;
+this.logger.log(`🎲 [Rush âncora] ancoras=${ancoras.length} usarAncora=${usarAncora} ancora=${ancora ?? 'nenhuma'}`);
     try {
       const data = await this.cacheService.getQuestion({
         classe: classeInt,
         disciplina: subject,
         topicoId,
         dificuldade,
-        historicoRecente: perguntasParaIgnorar
+        historicoRecente: perguntasParaIgnorar,
+        ancora
       });
 
       // 🔥 CORREÇÃO CRÍTICA: OTIMIZAÇÃO DA BD
@@ -120,7 +155,9 @@ export class RushService {
             pergunta: data.question,
             opcoesJson: data.options,
             resposta: data.correct_answer,
-            dificuldade: dificuldade
+            dificuldade: dificuldade,
+            questaoOrigemId: data.cacheId ?? null,  // 🆕
+
           }
         });
       }
@@ -132,7 +169,8 @@ export class RushService {
         options: data.options,
         correct_answer: data.correct_answer,
         explanation: data.explanation || '',
-        cached: data.cached
+        cached: data.cached,
+        ancora: data.ancora ?? null,  // 🆕
       };
 
     } catch (err) {
@@ -160,8 +198,32 @@ export class RushService {
   }
 
   // --- 3. SALVAR RESPOSTA (TRANSACTIONAL - MANTIDO) ---
+// --- 3. SALVAR RESPOSTA (TRANSACTIONAL - MANTIDO E CORRIGIDO) ---
   async saveExerciseResult(alunoId: number, exercicioId: number | null, respostaAluno: string, acertou: boolean, topicoId: number, turmaId?: number, sessaoId?: number) {
     return await this.prisma.$transaction(async (tx) => {
+      
+      // 🔥 VALIDAÇÃO DE SEGURANÇA: Prevenir erros de Foreign Key fantasma
+      let validSessaoId = sessaoId || null;
+      if (validSessaoId) {
+          // Verifica se a sessão realmente existe na BD
+          const sessaoExiste = await tx.sessaoEstudo.findUnique({ 
+              where: { id: validSessaoId } 
+          });
+          if (!sessaoExiste) {
+              this.logger.warn(`Sessão fantasma detectada: ${validSessaoId} não existe. A gravar sem sessaoId.`);
+              validSessaoId = null; // Ignora o ID para não quebrar a inserção
+          }
+      }
+
+      // Validação semelhante para turmaId (opcional, mas boa prática)
+      let validTurmaId = turmaId || null;
+      if (validTurmaId) {
+          const turmaExiste = await tx.turma.findUnique({
+              where: { id: validTurmaId }
+          });
+          if (!turmaExiste) validTurmaId = null;
+      }
+
       const resultado = await tx.exercicioResultado.create({
         data: {
           alunoId,
@@ -170,10 +232,11 @@ export class RushService {
           respostaAluno,
           acertou,
           detalhesJson: { note: 'rush' },
-          turmaId: turmaId || null, 
-          sessaoId: sessaoId || null      
-          }
+          turmaId: validTurmaId,   // ⬅️ USA A VARIÁVEL VALIDADA
+          sessaoId: validSessaoId  // ⬅️ USA A VARIÁVEL VALIDADA
+        }
       });
+      
       await this.updateProficiencyLevel(alunoId, topicoId, acertou, tx);
 
       let prof = await tx.alunoProficienciaTopico.findUnique({
@@ -310,7 +373,7 @@ private async updateProficiencyLevel(alunoId: number, topicoId: number, acertou:
     if (!atual) return;
 
     // 🔥 1. ADICIONADO 'EXPERT' E 'NAO_DIAGNOSTICADO' PARA EVITAR ERROS
-    const niveis = ['INICIANTE', 'ABAIXO_MEDIA', 'NA_MEDIA', 'AVANCADO', 'EXPERT'];
+    const niveis = ['INICIANTE', 'ABAIXO_MEDIA', 'NA_MEDIA', 'AVANCADO'];
     let index = niveis.indexOf(atual.nivel);
 
     // Se for um nível estranho ou não diagnosticado, assumimos a média para poder subir/descer

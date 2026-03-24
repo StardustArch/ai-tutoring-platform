@@ -153,6 +153,7 @@ model Topico {
   exercicios          Exercicio[]
   questoesNoCache     QuestaoCache[]
   licaoProgressos     LicaoProgresso[]
+  ancoras             String[]
 
   @@map("topicos")
 }
@@ -216,11 +217,13 @@ model Exercicio {
 
   resultados ExercicioResultado[]
 
-  pergunta    String
-  opcoesJson  Json? // ["A","B","C","D"]
-  resposta    String // resposta correta
-  dificuldade Int // 1-5
-  criadoEm    DateTime @default(now())
+  pergunta        String
+  opcoesJson      Json? // ["A","B","C","D"]
+  resposta        String // resposta correta
+  dificuldade     Int // 1-5
+  criadoEm        DateTime      @default(now())
+  questaoOrigemId Int?
+  questaoOrigem   QuestaoCache? @relation(fields: [questaoOrigemId], references: [id])
 
   @@map("exercicios")
 }
@@ -230,7 +233,6 @@ enum NivelProficiencia {
   ABAIXO_MEDIA
   NA_MEDIA
   AVANCADO
-  EXPERT
   NAO_DIAGNOSTICADO
 }
 
@@ -335,42 +337,49 @@ model SessaoEstudo {
 
 // ✅ NOVO MODELO DE CACHE (ARMAZÉM)
 model QuestaoCache {
-  id          Int    @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   topicoId    Int
-  topico      Topico @relation(fields: [topicoId], references: [id], onDelete: Cascade)
-  disciplina  String // "matematica" ou "portugues"
+  topico      Topico  @relation(fields: [topicoId], references: [id], onDelete: Cascade)
+  disciplina  String
   classe      Int
-  dificuldade Int // 1 a 5
-  pergunta    String @db.Text
+  dificuldade Int
+  pergunta    String  @db.Text
   opcoesJson  Json
+  structure   String? // 🆕 opcional — NULL = gerado pelo Rush/Cron; preenchido = gerado pelo Lesson
 
   resposta      String
   explicacao    String   @db.Text
   signatureHash String
   criadoEm      DateTime @default(now())
 
+  ancoraChave       String? // ex: 'visual_circulo_raio_1'
+  ancoraTipo        String? // 'textual' | 'visual'
+  ancoraConteudo    String? // o texto completo
+  exerciciosGerados Exercicio[] // 🆕 relação inversa
+
   @@index([topicoId, dificuldade, classe])
+  @@index([topicoId, dificuldade, structure]) // 🆕 índice para filtros do Lesson
   @@map("questao_cache")
 }
 
 model LicaoProgresso {
-  id       Int @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  alunoId  Int
-  aluno    Aluno        @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  alunoId Int
+  aluno   Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
 
   topicoId Int
-  topico   Topico       @relation(fields: [topicoId], references: [id], onDelete: Cascade)
+  topico   Topico @relation(fields: [topicoId], references: [id], onDelete: Cascade)
 
-  sessaoId Int?    @unique
+  sessaoId Int?          @unique
   sessao   SessaoEstudo? @relation(fields: [sessaoId], references: [id])
 
   // Estado serializado (slots, fase, revisaoQueue, slotExercicioMap, ...)
-  estado   Json
+  estado Json
 
   concluida       Boolean @default(false)
-  tentativa       Int     @default(1)   // 1ª vez, 2ª vez, 3ª vez, ...
-  melhorPontuacao Int?                  // acertos na melhor tentativa concluída
+  tentativa       Int     @default(1) // 1ª vez, 2ª vez, 3ª vez, ...
+  melhorPontuacao Int? // acertos na melhor tentativa concluída
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt

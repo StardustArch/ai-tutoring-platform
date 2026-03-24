@@ -21,12 +21,13 @@ export class LessonController {
   }) {
     if (!body.alunoId) throw new BadRequestException('alunoId é obrigatório');
     if (!body.topicoId) throw new BadRequestException('topicoId é obrigatório');
-
-    return this.licaoService.startLicao(
+    const data = await this.licaoService.startLicao(
       body.alunoId,
       body.topicoId,
       body.turmaId,
     );
+    console.log(data)
+    return data;
   }
 
   // ── POST /api/licao/answer ───────────────────────────────────────────────
@@ -53,7 +54,9 @@ export class LessonController {
   @Post('next')
   async next(@Body() body: { progressoId: number }) {
     if (!body.progressoId) throw new BadRequestException('progressoId é obrigatório');
-    return this.licaoService.nextQuestion(body.progressoId);
+    const data = await this.licaoService.nextQuestion(body.progressoId);
+    console.log(data)
+    return data;
   }
 
     // ── GET /api/licao/historico/:alunoId ────────────────────────────────────

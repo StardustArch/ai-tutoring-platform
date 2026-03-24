@@ -1,0 +1,17 @@
+<svg width="100%" viewBox="0 0 200 200" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Círculo 2: diâmetro=12cm, raio=? -->
+  <g transform="translate(100,105)">
+    <circle r="72" fill="none" stroke="#222" stroke-width="1.5"></circle>
+    <circle r="3" fill="#222"></circle>
+    <text x="4" y="-4" font-size="11" font-family="sans-serif" fill="#222">O</text>
+    <!-- diâmetro horizontal com seta nas duas pontas -->
+    <line x1="-72" y1="0" x2="72" y2="0" stroke="#222" stroke-width="1.2"></line>
+    <polygon points="-72,0 -64,-4 -64,4" fill="#222"></polygon>
+    <polygon points="72,0 64,-4 64,4" fill="#222"></polygon>
+    <text x="0" y="12" font-size="10" font-family="sans-serif" fill="#222" text-anchor="middle">diâmetro = 12 cm</text>
+    <!-- raio tracejado -->
+    <line x1="0" y1="0" x2="0" y2="-72" stroke="#555" stroke-width="1" stroke-dasharray="4,3"></line>
+    <text x="6" y="-36" font-size="10" font-family="sans-serif" fill="#888">raio = ?</text>
+  </g>
+</svg>

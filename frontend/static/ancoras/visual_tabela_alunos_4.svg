@@ -1,0 +1,34 @@
+<svg width="100%" viewBox="0 0 300 200" style="display: block;" xmlns="http://www.w3.org/2000/svg">  
+  <!-- Título -->
+  <text x="150" y="24" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222" font-weight="500">Alunos presentes — turma prof. Glória</text>
+  
+  <!-- Cabeçalho -->
+  <rect x="50" y="30" width="120" height="26" fill="#E8E4D8" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="47" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222" font-weight="500">Semana</text>
+  <rect x="170" y="30" width="80" height="26" fill="#E8E4D8" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="47" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222" font-weight="500">Alunos</text>
+  
+  <!-- Linha 1: Semana 1 -->
+  <rect x="50" y="56" width="120" height="26" fill="white" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="73" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Semana 1</text>
+  <rect x="170" y="56" width="80" height="26" fill="white" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="73" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">32</text>
+  
+  <!-- Linha 2: Semana 2 -->
+  <rect x="50" y="82" width="120" height="26" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="99" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Semana 2</text>
+  <rect x="170" y="82" width="80" height="26" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="99" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">28</text>
+  
+  <!-- Linha 3: Semana 3 -->
+  <rect x="50" y="108" width="120" height="26" fill="white" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="125" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Semana 3</text>
+  <rect x="170" y="108" width="80" height="26" fill="white" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="125" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">35</text>
+  
+  <!-- Linha 4: Semana 4 -->
+  <rect x="50" y="134" width="120" height="26" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="151" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Semana 4</text>
+  <rect x="170" y="134" width="80" height="26" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="151" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">30</text>
+</svg>

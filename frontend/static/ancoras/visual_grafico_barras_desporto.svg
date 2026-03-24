@@ -1,0 +1,40 @@
+<svg width="100%" viewBox="0 0 460 220" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+  <text x="230" y="18" text-anchor="middle" font-size="12" font-weight="500" font-family="sans-serif" fill="#222">Desporto preferido dos alunos da 3ª classe</text>
+  <g font-size="10" font-family="sans-serif" fill="#555" text-anchor="end">
+    <text x="52" y="178">0</text><text x="52" y="166">2</text><text x="52" y="154">4</text>
+    <text x="52" y="142">6</text><text x="52" y="130">8</text><text x="52" y="118">10</text>
+    <text x="52" y="106">12</text><text x="52" y="94">14</text>
+  </g>
+  <g stroke="#ddd" stroke-width="0.5">
+    <line x1="58" y1="175" x2="430" y2="175"></line>
+    <line x1="58" y1="163" x2="430" y2="163"></line>
+    <line x1="58" y1="151" x2="430" y2="151"></line>
+    <line x1="58" y1="139" x2="430" y2="139"></line>
+    <line x1="58" y1="127" x2="430" y2="127"></line>
+    <line x1="58" y1="115" x2="430" y2="115"></line>
+    <line x1="58" y1="103" x2="430" y2="103"></line>
+    <line x1="58" y1="91" x2="430" y2="91"></line>
+    <line x1="58" y1="79" x2="430" y2="79"></line>
+  </g>
+  <line x1="58" y1="79" x2="58" y2="175" stroke="#222" stroke-width="1"></line>
+  <line x1="58" y1="175" x2="430" y2="175" stroke="#222" stroke-width="1"></line>
+
+  <!-- escala: max=14, area=96px. 1 unidade=96/14=6.857px -->
+  <!-- Futebol:14 → h=96, y=79 -->
+  <rect x="88" y="79" width="55" height="96" fill="#D4A96A" stroke="#B8884A" stroke-width="0.5"></rect>
+  <!-- Corrida:5 → h=34.3, y=140.7 -->
+  <rect x="181" y="140" width="55" height="35" fill="#D4A96A" stroke="#B8884A" stroke-width="0.5"></rect>
+  <!-- Natação:7 → h=48, y=127 -->
+  <rect x="274" y="127" width="55" height="48" fill="#D4A96A" stroke="#B8884A" stroke-width="0.5"></rect>
+  <!-- Basquetebol:4 → h=27.4, y=147.6 -->
+  <rect x="367" y="148" width="55" height="27" fill="#D4A96A" stroke="#B8884A" stroke-width="0.5"></rect>
+
+  <g font-size="10" font-family="sans-serif" fill="#222" text-anchor="middle">
+    <text x="115" y="190">Futebol</text>
+    <text x="208" y="190">Corrida</text>
+    <text x="301" y="190">Natação</text>
+    <text x="394" y="190">Basquetebol</text>
+  </g>
+  <text transform="rotate(-90)" x="-100" y="14" text-anchor="middle" font-size="10" font-family="sans-serif" fill="#555">Número de alunos</text>
+  <text x="244" y="208" text-anchor="middle" font-size="10" font-family="sans-serif" fill="#555">Desporto</text>
+</svg>

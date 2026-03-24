@@ -1,0 +1,40 @@
+<svg width="100%" viewBox="0 0 300 200" style="display: block;" xmlns="http://www.w3.org/2000/svg">  
+  <!-- Título -->
+  <text x="150" y="24" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222" font-weight="500">Produção de caju — Cooperativa de Sofala</text>
+  
+  <!-- Cabeçalho -->
+  <rect x="50" y="30" width="120" height="26" fill="#E8E4D8" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="47" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222" font-weight="500">Mês</text>
+  <rect x="170" y="30" width="80" height="26" fill="#E8E4D8" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="47" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222" font-weight="500">Sacos</text>
+  
+  <!-- Linha 1: Janeiro -->
+  <rect x="50" y="56" width="120" height="26" fill="white" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="73" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Janeiro</text>
+  <rect x="170" y="56" width="80" height="26" fill="white" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="73" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">45</text>
+  
+  <!-- Linha 2: Fevereiro -->
+  <rect x="50" y="82" width="120" height="26" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="99" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Fevereiro</text>
+  <rect x="170" y="82" width="80" height="26" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="99" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">60</text>
+  
+  <!-- Linha 3: Março -->
+  <rect x="50" y="108" width="120" height="26" fill="white" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="125" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Março</text>
+  <rect x="170" y="108" width="80" height="26" fill="white" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="125" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">80</text>
+  
+  <!-- Linha 4: Abril -->
+  <rect x="50" y="134" width="120" height="26" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="151" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Abril</text>
+  <rect x="170" y="134" width="80" height="26" fill="#F7F5EE" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="151" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">55</text>
+  
+  <!-- Linha 5: Maio -->
+  <rect x="50" y="160" width="120" height="26" fill="white" stroke="#aaa" stroke-width="0.5" />
+  <text x="110" y="177" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">Maio</text>
+  <rect x="170" y="160" width="80" height="26" fill="white" stroke="#aaa" stroke-width="0.5" />
+  <text x="210" y="177" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">30</text>
+</svg>

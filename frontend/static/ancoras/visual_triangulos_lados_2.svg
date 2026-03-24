@@ -1,0 +1,45 @@
+<svg width="100%" viewBox="0 0 680 180" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+  <!-- A: Escaleno 6/8/10 -->
+  <g transform="translate(90,140)">
+    <polygon points="0,0 120,0 30,-65" fill="none" stroke="#222" stroke-width="1.5"></polygon>
+    <text x="60" y="16" text-anchor="middle" font-size="10" fill="#555">10 cm</text>
+    <text x="8" y="-32" text-anchor="end" font-size="10" fill="#555">6 cm</text>
+    <text x="82" y="-30" font-size="10" fill="#555">8 cm</text>
+  </g>
+  <text x="150" y="166" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">A — escaleno</text>
+
+  <!-- B: Equilátero 7/7/7 -->
+  <g transform="translate(310,140)">
+    <polygon points="0,0 84,0 42,-72" fill="none" stroke="#222" stroke-width="1.5"></polygon>
+        <!-- ticks corrigidos (perpendiculares aos lados) -->
+    <!-- base -->
+    <line x1="40" y1="-4" x2="40" y2="4" stroke="#222" stroke-width="1.5"/>
+    <!-- lado esquerdo -->
+    <line x1="16" y1="-38.5" x2="24" y2="-30.5" stroke="#222" stroke-width="1.5" />
+    <!-- lado direito -->
+    <line x1="68" y1="-39" x2="59" y2="-30" stroke="#222" stroke-width="1.5"></line>
+    <text x="42" y="16" text-anchor="middle" font-size="10" fill="#555">7 cm</text>
+    <text x="14" y="-33" text-anchor="end" font-size="10" fill="#555">7 cm</text>
+    <text x="69" y="-33" font-size="10" fill="#555">7 cm</text>
+  </g>
+  <text x="352" y="166" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">B — equilátero</text>
+
+  <!-- C: Isósceles 5/5/8 -->
+  <g transform="translate(510,140)">
+    <polygon points="0,0 96,0 48,-56" fill="none" stroke="#222" stroke-width="1.5"></polygon>
+        <!-- ticks duplos corrigidos -->
+    <!-- lado esquerdo -->
+    <line x1="19.5" y1="-33" x2="29.5" y2="-27" stroke="#222" stroke-width="1.5" />
+    <line x1="21.5" y1="-35" x2="31.5" y2="-29" stroke="#222" stroke-width="1.5" />
+
+    <!-- lado direito -->
+    <line x1="65" y1="-26" x2="75" y2="-32" stroke="#222" stroke-width="1.5"/>
+    <line x1="63" y1="-28" x2="73" y2="-34" stroke="#222" stroke-width="1.5"/>
+
+    <text x="48" y="16" text-anchor="middle" font-size="10" fill="#555">8 cm</text>
+
+    <text x="14" y="-26" text-anchor="end" font-size="10" fill="#555">5 cm</text>
+    <text x="80" y="-26" font-size="10" fill="#555">5 cm</text>
+  </g>
+  <text x="558" y="166" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#222">C — isósceles</text>
+</svg>
