@@ -538,6 +538,8 @@ export class LessonService {
           opcoesJson: pergunta.options,
           resposta: pergunta.correct_answer,
           dificuldade: slot.difficulty,
+          questaoOrigemId: (pergunta as any).cacheId ?? null,  // 🆕
+
         },
       });
     }

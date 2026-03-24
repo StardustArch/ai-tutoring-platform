@@ -78,6 +78,40 @@ async getDashboardOverview(usuarioId: number) {
     };
   }
 
+  private getDemoOverview() {
+  return [
+    {
+      id: -1,
+      nome: 'Turma Demo ⚡',
+      disciplina: 'Demonstração',
+      totalAlunos: 2,
+      mediaTurma: 68,
+      alunos: [
+        {
+          id: -101,
+          nome: 'Ana',
+          taxa: 85,
+          totalAtividades: 15,
+          status: 'good',
+          turmaId: -1,
+          turmaNome: 'Turma Demo ⚡',
+          isDemo: true
+        },
+        {
+          id: -102,
+          nome: 'Carlos',
+          taxa: 52,
+          totalAtividades: 12,
+          status: 'warning',
+          turmaId: -1,
+          turmaNome: 'Turma Demo ⚡',
+          isDemo: true
+        }
+      ]
+    }
+  ];
+}
+
   async getReportsOverview(usuarioId: number) {
     // 1. Identificar o Professor
     const professor = await this.prisma.professor.findUnique({
@@ -165,6 +199,12 @@ async getDashboardOverview(usuarioId: number) {
       };
     }));
 
-    return relatorioConsolidado;
+ const totalAlunos = relatorioConsolidado.flatMap(t => t.alunos).length;
+
+if (totalAlunos === 0) {
+  return this.getDemoOverview();
+}
+
+return relatorioConsolidado;
   }
 }

@@ -217,11 +217,13 @@ model Exercicio {
 
   resultados ExercicioResultado[]
 
-  pergunta    String
-  opcoesJson  Json? // ["A","B","C","D"]
-  resposta    String // resposta correta
-  dificuldade Int // 1-5
-  criadoEm    DateTime @default(now())
+  pergunta        String
+  opcoesJson      Json? // ["A","B","C","D"]
+  resposta        String // resposta correta
+  dificuldade     Int // 1-5
+  criadoEm        DateTime      @default(now())
+  questaoOrigemId Int?
+  questaoOrigem   QuestaoCache? @relation(fields: [questaoOrigemId], references: [id])
 
   @@map("exercicios")
 }
@@ -350,9 +352,10 @@ model QuestaoCache {
   signatureHash String
   criadoEm      DateTime @default(now())
 
-  ancoraChave    String? // ex: 'visual_circulo_raio_1'
-  ancoraTipo     String? // 'textual' | 'visual'
-  ancoraConteudo String? // o texto completo
+  ancoraChave       String? // ex: 'visual_circulo_raio_1'
+  ancoraTipo        String? // 'textual' | 'visual'
+  ancoraConteudo    String? // o texto completo
+  exerciciosGerados Exercicio[] // 🆕 relação inversa
 
   @@index([topicoId, dificuldade, classe])
   @@index([topicoId, dificuldade, structure]) // 🆕 índice para filtros do Lesson
@@ -386,5 +389,3 @@ model LicaoProgresso {
   @@index([alunoId, topicoId])
   @@map("licao_progressos")
 }
-
-

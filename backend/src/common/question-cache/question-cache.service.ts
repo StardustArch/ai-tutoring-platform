@@ -86,18 +86,19 @@ if (cachedPool.length > 0) {
       `⚡ [CACHE HIT] Tópico ${topicoId} - Dificuldade ${dificuldade}` +
         (structure ? ` - Structure: "${structure.substring(0, 40)}..."` : ''),
     );
-    return {
-      question: selected.pergunta,
-      options: selected.opcoesJson as string[],
-      correct_answer: selected.resposta,
-      explanation: selected.explicacao,
-      cached: true,
-      ancora: selected.ancoraChave ? {
-        chave:    selected.ancoraChave,
-        tipo:     selected.ancoraTipo,
-        conteudo: selected.ancoraConteudo,
-      } : null,
-    };
+return {
+  question: selected.pergunta,
+  options: selected.opcoesJson as string[],
+  correct_answer: selected.resposta,
+  explanation: selected.explicacao,
+  cached: true,
+  cacheId: selected.id,  // 🆕
+  ancora: selected.ancoraChave ? {
+    chave: selected.ancoraChave,
+    tipo: selected.ancoraTipo,
+    conteudo: selected.ancoraConteudo,
+  } : null,
+};
   }
 }
     // ── 2. Cache Miss → Gera na IA ────────────────────────────────────────────
@@ -269,31 +270,32 @@ return {
         where: { topicoId: params.topicoId, pergunta: data.question },
       });
 
-      if (perguntaDuplicada) {
-        this.logger.warn(
-          `♻️ Duplicata detectada ("${data.question.substring(0, 30)}..."). Entregue mas NÃO guardada.`,
-        );
-      } else {
-        await this.prisma.questaoCache.create({
-          data: {
-            topicoId: params.topicoId,
-            disciplina: params.disciplina,
-            classe: params.classe,
-            dificuldade: params.dificuldade,
-            pergunta: data.question,
-            opcoesJson: data.options,
-            resposta: data.correct_answer,
-            explicacao: data.explanation || '',
-            signatureHash: signature,
-            structure: params.structure ?? null, // 🆕 guarda a structure se vier
-            ancoraChave: params.ancora ?? null,
-            ancoraTipo: data.ancora_tipo ?? null,
-            ancoraConteudo: data.ancora_conteudo ?? null,
-          },
-        });
-      }
+let savedCache: Awaited<ReturnType<typeof this.prisma.questaoCache.create>> | null = null;
+if (!perguntaDuplicada) {
+  savedCache = await this.prisma.questaoCache.create({
+    data: {
+      topicoId: params.topicoId,
+      disciplina: params.disciplina,
+      classe: params.classe,
+      dificuldade: params.dificuldade,
+      pergunta: data.question,
+      opcoesJson: data.options,
+      resposta: data.correct_answer,
+      explicacao: data.explanation || '',
+      signatureHash: signature,
+      structure: params.structure ?? null,
+      ancoraChave: params.ancora ?? null,
+      ancoraTipo: data.ancora_tipo ?? null,
+      ancoraConteudo: data.ancora_conteudo ?? null,
+    },
+  });
+} else {
+  // Duplicata — busca o id do existente para não perder a referência
+  savedCache = perguntaDuplicada;
+}
 
-      return { ...data, cached: false };
+      return { ...data, cached: false, cacheId: savedCache?.id ?? null };
+
     } catch (e) {
       this.logger.error(`Erro ao gerar via IA: ${e.message}`);
       throw e;

@@ -155,7 +155,9 @@ this.logger.log(`🎲 [Rush âncora] ancoras=${ancoras.length} usarAncora=${usar
             pergunta: data.question,
             opcoesJson: data.options,
             resposta: data.correct_answer,
-            dificuldade: dificuldade
+            dificuldade: dificuldade,
+            questaoOrigemId: data.cacheId ?? null,  // 🆕
+
           }
         });
       }

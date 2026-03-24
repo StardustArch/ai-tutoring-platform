@@ -74,6 +74,15 @@ export class StudentController {
     @Query('range') range: string, // <--- Ler da URL ?range=7d
     @Req() req: any
   ) {
-    return this.studentService.getStudentReportForTeacher(studentId, req.user.id, range);
+    return this.studentService.getStudentReportForTeacherV2(studentId, req.user.id, range);
   }
+
+
+  @Get('teacher/session/:sessionId/detail')
+async getSessionDetail(
+  @Param('sessionId', ParseIntPipe) sessionId: number,
+  @Req() req: any
+) {
+  return this.studentService.getSessionDetail(sessionId, req.user.id);
+}
 }
