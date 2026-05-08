@@ -4,14 +4,14 @@ export class CreateClassDto {
   @IsNotEmpty()
   @IsString()
   @Length(3, 50)
-  nome: string; // Ex: "Matemática 4ª Classe - Manhã"
+  nome: string;
 
   @IsNotEmpty()
   @IsInt()
-  disciplinaId: number; // O ID da disciplina (Matemática, Português, etc.)
+  disciplinaId: number;
 
   @IsInt()
   @Min(3)
-  @Max(4) // Assumindo que o sistema vai até à 12ª
+  @Max(4)
   classe: number;
 }

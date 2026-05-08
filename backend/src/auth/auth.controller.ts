@@ -14,20 +14,21 @@ import {
 } from '@nestjs/common';
 import { AuthService, TokenResponse } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import express from 'express'; // ← CORRETO: Import do Express
-import { ConfigService } from '@nestjs/config'; // <-- 4. IMPORTAR 'ConfigService'
+import express from 'express';
+import { ConfigService } from '@nestjs/config';
 
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ConfirmEmailDto } from './dto/confirm-email.dto';
 
-@Controller('api/auth') // Define o prefixo da rota (ex: /api/auth/...)
+@Controller('api/auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly configService: ConfigService, // <-- 5. INJECTAR 'ConfigService'
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -36,39 +37,33 @@ export class AuthController {
    */
   @Post('register')
   async registerEncarregado(@Body(new ValidationPipe()) dto: RegisterDto) {
-    // O 'ValidationPipe' usa 'class-validator' para validar o DTO
     return this.authService.register(dto);
   }
 
-  // src/auth/auth.controller.ts
-
-@Post('confirm-email')
-async confirmEmail(@Body('token') token: string) {
-    return this.authService.confirmEmail(token);
-}
+  @Post('confirm-email')
+  async confirmEmail(@Body() dto: ConfirmEmailDto) {
+    return this.authService.confirmEmail(dto.token);
+  }
 
   /**
    * Rota para Login (Token)
    * POST /api/auth/token
    */
   @Post('token')
-  @HttpCode(HttpStatus.OK) // Por defeito, POST devolve 201, mas para login queremos 200
+  @HttpCode(HttpStatus.OK)
   async login(
     @Body(new ValidationPipe()) dto: LoginDto,
   ): Promise<TokenResponse> {
     return this.authService.login(dto);
   }
 
-  @UseGuards(AuthGuard('jwt-refresh')) // <-- 4. PROTEGER a rota com o "Guarda" de refresh
+  @UseGuards(AuthGuard('jwt-refresh'))
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshTokens(@Request() req): Promise<TokenResponse> {
-    // 'req.user' é o payload { sub, userId } que o
-    // nosso 'RefreshJwtStrategy' validou e devolveu.
     const userId = req.user.userId;
     const email = req.user.sub;
 
-    // 5. Chamar o "Cérebro" para gerar novos tokens
     return this.authService.refreshTokens(userId, email);
   }
 
@@ -84,15 +79,11 @@ async confirmEmail(@Body('token') token: string) {
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthCallback(
-    @Request() req,
-    @Res() res: express.Response, // ← CORRETO: Response do Express
-  ) {
+  async googleAuthCallback(@Request() req, @Res() res: express.Response) {
     try {
       const user = req.user;
       const tokens = await this.authService.loginOAuth(user);
 
-      // CORREÇÃO: Garantir que frontendUrl não é undefined
       const frontendUrl = this.configService.get<string>('FRONTEND_URL');
       if (!frontendUrl) {
         throw new Error(
@@ -100,19 +91,16 @@ async confirmEmail(@Body('token') token: string) {
         );
       }
 
-      // Remove comentários se existirem
       const cleanFrontendUrl = frontendUrl.split(' #')[0].trim();
 
-      const redirectUrl = `${cleanFrontendUrl}/auth-callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
+      const code = this.authService.generateOAuthCode(tokens);
 
-      console.log('Redirecionando para:', redirectUrl);
+      const redirectUrl = `${cleanFrontendUrl}/auth-callback?code=${code}`;
 
-      // CORRETO: redirect() do Express
       return res.redirect(redirectUrl);
     } catch (error) {
       console.error('[Google Callback ERROR]', error);
 
-      // CORREÇÃO: Garantir que frontendUrl não é undefined no catch também
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';
       const cleanFrontendUrl = frontendUrl.split(' #')[0].trim();
 
@@ -120,6 +108,12 @@ async confirmEmail(@Body('token') token: string) {
         `${cleanFrontendUrl}/auth-callback?error=oauth_failed`,
       );
     }
+  }
+
+  @Post('exchange-code')
+  @HttpCode(HttpStatus.OK)
+  exchangeCode(@Body('code') code: string) {
+    return this.authService.exchangeOAuthCode(code);
   }
 
   @Post('forgot-password')
@@ -132,9 +126,10 @@ async confirmEmail(@Body('token') token: string) {
     return this.authService.resetPassword(dto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
   async logout(@Request() req) {
-    console.log(req.user)
     return this.authService.logout(req.user.id);
   }
 
