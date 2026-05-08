@@ -105,13 +105,24 @@ OUTPUT JSON:
   "interaction_type": "CHIPS" | "TRUE_FALSE" | "CLOZE" | "DIRECT_INPUT" | "DRAG_DROP",
   "assessment": null,
   "correct_answer": "the exact correct answer string",
-  "interaction_data": {{"options": ["correct_answer", "wrong1", "wrong2"]}}
+"interaction_data": {{
+  "options": [
+    "{correct_answer}",           # ← resposta correta
+    "distrator_plausivel_1",      # ← ex: para '8', use '7' ou '6'
+    "distrator_plausivel_2"       # ← ex: erro comum de posição
+  ]
+}}
 }}
 
 CRITICAL — "correct_answer" field is MANDATORY:
 - CHIPS/CLOZE/TRUE_FALSE: must exactly match one option string.
 - DIRECT_INPUT: write the ideal/expected answer (used for grading).
 - DRAG_DROP: items joined by space in correct order.
+⚠️ CRITICAL: NEVER use placeholder text like "wrong_option_1". 
+Generate REAL plausible wrong answers:
+- For math: use common mistakes (off-by-one, wrong place value, digit swap)
+- For concepts: use partially correct or common misconceptions
+- Options must be distinct and believable
 """
 
 
@@ -205,8 +216,13 @@ OUTPUT JSON:
   "emotion": "THOUGHTFUL",
   "interaction_type": "{last_interaction_type}",
   "assessment": "INCORRECT",
-  "interaction_data": {{"options": ["{correct_answer}", "wrong_option_1", "wrong_option_2"]}}
-}}
+  "interaction_data": {{
+  "options": [
+    "{correct_answer}",
+    "outra_resposta_possivel",  # ← instrua: use erro comum do aluno
+    "mais_uma_opcao_plausivel"
+  ]
+}}}}
 """
 
 # ==============================================================================
@@ -350,6 +366,87 @@ def _sanitize_interaction(obj: dict) -> dict:
         return obj
 
     return obj
+
+
+def generate_math_distractors(correct_answer: str, number_context: str = None) -> list:
+    """Gera 2 distratores plausíveis para respostas numéricas."""
+    if not correct_answer.isdigit():
+        return ["7", "9"]  # fallback
+    
+    num = int(correct_answer)
+    distractors = []
+    
+    # Distrator 1: off-by-one (erro comum de contagem)
+    distractors.append(str(num - 1 if num > 0 else num + 1))
+    
+    # Distrator 2: se tiver contexto de número completo, usa erro de posição
+    if number_context:
+        digits = number_context.replace(".", "").replace(",", "")
+        if correct_answer in digits and len(digits) > 1:
+            idx = digits.index(correct_answer)
+            # Pega dígito da posição vizinha
+            neighbor_idx = (idx + 1) % len(digits)
+            distractors.append(digits[neighbor_idx])
+        else:
+            distractors.append(str(num + 2))
+    else:
+        distractors.append(str(num + 2))
+    
+    return distractors[:2]
+
+def _fix_placeholder_options(options: list, correct_answer: str, subject: str, number_context: str = None) -> list:
+    """Substitui placeholders por distratores gerados deterministicamente."""
+    fixed = []
+    placeholder_count = 0
+    
+    for opt in options:
+        # Detecta placeholders literais
+        if opt in ["wrong_option_1", "wrong_option_2", "wrong_option_3", 
+                   "distrator_plausivel_1", "outra_resposta_possivel", "mais_uma_opcao_plausivel"]:
+            placeholder_count += 1
+            
+            # Se for Matemática e resposta numérica → usa gerador inteligente
+            if subject.lower() in ["matemática", "math", "matematica"] and correct_answer.isdigit():
+                distractors = generate_math_distractors(correct_answer, number_context)
+                # Adiciona distratores únicos que ainda não estão na lista
+                for d in distractors:
+                    if d not in fixed and d != correct_answer:
+                        fixed.append(d)
+                        if len([x for x in fixed if x != correct_answer]) >= 2:
+                            break
+            else:
+                # Fallback genérico para outras matérias
+                if correct_answer.isdigit():
+                    num = int(correct_answer)
+                    candidate = str(num - 1 if num > 0 else num + 1)
+                    if candidate not in fixed:
+                        fixed.append(candidate)
+                else:
+                    fixed.append(f"Outra opção")
+        else:
+            # Mantém opção válida gerada pelo LLM
+            if opt not in fixed:
+                fixed.append(opt)
+    
+    # Garante: [correta, distrator1, distrator2]
+    # 1. Garante que a correta está em primeiro (por convenção do frontend)
+    if correct_answer and correct_answer not in fixed:
+        fixed = [correct_answer] + fixed
+    elif correct_answer and fixed[0] != correct_answer:
+        fixed.remove(correct_answer)
+        fixed = [correct_answer] + fixed
+    
+    # 2. Completa com fallbacks se faltar opções
+    fallbacks = ["7", "9", "5", "3", "1"]  # números genéricos
+    i = 0
+    while len(fixed) < 3:
+        candidate = fallbacks[i % len(fallbacks)]
+        if candidate not in fixed:
+            fixed.append(candidate)
+        i += 1
+    
+    return list(dict.fromkeys(fixed))  # remove duplicatas mantendo ordem
+
 
 
 # ==============================================================================
@@ -498,6 +595,23 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
         else:
             # EXPLAIN e TEST nunca têm assessment
             json_obj["assessment"] = None
+        
+        if json_obj.get("interaction_data", {}).get("options"):
+            opts = json_obj["interaction_data"]["options"]
+            correct = json_obj.get("correct_answer", "")
+            
+            # Extrai número de contexto se for matemática (para distratores de posição)
+            number_context = None
+            if subject.lower() in ["matemática", "math", "matematica"]:
+                # Tenta extrair número da última pergunta ou do histórico recente
+                all_text = (request.last_question or "") + " " + " ".join(request.history[-2:] if request.history else [])
+                nums = re.findall(r'\b\d{3,}(?:\.\d{3})*(?:,\d+)?\b', all_text)
+                if nums:
+                    number_context = nums[0]  # pega o primeiro número grande encontrado
+            
+            json_obj["interaction_data"]["options"] = _fix_placeholder_options(
+                opts, correct, subject, number_context=number_context
+            )
 
         # Sanitiza interaction_type (não toca no assessment)
         json_obj = _sanitize_interaction(json_obj)

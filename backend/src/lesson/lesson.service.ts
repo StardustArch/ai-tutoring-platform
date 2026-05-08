@@ -49,7 +49,11 @@ export interface LicaoQuestionResponse {
   tentativa: number;
   melhorPontuacao: number | null;
   totalSlotsPlan: number;
-  ancora?: { chave: string; tipo: string; conteudo: string } | null;
+  ancora?: {
+    chave: string;
+    tipo: string | null;
+    conteudo: string | null;
+  } | null;
 }
 
 export interface LicaoAnswerResponse {
@@ -190,16 +194,25 @@ export class LessonService {
     if (!exercicio) throw new NotFoundException('Exercício não encontrado');
 
     const estado = progresso.estado as unknown as LicaoEstado;
-    const slotAResponder = estado.fase === 'normal' ? estado.currentSlotIndex : estado.revisaoQueue[0];
+    const slotAResponder =
+      estado.fase === 'normal'
+        ? estado.currentSlotIndex
+        : estado.revisaoQueue[0];
 
     // 👇 NOVO BLOCO: GUARD PARA PREVENIR RACE CONDITIONS 👇
     const exercicioEsperadoNoSlot = estado.slotExercicioMap[slotAResponder];
     if (exercicioEsperadoNoSlot && exercicioEsperadoNoSlot !== exercicioId) {
-        this.logger.warn(`⚠️ Race condition travada: Slot ${slotAResponder} esperava o exercício ${exercicioEsperadoNoSlot}, mas recebeu ${exercicioId}. Ignorando o duplo clique.`);
-        return {
-            acertou: false, explanation: "Duplo clique ignorado.", done: false,
-            revisaoCount: estado.fase === 'revisao' ? estado.revisaoQueue.length : 0, nextReady: true
-        };
+      this.logger.warn(
+        `⚠️ Race condition travada: Slot ${slotAResponder} esperava o exercício ${exercicioEsperadoNoSlot}, mas recebeu ${exercicioId}. Ignorando o duplo clique.`,
+      );
+      return {
+        acertou: false,
+        explanation: 'Duplo clique ignorado.',
+        done: false,
+        revisaoCount:
+          estado.fase === 'revisao' ? estado.revisaoQueue.length : 0,
+        nextReady: true,
+      };
     }
     // 🆕 Comparação normalizada — essencial para Direct Input
     // "540 000" == "540.000" == "540000"
@@ -357,72 +370,142 @@ export class LessonService {
     };
   }
 
-  // ── 3. PRÓXIMA PERGUNTA ─────────────────────────────────────────────────────
-  async nextQuestion(progressoId: number): Promise<LicaoQuestionResponse> {
-    const progresso = await this.prisma.licaoProgresso.findUnique({
-      where: { id: progressoId },
-      include: { topico: true },
-    });
-    if (!progresso) throw new NotFoundException('Progresso não encontrado');
-    if (progresso.concluida)
-      throw new BadRequestException('Lição já concluída');
+// ── 3. PRÓXIMA PERGUNTA ─────────────────────────────────────────────────────
+async nextQuestion(progressoId: number): Promise<LicaoQuestionResponse> {
+  const progresso = await this.prisma.licaoProgresso.findUnique({
+    where: { id: progressoId },
+    include: { topico: true },
+  });
+  if (!progresso) throw new NotFoundException('Progresso não encontrado');
+  if (progresso.concluida)
+    throw new BadRequestException('Lição já concluída');
 
-    const estado = progresso.estado as unknown as LicaoEstado;
+  const estado = progresso.estado as unknown as LicaoEstado;
 
-    if (estado.fase === 'revisao') {
-      const slotIndex = estado.revisaoQueue[0];
-      const exercicioId = estado.slotExercicioMap[slotIndex];
+  // ── FASE DE REVISÃO ────────────────────────────────────────────────────────
+  if (estado.fase === 'revisao') {
+    const slotIndex = estado.revisaoQueue[0]; // ✅ Declarado UMA vez aqui
+    const exercicioId = estado.slotExercicioMap[slotIndex];
 
-      if (exercicioId) {
-        const exercicio = await this.prisma.exercicio.findUnique({
-          where: { id: exercicioId },
-        });
-        if (exercicio) {
-          const totalSlots = estado.revisaoQueue.length;
-          const slot = estado.slots[slotIndex];
-          const questionType = this._resolveQuestionType(slot, exercicio.tipo);
-          return {
-            sessaoId: progresso.sessaoId!,
-            progressoId,
-            slotIndex,
-            totalSlots,
-            fase: 'revisao',
-            isLast: totalSlots === 1,
-            exercicioId: exercicio.id,
-            question: exercicio.pergunta,
-            options: exercicio.opcoesJson as string[],
-            correct_answer: exercicio.resposta,
-            explanation: '',
-            questionType,
-            tentativa: progresso.tentativa,
-            melhorPontuacao: progresso.melhorPontuacao,
-            totalSlotsPlan: estado.slots.length,
-          };
+    if (exercicioId) {
+      const exercicio = await this.prisma.exercicio.findUnique({
+        where: { id: exercicioId },
+      });
+
+      if (exercicio) {
+        // 🎯 BUSCAR ÂNCORA: Lógica em 2 camadas para suportar questaoOrigemId = null
+        let ancoraData: { chave: string; tipo: string | null; conteudo: string | null } | null = null;
+        
+        // 🔹 CAMADA 1: Busca direta pelo ID do cache (se existir)
+        if (exercicio.questaoOrigemId) {
+          const cacheEntry = await this.prisma.questaoCache.findUnique({
+            where: { id: exercicio.questaoOrigemId },
+            select: { ancoraChave: true, ancoraTipo: true, ancoraConteudo: true },
+          });
+          if (cacheEntry?.ancoraChave) {
+            ancoraData = {
+              chave: cacheEntry.ancoraChave,
+              tipo: cacheEntry.ancoraTipo,
+              conteudo: cacheEntry.ancoraConteudo,
+            };
+            this.logger.debug(`✅ [Revisão] Âncora recuperada por ID: ${ancoraData.chave}`);
+          }
         }
+        
+        // 🔹 CAMADA 2 (FALLBACK): Busca pelo texto da pergunta + topicoId
+        if (!ancoraData && exercicio.pergunta) {
+          const cacheByQuestion = await this.prisma.questaoCache.findFirst({
+            where: {
+              pergunta: exercicio.pergunta,
+              topicoId: exercicio.topicoId,
+              ancoraChave: { not: null },
+            },
+            select: { ancoraChave: true, ancoraTipo: true, ancoraConteudo: true },
+            orderBy: { criadoEm: 'desc' },
+          });
+          
+          if (cacheByQuestion?.ancoraChave) {
+            ancoraData = {
+              chave: cacheByQuestion.ancoraChave,
+              tipo: cacheByQuestion.ancoraTipo,
+              conteudo: cacheByQuestion.ancoraConteudo,
+            };
+            this.logger.log(`✅ [Revisão] Âncora recuperada por fallback (texto): ${ancoraData.chave}`);
+          }
+        }
+
+        // 🔹 CAMADA 3 (ÚLTIMO RECURSO): Busca fuzzy por similaridade (opcional)
+        if (!ancoraData && exercicio.pergunta && exercicio.pergunta.length > 20) {
+          const fragmento = exercicio.pergunta.substring(0, 50);
+          const cacheFuzzy = await this.prisma.questaoCache.findFirst({
+            where: {
+              pergunta: { contains: fragmento, mode: 'insensitive' },
+              topicoId: exercicio.topicoId,
+              ancoraChave: { not: null },
+            },
+            select: { ancoraChave: true, ancoraTipo: true, ancoraConteudo: true },
+          });
+          
+          if (cacheFuzzy?.ancoraChave) {
+            ancoraData = {
+              chave: cacheFuzzy.ancoraChave,
+              tipo: cacheFuzzy.ancoraTipo,
+              conteudo: cacheFuzzy.ancoraConteudo,
+            };
+            this.logger.warn(`⚠️ [Revisão] Âncora recuperada por busca fuzzy: ${ancoraData.chave}`);
+          }
+        }
+
+        const totalSlots = estado.revisaoQueue.length;
+        const slot = estado.slots[slotIndex];
+        const questionType = this._resolveQuestionType(slot, exercicio.tipo);
+
+        return {
+          sessaoId: progresso.sessaoId!,
+          progressoId,
+          slotIndex, // ✅ Usa a variável já declarada
+          totalSlots,
+          fase: 'revisao',
+          isLast: totalSlots === 1,
+          exercicioId: exercicio.id,
+          question: exercicio.pergunta,
+          options: exercicio.opcoesJson as string[],
+          correct_answer: exercicio.resposta,
+          explanation: '',
+          questionType,
+          tentativa: progresso.tentativa,
+          melhorPontuacao: progresso.melhorPontuacao,
+          totalSlotsPlan: estado.slots.length,
+          ancora: ancoraData,
+        };
       }
-      return this._gerarPerguntaParaSlot(
-        progresso.id,
-        progresso.sessaoId!,
-        estado,
-        progresso.topico,
-        slotIndex,
-        progresso.tentativa,
-        progresso.melhorPontuacao,
-      );
     }
 
-    const slotIndex = estado.currentSlotIndex;
+    // 🔄 Fallback final: regenera a pergunta se não encontrar o exercício
+    // ✅ SEM "const slotIndex" aqui - reutiliza a variável do scope superior
     return this._gerarPerguntaParaSlot(
       progresso.id,
       progresso.sessaoId!,
       estado,
       progresso.topico,
-      slotIndex,
+      slotIndex, // ✅ Reutiliza a mesma variável
       progresso.tentativa,
       progresso.melhorPontuacao,
     );
   }
 
+  // ── FASE NORMAL ────────────────────────────────────────────────────────────
+  const slotIndex = estado.currentSlotIndex; // ✅ Scope separado, sem conflito
+  return this._gerarPerguntaParaSlot(
+    progresso.id,
+    progresso.sessaoId!,
+    estado,
+    progresso.topico,
+    slotIndex,
+    progresso.tentativa,
+    progresso.melhorPontuacao,
+  );
+}
   // ── HELPER: resolve tipo ────────────────────────────────────────────────────
   private _resolveQuestionType(
     slot: LicaoSlot,
@@ -538,8 +621,7 @@ export class LessonService {
           opcoesJson: pergunta.options,
           resposta: pergunta.correct_answer,
           dificuldade: slot.difficulty,
-          questaoOrigemId: (pergunta as any).cacheId ?? null,  // 🆕
-
+          questaoOrigemId: (pergunta as any).cacheId ?? null, // 🆕
         },
       });
     }
