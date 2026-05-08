@@ -9,6 +9,7 @@
     // Removemos a dependência do $page aqui para evitar problemas de timing
     import { auth } from '$lib/store/auth'; // Confirma se o caminho é 'stores' (plural) ou 'store'
     import { Loader2 } from 'lucide-svelte';
+	import { PUBLIC_API_URL_HOST } from '$env/static/public';
 
     // --- LÓGICA DE REDIRECIONAMENTO ---
     function getDashboardRoute(user: any) {
@@ -26,62 +27,71 @@
         return '/dashboard';
     }
 
-    onMount(async () => {
-        // 1. USAR WINDOW.LOCATION (Mais robusto para callbacks OAuth)
-        // Isto lê diretamente a URL do navegador, ignorando o estado do router Svelte
-        const params = new URLSearchParams(window.location.search);
-        
-        const accessToken = params.get('accessToken');
-        const refreshToken = params.get('refreshToken');
-        const error = params.get('error');
-        console.log('🔐 [Auth Callback] Params lidos:', { 
-            hasAccess: !!accessToken, 
-            hasRefresh: !!refreshToken, 
-            error 
+onMount(async () => {
+    const params = new URLSearchParams(window.location.search);
+
+    const code = params.get('code');
+    const error = params.get('error');
+
+    console.log('🔐 [Auth Callback]', {
+        hasCode: !!code,
+        error
+    });
+
+    if (error) {
+        window.location.href = `/login?error=${error}`;
+        return;
+    }
+
+    if (!code) {
+        window.location.href = '/login?error=code_missing';
+        return;
+    }
+
+    try {
+        console.log('⏳ A trocar code por tokens...');
+
+        const response = await fetch(
+            `${PUBLIC_API_URL_HOST}/api/auth/exchange-code`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code }),
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error('Falha ao trocar code');
+        }
+
+        const tokens = await response.json();
+
+        console.log('✅ Tokens recebidos');
+
+        const result = await auth.login({
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken
         });
 
-        // 2. Validação de Erros
-        if (error) {
-            console.error('❌ Erro retornado pelo OAuth:', error);
-            window.location.href = `/login?error=${error}`; // Hard redirect é mais seguro aqui
-            return;
+        if (result.success && result.user) {
+            const target = getDashboardRoute(result.user);
+
+            console.log('🚀 Redirecionando para:', target);
+
+            window.location.href = target;
+        } else {
+            throw new Error('Utilizador inválido');
         }
 
-        if (!accessToken) {
-            console.error('❌ Token de acesso não encontrado na URL.');
-            window.location.href = '/login?error=token_missing';
-            return;
-        }
+    } catch (err) {
+        console.error('❌ [Auth Callback]', err);
 
-        // 3. Processar Login
-        try {
-            console.log('⏳ A iniciar auth.login...');
-            
-            // Chama o login do store
-            const result = await auth.login({ 
-                accessToken, 
-                refreshToken: refreshToken || undefined 
-            });
-
-            console.log('✅ Auth.login concluído:', result.success);
-
-            if (result.success && result.user) {
-                const target = getDashboardRoute(result.user);
-                console.log('🚀 Redirecionando para:', target);
-                
-                // Usamos window.location.href para garantir um 'hard refresh'
-                // Isso limpa qualquer estado "preso" do login anterior e garante que o dashboard carrega limpo
-                window.location.href = target;
-            } else {
-                throw new Error('Login efetuado mas user inválido');
-            }
-
-        } catch (err) {
-            console.error('❌ [Auth Callback] Falha crítica:', err);
-            // Se falhar, manda para o login com hard refresh
-            window.location.href = '/login?error=processing_failed';
-        }
-    });
+        window.location.href =
+            '/login?error=processing_failed';
+    }
+});
 </script>
 
 <div class="min-h-screen w-full flex flex-col items-center justify-center bg-white dark:bg-surface-950 p-4">

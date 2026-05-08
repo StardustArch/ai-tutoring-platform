@@ -1305,6 +1305,7 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
     FREE_MODELS = [
         "llama-3.3-70b-versatile",
         "openai/gpt-oss-120b",
+        "qwen/qwen3-32b",
         "llama-3.1-8b-instant",
     ]
     session_blacklist = set()

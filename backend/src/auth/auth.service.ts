@@ -10,6 +10,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { MailService } from '../mail/mail.service'; // <--- IMPORTANTE
+import { randomUUID } from 'node:crypto';
 
 export interface TokenResponse {
     accessToken: string;
@@ -31,8 +32,38 @@ export class AuthService {
         private jwtService: JwtService,
         private configService: ConfigService,
         private mailService: MailService, // <--- INJETAR AQUI
+        private oauthTempCodes = new Map<
+  string,
+  { accessToken: string; refreshToken: string }
+>()
     ) { }
 
+    generateOAuthCode(tokens: {
+  accessToken: string;
+  refreshToken: string;
+}) {
+  const code = randomUUID();
+
+  this.oauthTempCodes.set(code, tokens);
+
+  setTimeout(() => {
+    this.oauthTempCodes.delete(code);
+  }, 60_000);
+
+  return code;
+}
+
+exchangeOAuthCode(code: string) {
+  const tokens = this.oauthTempCodes.get(code);
+
+  if (!tokens) {
+    throw new UnauthorizedException('Código inválido ou expirado');
+  }
+
+  this.oauthTempCodes.delete(code);
+
+  return tokens;
+}
     // --- REGISTO NORMAL ---
 // 1. REGISTAR (ALTERADO)
     async register(dto: RegisterDto) {
@@ -45,7 +76,7 @@ export class AuthService {
         // Gerar Token de Verificação (Pode ser um JWT ou um UUID)
         const verificationToken = this.jwtService.sign(
             { email: dto.email }, 
-            { secret: this.configService.get('JWT_SECRET_KEY'), expiresIn: '1d' }
+            { secret: this.configService.get('JWT_SECRET_KEY'), expiresIn: '30m' }
         );
 
         const novoUsuario = await this.prisma.usuario.create({
@@ -105,7 +136,7 @@ export class AuthService {
 
     // --- LOGIN NORMAL ---
     async login(dto: LoginDto): Promise<TokenResponse> {
-        console.log('[AuthService] A processar login para:', dto.email);
+      
 
         // 1. Validar utilizador
         const usuario = await this.validateUserInternal(dto.email, dto.password);
@@ -139,7 +170,7 @@ export class AuthService {
 
     // --- OAUTH (GOOGLE) ---
     async validateOAuthUser(payload: OAuthPayload): Promise<Usuario> {
-        console.log(`[AuthService] Validando utilizador OAuth: ${payload.email}`);
+       
         
         let user = await this.prisma.usuario.findUnique({ where: { oauthId: payload.oauthId } });
         if (user) return user; 
@@ -147,14 +178,13 @@ export class AuthService {
         user = await this.prisma.usuario.findUnique({ where: { email: payload.email } });
 
         if (user) {
-            console.log('A ligar conta Google a utilizador existente...');
             return this.prisma.usuario.update({
                 where: { email: payload.email },
                 data: { oauthId: payload.oauthId, oauthProvider: payload.oauthProvider },
             });
         }
 
-        console.log('A criar novo utilizador OAuth...');
+       
         const newUser = await this.prisma.usuario.create({
             data: {
                 email: payload.email,

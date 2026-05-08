@@ -23,7 +23,7 @@ import { ManageClassTopicsDto } from './dto/manage-topics.dto';
 @Controller('api/classes') // Mudei para 'classes' (plural é convenção REST)
 @UseGuards(AuthGuard('jwt')) // Aplica proteção a tudo por padrão
 export class ClassController {
-  constructor(private readonly classService: ClassService) { }
+  constructor(private readonly classService: ClassService) {}
 
   // ==========================================
   // 👨‍🏫 ÁREA DO PROFESSOR
@@ -40,21 +40,24 @@ export class ClassController {
   }
   @Get('topics')
   async getTopics(
-    @Query('classe') classe: number,
-    @Query('studentId') studentId: number, // <--- NOVO: Obrigatório para ver o progresso
-    @Query('classId') classId?: number
+    @Query('classe', ParseIntPipe) classe: number,
+    @Query('studentId', ParseIntPipe) studentId: number,
+    @Request() req,
+    @Query('classId', new ParseIntPipe({ optional: true })) classId?: number,
   ) {
-    if (!classe) throw new BadRequestException('Classe é obrigatória');
-
-    // Se não houver studentId (ex: admin a ver), podes manter a lógica antiga ou exigir erro.
-    // Aqui assumimos que para jogar, tem de ter ID.
-    if (!studentId) throw new BadRequestException('ID do aluno é obrigatório para verificar progresso');
-
-    return this.classService.getTopicsForStudent(Number(classe), Number(studentId), Number(classId));
+    return this.classService.getTopicsForStudent(
+      Number(classe),
+      Number(studentId),
+      Number(classId),
+      req.user.id,
+    );
   }
 
   @Get(':id')
-  async getTurmaDetalhes(@Param('id', ParseIntPipe) turmaId: number, @Request() req) {
+  async getTurmaDetalhes(
+    @Param('id', ParseIntPipe) turmaId: number,
+    @Request() req,
+  ) {
     return this.classService.getTurmaDetalhes(turmaId, req.user.id);
   }
 
@@ -62,25 +65,33 @@ export class ClassController {
   async atualizarTurma(
     @Param('id', ParseIntPipe) turmaId: number,
     @Body() dto: UpdateClassDto,
-    @Request() req
+    @Request() req,
   ) {
     return this.classService.atualizarTurma(turmaId, req.user.id, dto);
   }
   @Put(':id/codigo/renovar')
-  async renovarCodigo(@Param('id', ParseIntPipe) turmaId: number, @Request() req) {
-
+  async renovarCodigo(
+    @Param('id', ParseIntPipe) turmaId: number,
+    @Request() req,
+  ) {
     return this.classService.renovarCodigoTurma(turmaId, req.user.id);
   }
 
   @Delete(':id')
-  async desativarTurma(@Param('id', ParseIntPipe) turmaId: number, @Request() req) {
+  async desativarTurma(
+    @Param('id', ParseIntPipe) turmaId: number,
+    @Request() req,
+  ) {
     return this.classService.desativarTurma(turmaId, req.user.id);
   }
 
   // --- Gestão de Alunos na Turma ---
 
   @Get(':id/alunos')
-  async listarAlunosTurma(@Param('id', ParseIntPipe) turmaId: number, @Request() req) {
+  async listarAlunosTurma(
+    @Param('id', ParseIntPipe) turmaId: number,
+    @Request() req,
+  ) {
     return this.classService.listarAlunosTurma(turmaId, req.user.id);
   }
 
@@ -88,14 +99,17 @@ export class ClassController {
   async removerAluno(
     @Param('id', ParseIntPipe) turmaId: number,
     @Param('alunoId', ParseIntPipe) alunoId: number,
-    @Request() req
+    @Request() req,
   ) {
     return this.classService.removerAlunoTurma(turmaId, alunoId, req.user.id);
   }
 
   // 📋 GET: Listar tópicos para gerenciar (Checkbox List)
   @Get(':id/topics/manage')
-  async getTopicsForManagement(@Request() req, @Param('id', ParseIntPipe) id: number) {
+  async getTopicsForManagement(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     return this.classService.listarTopicosGerenciamento(id, req.user.id);
   }
 
@@ -104,9 +118,13 @@ export class ClassController {
   async updateClassTopics(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: ManageClassTopicsDto
+    @Body() dto: ManageClassTopicsDto,
   ) {
-    return this.classService.atualizarTopicosTurma(id, req.user.id, dto.topicosIds);
+    return this.classService.atualizarTopicosTurma(
+      id,
+      req.user.id,
+      dto.topicosIds,
+    );
   }
 
   // ==========================================
@@ -125,8 +143,10 @@ export class ClassController {
 
   @Post('join')
   async adicionarAlunoComCodigo(@Body() dto: AddStudentDto, @Request() req) {
-    return this.classService.adicionarAlunoTurmaComCodigo(dto.codigo, dto.alunoId, req.user.id);
+    return this.classService.adicionarAlunoTurmaComCodigo(
+      dto.codigo,
+      dto.alunoId,
+      req.user.id,
+    );
   }
-
-
 }
