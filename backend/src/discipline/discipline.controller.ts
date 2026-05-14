@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { DisciplineService } from './discipline.service';
 import { CreateDisciplineDto } from './dto/create-discipline.dto';
 import { UpdateDisciplineDto } from './dto/update-discipline.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('api/disciplines')
+@UseGuards(AuthGuard('jwt'))
 export class DisciplineController {
   constructor(private readonly disciplineService: DisciplineService) {}
 

@@ -26,12 +26,12 @@ import { GoogleStrategy } from './google.strategy';
   controllers: [AuthController],
   providers: [
     AuthService,
-    JwtStrategy,   // <-- FALTAVA ISTO AQUI
+    JwtStrategy,
     RefreshJwtStrategy,
     GoogleStrategy
   ],
   exports: [
-    JwtStrategy,   // <-- E EXPORTAR TAMBÉM (caso outros módulos usem)
+    JwtStrategy,
   ],
 })
 export class AuthModule {}

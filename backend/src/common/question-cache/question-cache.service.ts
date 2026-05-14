@@ -3,18 +3,23 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom, timeout } from 'rxjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class QuestionCacheService {
   private readonly logger = new Logger(QuestionCacheService.name);
-  private readonly aiUrl = process.env.IA_API_URL;
+  private readonly aiUrl: any;
   private readonly httpTimeoutMs = 60000;
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly http: HttpService,
-  ) {}
-
+constructor(
+  private readonly prisma: PrismaService,
+  private readonly http: HttpService,
+  private readonly configService: ConfigService,
+) {
+  const url = this.configService.get('IA_API_URL');
+  if (!url) throw new Error('IA_API_URL não está definida no .env');
+  this.aiUrl = url;
+}
   /**
    * 🎯 Busca no armazém ou gera na IA se o stock estiver vazio.
    *
@@ -206,7 +211,7 @@ return {
             }
 
             await new Promise((resolve) => setTimeout(resolve, 800));
-          } catch (err) {
+          } catch (err: any) {
             this.logger.error(`Falha no refill loop: ${err.message}`);
           }
         }
@@ -296,7 +301,7 @@ if (!perguntaDuplicada) {
 
       return { ...data, cached: false, cacheId: savedCache?.id ?? null };
 
-    } catch (e) {
+    } catch (e: any) {
       this.logger.error(`Erro ao gerar via IA: ${e.message}`);
       throw e;
     }

@@ -1,10 +1,21 @@
-import { IsString, IsNumber, IsOptional, IsIn } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsIn,
+  MaxLength,
+  IsNotEmpty,
+} from 'class-validator';
 
 export class SendChatDto {
   @IsNumber()
   alunoId: number;
 
   @IsString()
+  @IsNotEmpty({ message: 'A mensagem não pode estar vazia.' })
+  @MaxLength(1000)
+  @Transform(({ value }) => value?.trim())
   userQuery: string;
 
   @IsString()
@@ -70,5 +81,5 @@ export class MicroserviceChatRequestDto {
   last_question?: string;
   last_correct_answer?: string;
   last_interaction_type?: string;
-  ancoras?: string[]; 
+  ancoras?: string[];
 }

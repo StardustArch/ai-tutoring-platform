@@ -4,6 +4,7 @@ import { QuestionCacheService } from './question-cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class QuestionCacheCron {
@@ -11,24 +12,27 @@ export class QuestionCacheCron {
 
   // Limite máximo de trabalho: 2 horas (em milissegundos)
   private readonly MAX_DURATION_MS = 2 * 60 * 60 * 1000;
-
+  private readonly aiUrl: any;
   constructor(
     private readonly cacheService: QuestionCacheService,
     private readonly prisma: PrismaService,
     private readonly httpService: HttpService,
-  ) {}
+    private readonly configService: ConfigService
+  ) {
+    this.aiUrl = this.configService.get('IA_API_URL');
+  }
 
-  private async waitForAiToWakeUp(aiUrl: string): Promise<boolean> {
+  private async waitForAiToWakeUp(aiUrl: any): Promise<boolean> {
     const maxRetries = 12;
     const delayMs = 15000; // 15s (Total 3 minutos)
 
     this.logger.log(
-      `☕ A fazer café e a acordar o motor de IA (Python) em ${aiUrl}...`,
+      `☕ A fazer café e a acordar o motor de IA (Python) em ${this.aiUrl}...`,
     );
 
     for (let i = 1; i <= maxRetries; i++) {
       try {
-        await firstValueFrom(this.httpService.get(`${aiUrl}/health`));
+        await firstValueFrom(this.httpService.get(`${this.aiUrl}/health`));
         this.logger.log(
           `✅ [SUCESSO] O motor de IA acordou na tentativa ${i}!`,
         );
@@ -54,11 +58,8 @@ export class QuestionCacheCron {
     const startTime = Date.now();
     const deadlineMs = startTime + this.MAX_DURATION_MS; // A hora exata em que TEM de parar!
 
-    const aiUrl =
-      process.env.IA_API_URL || 'https://ai-tutoring-platform-17je.onrender.com';
-
     // 1. Acordar o Python
-    const isAwake = await this.waitForAiToWakeUp(aiUrl);
+    const isAwake = await this.waitForAiToWakeUp(this.aiUrl);
     if (!isAwake) {
       this.logger.error(
         '❌ [CRON ABORTADO] O motor não acordou. Tentaremos amanhã.',
@@ -86,7 +87,7 @@ export class QuestionCacheCron {
       this.logger.log(
         '✅ [CRON] Turno fechado! O que deu para gerar foi gerado. A IA vai dormir daqui a 15 mins. 😴',
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
         `❌ [CRON] Erro crítico na reposição: ${error.message}`,
       );

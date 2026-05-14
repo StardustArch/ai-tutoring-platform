@@ -136,7 +136,7 @@ private readonly logger = new Logger(QuestionCacheController.name);
         message: `${inseridas} novas questões importadas com sucesso! (${ignoradas} ignoradas, ${duplicadas} repetidas bloqueadas)`
       };
 
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`❌ Erro na importação: ${error.message}`);
       return { status: 'error', message: error.message };
     }
