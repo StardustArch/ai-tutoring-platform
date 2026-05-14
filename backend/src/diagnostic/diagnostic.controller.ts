@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
 import { DiagnosticService } from './diagnostic.service';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('api/diagnostic')
+@UseGuards(AuthGuard('jwt'))
 export class DiagnosticController {
   constructor(private readonly diagnosticService: DiagnosticService) {}
 

@@ -1,5 +1,13 @@
-import { Controller, Get, UseGuards, Request, Param, ParseIntPipe } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';import { TeacherService } from './teacher.service';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Request,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { TeacherService } from './teacher.service';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
 
@@ -9,7 +17,7 @@ export class TeacherController {
   constructor(private readonly teacherService: TeacherService) {}
 
   @Get('stats/:teacherId')
-  async getTeacherStats(@Param('teacherId', ParseIntPipe) teacherId: number){
+  async getTeacherStats(@Param('teacherId', ParseIntPipe) teacherId: number) {
     return await this.teacherService.getProfessorStats(teacherId);
   }
 
@@ -20,7 +28,7 @@ export class TeacherController {
   }
 
   @Get('reports/overview')
-async getReportsOverview(@Request() req) {
-  return this.teacherService.getReportsOverview(req.user.id);
-}
+  async getReportsOverview(@Request() req) {
+    return this.teacherService.getReportsOverview(req.user.id);
+  }
 }

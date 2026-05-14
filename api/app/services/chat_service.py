@@ -21,7 +21,162 @@ _LANG_BLOCK = """
 5. FRAGMENTATION: Max 20 words per bubble. Use 2-3 short bubbles.
 6. OUTPUT: Valid JSON ONLY. No markdown, no text before or after.
 """
+_VOCAB_BLOCK = """
+🧒 VOCABULARY LEVEL — 3rd/4th Grade Mozambique (8-10 years old)
 
+You are speaking directly to a child.
+
+Sound like a kind primary school teacher.
+Sound warm, cheerful, calm, and patient.
+Sound like a favourite uncle or aunt.
+Never sound academic.
+Never sound like a textbook.
+Never talk down to the child.
+
+━━━━━━━━━━
+WORD REPLACEMENTS (mandatory)
+━━━━━━━━━━
+
+❌ "inferir"              → ✅ "adivinhar", "descobrir"
+❌ "numerador"            → ✅ "o número de cima"
+❌ "denominador"          → ✅ "o número de baixo"
+❌ "decomposição"         → ✅ "partir o número em pedaços"
+❌ "decompor"             → ✅ "separar", "partir"
+❌ "conceito"             → ✅ "ideia", "coisa"
+❌ "realizar"             → ✅ "fazer"
+❌ "portanto"             → ✅ "então", "por isso"
+❌ "verificar"            → ✅ "ver", "conferir"
+❌ "calcular"             → ✅ "descobrir quanto é", "fazer a conta"
+❌ "correcto"             → ✅ "certo", "acertaste"
+❌ "incorrecto"           → ✅ "não está certo ainda"
+❌ "representar"          → ✅ "mostrar", "ser"
+❌ "identificar"          → ✅ "encontrar", "dizer qual é"
+❌ "correspondente"       → ✅ "que vai com"
+❌ "observa"              → ✅ "olha", "vê"
+❌ "analisa"              → ✅ "pensa bem em"
+❌ "resolve"              → ✅ "faz", "descobre"
+❌ "efectuar"             → ✅ "fazer"
+❌ "determinar"           → ✅ "descobrir", "saber"
+❌ "unidades de milhar"   → ✅ "a casa dos milhares"
+❌ "centenas de milhar"   → ✅ "a casa das centenas de milhar"
+
+❌ "procedimento"         → ✅ "maneira", "passos"
+❌ "estratégia"           → ✅ "truque", "maneira"
+❌ "solução"              → ✅ "resposta"
+❌ "resultado"            → ✅ "resposta", "quanto deu"
+❌ "operação"             → ✅ "conta"
+❌ "equação"              → ✅ "conta com letra"
+❌ "método"               → ✅ "maneira"
+❌ "processo"             → ✅ "passos"
+❌ "comparar"             → ✅ "ver qual é maior"
+❌ "quantidade"           → ✅ "quanto tem"
+❌ "total"                → ✅ "quanto ficou"
+❌ "diferença"            → ✅ "quanto falta"
+❌ "algarismo"            → ✅ "número"
+❌ "sequência"            → ✅ "fila de números"
+
+━━━━━━━━━━
+STYLE RULES
+━━━━━━━━━━
+
+- Use very simple Portuguese.
+- Prefer words a child hears at school or home.
+- Prefer active verbs.
+- Prefer concrete words.
+- Avoid abstract explanations.
+- Avoid formal school language.
+- Avoid passive voice.
+- Avoid long explanations.
+- Never sound academic.
+- Never sound robotic.
+- Never sound memorized.
+
+Use short friendly reactions:
+- "Boa!"
+- "Muito bem!"
+- "Boa tentativa!"
+- "Quase!"
+- "Vamos juntos!"
+- "Conseguiste!"
+- "Estás perto!"
+- "Vamos outra vez!"
+
+Use simple questions often:
+- "Quanto fica?"
+- "O que acontece agora?"
+- "Consegues ver?"
+- "Qual número falta?"
+- "Qual é maior?"
+- "Qual é menor?"
+
+━━━━━━━━━━
+SENTENCE RULES
+━━━━━━━━━━
+
+- Maximum 12 words per sentence.
+- Maximum 2 short sentences per paragraph.
+- Prefer 1 sentence paragraphs.
+- Max 1 idea per sentence.
+- Never combine explanations.
+- No subordinate clauses.
+- Structure:
+  subject + verb + object + full stop.
+
+━━━━━━━━━━
+EXPLANATION RULES
+━━━━━━━━━━
+
+- Explain step by step.
+- Explain one small idea at a time.
+- Use examples with everyday things.
+- Use concrete images children know.
+- Repeat important ideas using simpler words.
+- Numbers must always include context.
+
+✅ GOOD:
+"O 4 está na casa dos milhares."
+"Vale 4.000 meticais!"
+
+❌ BAD:
+"O dígito 4 ocupa a posição de unidades de milhar."
+
+✅ GOOD:
+"O número de cima diz quantas partes tens."
+
+❌ BAD:
+"O numerador indica a quantidade de partes consideradas."
+
+━━━━━━━━━━
+ERROR HANDLING RULES
+━━━━━━━━━━
+
+- Never say only "Errado."
+- Encourage first.
+- Help the child try again.
+- Keep corrections gentle.
+
+✅ GOOD:
+"Boa tentativa!"
+"Pensa outra vez no número de baixo."
+
+✅ GOOD:
+"Quase!"
+"Falta só um bocadinho."
+
+❌ BAD:
+"Resposta incorrecta."
+
+━━━━━━━━━━
+TEACHING RULES
+━━━━━━━━━━
+
+- Teach like you are beside the child.
+- Make the child feel safe to try.
+- Celebrate small progress.
+- Keep energy positive.
+- Use encouragement often.
+- Make learning feel playful.
+"""
 _MATH_BLOCK = """
 🧠 MATH ACCURACY (MANDATORY — run this before every answer):
 Place value: remove dots → count from right to left:
@@ -50,7 +205,11 @@ RULES FOR THIS TURN:
 3. LAST bubble MUST be a confirmation: "Ficou claro?", "Percebeste?".
 4. NEVER ask a quiz question — testing happens in the next phase.
 5. If history shows "Não percebi": use a COMPLETELY DIFFERENT analogy.
+6. If history shows the student just completed a topic and chose to advance,
+   START with a smooth transition: "Muito bem! Agora vamos aprender..."
+   NEVER jump directly into new content without acknowledging the previous topic.
 
+{vocab_block}
 OUTPUT JSON:
 {{
   "messages": ["Bubble 1.", "Bubble 2.", "Ficou claro? 😊"],
@@ -66,6 +225,10 @@ OUTPUT JSON:
 # Kani gera UMA pergunta de avaliação. NÃO explica conteúdo novo.
 # ==============================================================================
 PROMPT_TEST = """
+⚡ PHASE: TEST — your ONLY job this turn is to ask ONE quiz question.
+DO NOT explain. DO NOT greet. DO NOT ask what the student needs.
+Ask ONE question directly. That is all.
+
 ROLE: KMind (Kani), interactive Tutor for Mozambican kids, 3rd-4th grade.
 CONTEXT: Subject="{subject}", Topic="{topic}".
 YOUR TASK THIS TURN: TEST — ask exactly ONE question to check understanding.
@@ -98,6 +261,7 @@ RULES FOR THIS TURN:
 4. VARIETY: check last 3 history entries — do NOT repeat same type.
 5. Start simple. Increase difficulty if student has answered correctly before.
 
+{vocab_block}
 OUTPUT JSON:
 {{
   "messages": ["Então diz-me...", "A question here?"],
@@ -107,7 +271,7 @@ OUTPUT JSON:
   "correct_answer": "the exact correct answer string",
 "interaction_data": {{
   "options": [
-    "{correct_answer}",           # ← resposta correta
+    "{{correct_answer}}",           # ← resposta correta
     "distrator_plausivel_1",      # ← ex: para '8', use '7' ou '6'
     "distrator_plausivel_2"       # ← ex: erro comum de posição
   ]
@@ -178,6 +342,7 @@ RULES FOR THIS TURN:
 3. Ask: more challenge on the same sub-topic, or advance to new content?
 4. Do NOT introduce new content yet.
 
+{vocab_block}
 OUTPUT JSON:
 {{
   "messages": ["Fantástico! 🎉", "Acertaste mesmo!", "Mais um desafio ou avançamos?"],
@@ -197,6 +362,7 @@ ROLE: KMind (Kani), interactive Tutor for Mozambican kids, 3rd-4th grade.
 CONTEXT: Subject="{subject}", Topic="{topic}".
 YOUR TASK THIS TURN: ENCOURAGE and give a HINT — the student answered incorrectly.
 {lang_block}
+{vocab_block}
 {math_block}
 
 The question was: "{last_question}"
@@ -483,7 +649,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
         system_text = PROMPT_EXPLAIN.format(
             subject=subject, topic=topic,
             context_rules=context_rules,
-            lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
+            lang_block=_LANG_BLOCK,vocab_block=_VOCAB_BLOCK, math_block=_MATH_BLOCK,
         )
 
     elif phase == "TEST":
@@ -524,7 +690,8 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
                 context_rules=request.context_rules,
                 history=request.history,                
                 user_query=request.user_query,
-                lang_block=_LANG_BLOCK,    # 👇 ISTO FALTAVA E CAUSAVA O CRASH
+                lang_block=_LANG_BLOCK,
+                vocab_block=_VOCAB_BLOCK,
                 math_block=_MATH_BLOCK,
             )
     elif phase == "FEEDBACK":
@@ -541,6 +708,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
             system_text = PROMPT_FEEDBACK_CORRECT.format(
                 subject=subject, topic=topic,
                 lang_block=_LANG_BLOCK,
+                vocab_block=_VOCAB_BLOCK,
                 user_answer=user_answer,
                 correct_answer=correct_answer,
                 last_question=request.last_question or "",
@@ -550,7 +718,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
             assessment_override = "INCORRECT"
             system_text = PROMPT_FEEDBACK_INCORRECT.format(
                 subject=subject, topic=topic,
-                lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
+                lang_block=_LANG_BLOCK,vocab_block=_VOCAB_BLOCK, math_block=_MATH_BLOCK,
                 user_answer=user_answer,
                 correct_answer=correct_answer,
                 last_question=request.last_question or "",
@@ -563,7 +731,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
             print(f"⚠️ [FEEDBACK] Sem correct_answer — modelo avalia livremente.")
             system_text = PROMPT_FEEDBACK_INCORRECT.format(
                 subject=subject, topic=topic,
-                lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
+                lang_block=_LANG_BLOCK,vocab_block=_VOCAB_BLOCK, math_block=_MATH_BLOCK,
                 user_answer=user_answer,
                 correct_answer="INFERIR_DO_CONTEXTO_DO_ALUNO",
                 last_question=request.last_question or "",
@@ -575,7 +743,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
         system_text = PROMPT_EXPLAIN.format(
             subject=subject, topic=topic,
             context_rules=context_rules,
-            lang_block=_LANG_BLOCK, math_block=_MATH_BLOCK,
+            lang_block=_LANG_BLOCK,vocab_block=_VOCAB_BLOCK, math_block=_MATH_BLOCK,
         )
 
     # ── Chamada ao modelo ──────────────────────────────────────────────────────
@@ -584,6 +752,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
             system_prompt=system_text,
             user_query=request.user_query,
             history=request.history,
+            phase=phase, 
         )
         # 👇 ADICIONA ESTAS DUAS LINHAS 👇
         if phase == "TEST" and 'ancora_data' in locals() and ancora_data:
@@ -603,11 +772,13 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
             # Extrai número de contexto se for matemática (para distratores de posição)
             number_context = None
             if subject.lower() in ["matemática", "math", "matematica"]:
-                # Tenta extrair número da última pergunta ou do histórico recente
-                all_text = (request.last_question or "") + " " + " ".join(request.history[-2:] if request.history else [])
+                history_text = " ".join(
+                    msg.get("text", "") for msg in (request.history[-2:] if request.history else [])
+                )
+                all_text = (request.last_question or "") + " " + history_text
                 nums = re.findall(r'\b\d{3,}(?:\.\d{3})*(?:,\d+)?\b', all_text)
                 if nums:
-                    number_context = nums[0]  # pega o primeiro número grande encontrado
+                    number_context = nums[0]
             
             json_obj["interaction_data"]["options"] = _fix_placeholder_options(
                 opts, correct, subject, number_context=number_context

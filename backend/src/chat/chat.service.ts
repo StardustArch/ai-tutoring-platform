@@ -6,9 +6,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SendChatDto, MicroserviceChatRequestDto } from './dto/send-chat.dto';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { TipoInteracaoChat } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 // ─── State Machine ────────────────────────────────────────────────────────────
 //
@@ -31,27 +32,59 @@ import { TipoInteracaoChat } from '@prisma/client';
 
 type Phase = 'EXPLAIN' | 'TEST' | 'FEEDBACK';
 
-const CONFIRM_KEYWORDS    = ['entendi', 'percebi', 'sim', 'ok', 'continua', 'avança', 'pronto', 'claro'];
-const DOUBT_KEYWORDS      = ['não percebi', 'nao percebi', 'dúvida', 'duvida', 'não entendi', 'nao entendi', 'explica', 'não percebo'];
-const ADVANCE_KEYWORDS    = ['avançar', 'avançar matéria', 'aprender', 'próximo', 'novo'];
-const CHALLENGE_KEYWORDS  = ['desafio', 'mais um', 'outra'];
+const CONFIRM_KEYWORDS = [
+  'entendi',
+  'percebi',
+  'sim',
+  'ok',
+  'continua',
+  'avança',
+  'pronto',
+  'claro',
+];
+const DOUBT_KEYWORDS = [
+  'não percebi',
+  'nao percebi',
+  'dúvida',
+  'duvida',
+  'não entendi',
+  'nao entendi',
+  'explica',
+  'não percebo',
+];
+const ADVANCE_KEYWORDS = [
+  'avançar',
+  'avançar matéria',
+  'aprender',
+  'próximo',
+  'novo',
+];
+const CHALLENGE_KEYWORDS = ['desafio', 'mais um', 'outra'];
 
-function _calcNextPhase(currentPhase: Phase, userQuery: string, lastAssessment?: string): Phase {
+function _calcNextPhase(
+  currentPhase: Phase,
+  userQuery: string,
+  lastAssessment?: string,
+  hasLastCorrectAnswer?: boolean,  // ← NOVO parâmetro
+): Phase {
   const q = userQuery.trim().toLowerCase();
 
   switch (currentPhase) {
     case 'EXPLAIN':
-      if (CONFIRM_KEYWORDS.some(k => q.includes(k))) return 'TEST';
-      if (DOUBT_KEYWORDS.some(k => q.includes(k))) return 'EXPLAIN';
+      if (CONFIRM_KEYWORDS.some((k) => q.includes(k))) return 'TEST';
+      if (DOUBT_KEYWORDS.some((k) => q.includes(k))) return 'EXPLAIN';
       return 'TEST';
 
     case 'TEST':
+      // Se não há correct_answer guardada, ainda não houve pergunta real
+      // → manter em TEST para o Python gerar a pergunta primeiro
+      if (!hasLastCorrectAnswer) return 'TEST';
       return 'FEEDBACK';
 
     case 'FEEDBACK':
       if (lastAssessment === 'CORRECT') {
-        if (ADVANCE_KEYWORDS.some(k => q.includes(k))) return 'EXPLAIN';
-        if (CHALLENGE_KEYWORDS.some(k => q.includes(k))) return 'TEST';
+        if (ADVANCE_KEYWORDS.some((k) => q.includes(k))) return 'EXPLAIN';
+        if (CHALLENGE_KEYWORDS.some((k) => q.includes(k))) return 'TEST';
         return 'EXPLAIN';
       }
       return 'TEST';
@@ -69,13 +102,14 @@ export class ChatService {
   constructor(
     private prisma: PrismaService,
     private httpService: HttpService,
+    private configService: ConfigService,
   ) {
-    const baseUrl = process.env.IA_API_URL || 'http://localhost:8000';
+    const baseUrl = this.configService.get('IA_API_URL');
+    if (!baseUrl) throw new Error('IA_API_URL não está definida no .env');
     this.aiServiceUrl = `${baseUrl}/generate-chat-response`;
   }
 
   async sendChat(usuarioId: number, dto: SendChatDto) {
-
     // 1. Validar Aluno
     const aluno = await this.prisma.aluno.findFirst({
       where: { id: dto.alunoId, encarregado: { usuarioId } },
@@ -87,7 +121,8 @@ export class ChatService {
       const pertence = await this.prisma.alunoTurma.findFirst({
         where: { alunoId: dto.alunoId, turmaId: dto.turmaId },
       });
-      if (!pertence) throw new ForbiddenException('Aluno não pertence a esta turma.');
+      if (!pertence)
+        throw new ForbiddenException('Aluno não pertence a esta turma.');
     }
 
     // 2. Resolver Tópico e regras da IA
@@ -105,18 +140,18 @@ export class ChatService {
         select: {
           id: true,
           metadata: true,
-          ancoras: true,   // 🆕 Buscar âncoras na BD
+          ancoras: true, // 🆕 Buscar âncoras na BD
         },
       });
       if (topicoDb) {
         currentTopicoId = topicoDb.id;
         const meta = topicoDb.metadata as any;
         if (meta?.ai_rules) aiContextRules = meta.ai_rules;
-        
+
         // 🆕 Garantir que currentAncoras é sempre um array de strings
         const rawAncoras = (topicoDb as any).ancoras;
         if (Array.isArray(rawAncoras)) {
-            currentAncoras = rawAncoras.map(a => String(a));
+          currentAncoras = rawAncoras.map((a) => String(a));
         }
       }
     }
@@ -124,7 +159,11 @@ export class ChatService {
     // 3. Memória contextual — tópicos problemáticos recentes
     const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const errosRecentes = await this.prisma.exercicioResultado.findMany({
-      where: { alunoId: aluno.id, acertou: false, timestamp: { gte: seteDiasAtras } },
+      where: {
+        alunoId: aluno.id,
+        acertou: false,
+        timestamp: { gte: seteDiasAtras },
+      },
       orderBy: { timestamp: 'desc' },
       take: 20,
       select: { topico: { select: { nome: true } } },
@@ -170,12 +209,21 @@ export class ChatService {
       try {
         const parsed = JSON.parse(lastMensagem.respostaIa);
         lastAssessment = parsed.assessment ?? undefined;
-      } catch { /* ignora */ }
+      } catch {
+        /* ignora */
+      }
     }
 
-    const nextPhase: Phase = _calcNextPhase(currentPhase, dto.userQuery, lastAssessment);
+    const nextPhase: Phase = _calcNextPhase(
+      currentPhase,
+      dto.userQuery,
+      lastAssessment,
+       !!dto.lastCorrectAnswer,
+    );
 
-    this.logger.log(`💬 Chat: Fase Atual [${currentPhase}] -> Próxima Fase [${nextPhase}]. Âncoras ativas: ${currentAncoras.length}`);
+    this.logger.log(
+      `💬 Chat: Fase Atual [${currentPhase}] -> Próxima Fase [${nextPhase}]. Âncoras ativas: ${currentAncoras.length}`,
+    );
 
     // 6. Payload para o Python
     const aiRequest: MicroserviceChatRequestDto = {
@@ -198,32 +246,43 @@ export class ChatService {
     let finalResponse: string;
     try {
       const response = await firstValueFrom(
-        this.httpService.post(this.aiServiceUrl, aiRequest),
+        this.httpService.post(this.aiServiceUrl, aiRequest).pipe(
+          timeout(30_000), // 30 segundos máximo
+        ),
       );
       finalResponse = response.data.response_text;
       try {
         const parsed = JSON.parse(finalResponse);
-        if (parsed.interaction_data && Array.isArray(parsed.interaction_data.options)) {
-          parsed.interaction_data.options = parsed.interaction_data.options.filter((opt: string) => {
-            const s = opt.trim().toLowerCase();
-            // Remove se começar com parênteses ou contiver verbos de instrução interna
-            if (s.startsWith('(') || s.startsWith('[')) return false;
-            if (s.includes('avalia tu') || s.includes('escolhe') || s.includes('usa a')) return false;
-            return true;
-          });
+        if (
+          parsed.interaction_data &&
+          Array.isArray(parsed.interaction_data.options)
+        ) {
+          parsed.interaction_data.options =
+            parsed.interaction_data.options.filter((opt: string) => {
+              const s = opt.trim().toLowerCase();
+              // Remove se começar com parênteses ou contiver verbos de instrução interna
+              if (s.startsWith('(') || s.startsWith('[')) return false;
+              if (
+                s.includes('avalia tu') ||
+                s.includes('escolhe') ||
+                s.includes('usa a')
+              )
+                return false;
+              return true;
+            });
           // Se o filtro apagar todas as opções por acidente, coloca um fallback de segurança
           if (parsed.interaction_data.options.length === 0) {
-             parsed.interaction_data.options = ['Continuar'];
+            parsed.interaction_data.options = ['Continuar'];
           }
           finalResponse = JSON.stringify(parsed);
         }
-      } catch (e) {
+      } catch (e: any) {
         this.logger.warn(`Falha ao sanitizar opções do chat: ${e.message}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`ERRO IA: ${error.message}`);
       finalResponse = JSON.stringify({
-        messages: ['O KMind está a pensar... Podes tentar de novo?'],
+        messages: ['O tutor está a pensar... Podes tentar de novo?'],
         emotion: 'THOUGHTFUL',
         interaction_type: 'CHIPS',
         assessment: null,
@@ -237,12 +296,22 @@ export class ChatService {
     try {
       const jsonResp = JSON.parse(finalResponse);
       const itype = jsonResp.interaction_type;
-      if (nextPhase === 'TEST' || ['CHIPS', 'CLOZE', 'TRUE_FALSE', 'DIRECT_INPUT', 'DRAG_DROP'].includes(itype)) {
+      if (
+        nextPhase === 'TEST' ||
+        ['CHIPS', 'CLOZE', 'TRUE_FALSE', 'DIRECT_INPUT', 'DRAG_DROP'].includes(
+          itype,
+        )
+      ) {
         tipoSalvo = 'PERGUNTA';
-      } else if (nextPhase === 'FEEDBACK' && jsonResp.assessment === 'CORRECT') {
-        tipoSalvo = 'PERGUNTA'; 
+      } else if (
+        nextPhase === 'FEEDBACK' &&
+        jsonResp.assessment === 'CORRECT'
+      ) {
+        tipoSalvo = 'PERGUNTA';
       }
-    } catch { /* assume EXPLICACAO */ }
+    } catch {
+      /* assume EXPLICACAO */
+    }
 
     await this.prisma.chatMensagem.create({
       data: {
@@ -272,7 +341,9 @@ export class ChatService {
           delete parsed.audio_url;
           delete parsed.phase;
           textoParaIA = JSON.stringify(parsed);
-        } catch { /* mantém o texto original se não for JSON válido */ }
+        } catch {
+          /* mantém o texto original se não for JSON válido */
+        }
 
         history.push({
           role: 'model',

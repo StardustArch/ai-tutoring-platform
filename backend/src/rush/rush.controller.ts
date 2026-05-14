@@ -46,10 +46,6 @@ export class RushController {
     // Valida resposta
     const acertou = String(dto.respostaAluno).trim() === String(exercicio.resposta).trim();
 
-    if(dto.turmaId){
-      console.log("NULLLLLLLLOOOOOOOO")
-      console.log(dto)
-    }
     // Salva resultado (usa o topicoId do exercício!)
     const saved = await this.rushService.saveExerciseResult(
       dto.alunoId,

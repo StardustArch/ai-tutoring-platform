@@ -48,8 +48,8 @@ export class ClassController {
     return this.classService.getTopicsForStudent(
       Number(classe),
       Number(studentId),
-      Number(classId),
       req.user.id,
+      Number(classId),
     );
   }
 
