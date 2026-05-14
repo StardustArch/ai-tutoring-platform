@@ -1,10 +1,11 @@
 # Requisitos para a V2.0 (FastAPI)
 fastapi
 uvicorn[standard] # O servidor que corre o FastAPI
-python-dotenv     # Para gerir variáveis de ambiente (ex: API Keys)
+python-dotenv
 python-multipart
-google-genai
-google-generativeai
+sentece-transformers
 openai
 edge-tts
-huggingface_hub
+sentence-transformers
+pydantic
+pydantic-settings
