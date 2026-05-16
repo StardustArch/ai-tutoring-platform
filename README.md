@@ -119,7 +119,7 @@ Once running:
 
 ---
 TODO:
-- [ ] **Layer 1 — Seed Management**: replace hardcoded prompt strings with one YAML file per topic + Pydantic validation
+- [x] **Layer 1 — Seed Management**: replace hardcoded prompt strings with one YAML file per topic + Pydantic validation (Still waiting merge...)
 - [ ] **Layer 2 — Backend State**: move session state from frontend to backend, frontend sends only `session_id`
 - [ ] **Layer 3 — Semantic Validation**: replace string equality with 3-tier pipeline (exact → normalized → MiniLM similarity)
 - [ ] **Layer 4 — Prompt Builder**: generate compact prompts (~400 tokens) from seed data instead of static ~1600-token blocks
