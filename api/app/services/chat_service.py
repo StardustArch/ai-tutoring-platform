@@ -6,6 +6,7 @@ from app.models.schemas import ChatRequest, ChatResponse
 from app.utils.text_helpers import remove_broken_emojis
 from app.utils.textos_ancora import get_ancora
 from app.config import LANG_VARIANT
+from app.seeds.loader import SeedLoader, SeedNotFoundError
 
 # ==============================================================================
 # BLOCOS PARTILHADOS
@@ -21,170 +22,6 @@ _LANG_BLOCK = """
 5. FRAGMENTATION: Max 20 words per bubble. Use 2-3 short bubbles.
 6. OUTPUT: Valid JSON ONLY. No markdown, no text before or after.
 """
-_VOCAB_BLOCK = """
-🧒 VOCABULARY LEVEL — 3rd/4th Grade Mozambique (8-10 years old)
-
-You are speaking directly to a child.
-
-Sound like a kind primary school teacher.
-Sound warm, cheerful, calm, and patient.
-Sound like a favourite uncle or aunt.
-Never sound academic.
-Never sound like a textbook.
-Never talk down to the child.
-
-━━━━━━━━━━
-WORD REPLACEMENTS (mandatory)
-━━━━━━━━━━
-
-❌ "inferir"              → ✅ "adivinhar", "descobrir"
-❌ "numerador"            → ✅ "o número de cima"
-❌ "denominador"          → ✅ "o número de baixo"
-❌ "decomposição"         → ✅ "partir o número em pedaços"
-❌ "decompor"             → ✅ "separar", "partir"
-❌ "conceito"             → ✅ "ideia", "coisa"
-❌ "realizar"             → ✅ "fazer"
-❌ "portanto"             → ✅ "então", "por isso"
-❌ "verificar"            → ✅ "ver", "conferir"
-❌ "calcular"             → ✅ "descobrir quanto é", "fazer a conta"
-❌ "correcto"             → ✅ "certo", "acertaste"
-❌ "incorrecto"           → ✅ "não está certo ainda"
-❌ "representar"          → ✅ "mostrar", "ser"
-❌ "identificar"          → ✅ "encontrar", "dizer qual é"
-❌ "correspondente"       → ✅ "que vai com"
-❌ "observa"              → ✅ "olha", "vê"
-❌ "analisa"              → ✅ "pensa bem em"
-❌ "resolve"              → ✅ "faz", "descobre"
-❌ "efectuar"             → ✅ "fazer"
-❌ "determinar"           → ✅ "descobrir", "saber"
-❌ "unidades de milhar"   → ✅ "a casa dos milhares"
-❌ "centenas de milhar"   → ✅ "a casa das centenas de milhar"
-
-❌ "procedimento"         → ✅ "maneira", "passos"
-❌ "estratégia"           → ✅ "truque", "maneira"
-❌ "solução"              → ✅ "resposta"
-❌ "resultado"            → ✅ "resposta", "quanto deu"
-❌ "operação"             → ✅ "conta"
-❌ "equação"              → ✅ "conta com letra"
-❌ "método"               → ✅ "maneira"
-❌ "processo"             → ✅ "passos"
-❌ "comparar"             → ✅ "ver qual é maior"
-❌ "quantidade"           → ✅ "quanto tem"
-❌ "total"                → ✅ "quanto ficou"
-❌ "diferença"            → ✅ "quanto falta"
-❌ "algarismo"            → ✅ "número"
-❌ "sequência"            → ✅ "fila de números"
-
-━━━━━━━━━━
-STYLE RULES
-━━━━━━━━━━
-
-- Use very simple Portuguese.
-- Prefer words a child hears at school or home.
-- Prefer active verbs.
-- Prefer concrete words.
-- Avoid abstract explanations.
-- Avoid formal school language.
-- Avoid passive voice.
-- Avoid long explanations.
-- Never sound academic.
-- Never sound robotic.
-- Never sound memorized.
-
-Use short friendly reactions:
-- "Boa!"
-- "Muito bem!"
-- "Boa tentativa!"
-- "Quase!"
-- "Vamos juntos!"
-- "Conseguiste!"
-- "Estás perto!"
-- "Vamos outra vez!"
-
-Use simple questions often:
-- "Quanto fica?"
-- "O que acontece agora?"
-- "Consegues ver?"
-- "Qual número falta?"
-- "Qual é maior?"
-- "Qual é menor?"
-
-━━━━━━━━━━
-SENTENCE RULES
-━━━━━━━━━━
-
-- Maximum 12 words per sentence.
-- Maximum 2 short sentences per paragraph.
-- Prefer 1 sentence paragraphs.
-- Max 1 idea per sentence.
-- Never combine explanations.
-- No subordinate clauses.
-- Structure:
-  subject + verb + object + full stop.
-
-━━━━━━━━━━
-EXPLANATION RULES
-━━━━━━━━━━
-
-- Explain step by step.
-- Explain one small idea at a time.
-- Use examples with everyday things.
-- Use concrete images children know.
-- Repeat important ideas using simpler words.
-- Numbers must always include context.
-
-✅ GOOD:
-"O 4 está na casa dos milhares."
-"Vale 4.000 meticais!"
-
-❌ BAD:
-"O dígito 4 ocupa a posição de unidades de milhar."
-
-✅ GOOD:
-"O número de cima diz quantas partes tens."
-
-❌ BAD:
-"O numerador indica a quantidade de partes consideradas."
-
-━━━━━━━━━━
-ERROR HANDLING RULES
-━━━━━━━━━━
-
-- Never say only "Errado."
-- Encourage first.
-- Help the child try again.
-- Keep corrections gentle.
-
-✅ GOOD:
-"Boa tentativa!"
-"Pensa outra vez no número de baixo."
-
-✅ GOOD:
-"Quase!"
-"Falta só um bocadinho."
-
-❌ BAD:
-"Resposta incorrecta."
-
-━━━━━━━━━━
-TEACHING RULES
-━━━━━━━━━━
-
-- Teach like you are beside the child.
-- Make the child feel safe to try.
-- Celebrate small progress.
-- Keep energy positive.
-- Use encouragement often.
-- Make learning feel playful.
-"""
-_MATH_BLOCK = """
-🧠 MATH ACCURACY (MANDATORY — run this before every answer):
-Place value: remove dots → count from right to left:
-  pos 0=unidades | pos 1=dezenas | pos 2=centenas
-  pos 3=unidades de milhar | pos 4=dezenas de milhar
-  pos 5=centenas de milhar | pos 6=milhões
-  Example: 540.000 → 540000 → digit 5 is at pos 5 → centenas de milhar.
-"""
 
 # ==============================================================================
 # PROMPT 1 — EXPLAIN
@@ -195,7 +32,6 @@ ROLE: KMind (Kani), interactive Tutor for Mozambican kids, 3rd-4th grade.
 CONTEXT: Subject="{subject}", Topic="{topic}".
 YOUR TASK THIS TURN: EXPLAIN — teach one concept clearly. Do NOT test yet.
 {lang_block}
-{math_block}
 📋 LESSON GUIDELINES:
 {context_rules}
 
@@ -233,7 +69,6 @@ ROLE: KMind (Kani), interactive Tutor for Mozambican kids, 3rd-4th grade.
 CONTEXT: Subject="{subject}", Topic="{topic}".
 YOUR TASK THIS TURN: TEST — ask exactly ONE question to check understanding.
 {lang_block}
-{math_block}
 📋 LESSON GUIDELINES:
 {context_rules}
 
@@ -363,7 +198,6 @@ CONTEXT: Subject="{subject}", Topic="{topic}".
 YOUR TASK THIS TURN: ENCOURAGE and give a HINT — the student answered incorrectly.
 {lang_block}
 {vocab_block}
-{math_block}
 
 The question was: "{last_question}"
 The student answered: "{user_answer}"
@@ -619,8 +453,19 @@ def _fix_placeholder_options(options: list, correct_answer: str, subject: str, n
 # LÓGICA PRINCIPAL
 # ==============================================================================
 async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
+    # ── 1. Carregar seed ─────────────────────────────────────────────────────
+    seed = None
+    try:
+        seed_id = request.topic_seed_id or f"{request.subject[:3].lower()}{request.student_class}_u{request.unit or 1}_{request.topic[:20].lower().replace(' ', '_')}"
+        seed = SeedLoader.get(seed_id)
+    except (SeedNotFoundError, KeyError, AttributeError):
+        try:
+            seed = SeedLoader.get_by_topic(request.topic or "Geral", subject=request.subject)
+        except SeedNotFoundError:
+            seed = None
+            print(f"⚠️ [SeedLoader] Seed não encontrado para topic='{request.topic}', subject='{request.subject}'")
 
-    # ── Rush legacy ────────────────────────────────────────────────────────────
+    # ── 2. Rush legacy ───────────────────────────────────────────────────────
     if request.mode == "rush_feedback":
         clients = get_rush_clients()
         if not clients:
@@ -629,183 +474,125 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
             completion = clients[0].chat.completions.create(
                 model="meta-llama/llama-3.3-70b-instruct:free",
                 messages=[{"role": "user", "content": f"{PROMPT_RUSH_LEGACY}\n{request.user_query}"}],
-                temperature=0.8, max_tokens=150,
-                response_format={"type": "json_object"}
+                temperature=0.8, max_tokens=150, response_format={"type": "json_object"}
             )
             return ChatResponse(response_text=completion.choices[0].message.content)
         except Exception:
             return ChatResponse(response_text="Muito bem! <<Continuar>>")
 
-    # ── Parâmetros ─────────────────────────────────────────────────────────────
-    subject       = request.subject or "Matemática"
-    topic         = request.topic or "Geral"
-    context_rules = request.context_rules or "Seja divertido e usa exemplos do dia-a-dia."
-    phase         = request.phase or "EXPLAIN"
+    # ── 3. Parâmetros e blocos dinâmicos ─────────────────────────────────────
+    subject = request.subject or "Matemática"
+    topic   = request.topic or "Geral"
+    phase   = request.phase or "EXPLAIN"
+    
+    # Blocos do seed (ou fallback seguro)
+    vocab_block = seed.compact_vocab_block() if seed else ""
+    curriculum_block = "\n".join(seed.curriculum_notes) if (seed and seed.curriculum_notes) else (request.context_rules or "Sê divertido e usa exemplos do dia-a-dia.")
+    lang_block = _LANG_BLOCK  # Mantido global para Layer 1 (não muda por tópico)
 
     assessment_override: str | None = None
 
-    # ── Selecciona prompt pela fase ────────────────────────────────────────────
+    # ── 4. Construção do Prompt por Fase ─────────────────────────────────────
     if phase == "EXPLAIN":
         system_text = PROMPT_EXPLAIN.format(
             subject=subject, topic=topic,
-            context_rules=context_rules,
-            lang_block=_LANG_BLOCK,vocab_block=_VOCAB_BLOCK, math_block=_MATH_BLOCK,
+            context_rules=curriculum_block,
+            lang_block=lang_block,
+            vocab_block=vocab_block
         )
 
     elif phase == "TEST":
- 
-        # 🆕 Resolver âncora aleatória se o tópico tiver âncoras
-        ancora_data = None
-        if request.ancoras:
-            ancora_data = get_ancora(request.ancoras)  # get_ancora aceita lista → escolhe aleatório
- 
+        ancora_data = get_ancora(request.ancoras) if request.ancoras else None
+        
         if ancora_data:
-            # Âncora disponível → injeta no prompt de TEST
-            if ancora_data["tipo"] == "visual":
-                ancora_label       = "DESCRIÇÃO VISUAL (Cartaz ou Sinal)"
-                ancora_label_lower = "cartaz ou sinal descrito"
-            else:
-                ancora_label       = "TEXTO DE SUPORTE"
-                ancora_label_lower = "texto acima"
- 
-            system_text = PROMPT_TEST_COM_ANCORA.format( # ⬅️ MUDOU DE prompt PARA system_text
-                student_class=request.student_class,
-                subject=request.subject,
-                topic=request.topic,
-                context_rules=request.context_rules,
-                ancora_label=ancora_label,
-                ancora_label_lower=ancora_label_lower,
+            ancora_label = "DESCRIÇÃO VISUAL (Cartaz ou Sinal)" if ancora_data["tipo"] == "visual" else "TEXTO DE SUPORTE"
+            ancora_label_lower = "cartaz ou sinal descrito" if ancora_data["tipo"] == "visual" else "texto acima"
+            
+            system_text = PROMPT_TEST_COM_ANCORA.format(
+                student_class=request.student_class, subject=subject, topic=topic,
+                context_rules=curriculum_block,
+                ancora_label=ancora_label, ancora_label_lower=ancora_label_lower,
                 ancora_conteudo=ancora_data["conteudo"],
-                history=request.history,                 # ⬅️ MUDOU DE formatted_history PARA request.history
-                user_query=request.user_query,
+                history=request.history, user_query=request.user_query
             )
             print(f"⚓ [Tutor/TEST] Âncora '{request.ancoras}' → {ancora_data['tipo']}", flush=True)
- 
         else:
-            # Sem âncora → usa o prompt TEST original
-            system_text = PROMPT_TEST.format(          
-                student_class=request.student_class,
-                subject=request.subject,
-                topic=request.topic,
-                context_rules=request.context_rules,
-                history=request.history,                
-                user_query=request.user_query,
-                lang_block=_LANG_BLOCK,
-                vocab_block=_VOCAB_BLOCK,
-                math_block=_MATH_BLOCK,
+            system_text = PROMPT_TEST.format(
+                subject=subject, topic=topic,
+                context_rules=curriculum_block,  # ✅ CORRIGIDO: usa seed.curriculum_notes
+                history=request.history, user_query=request.user_query,
+                lang_block=lang_block, vocab_block=vocab_block
             )
+
     elif phase == "FEEDBACK":
-        # ── Assessment calculado deterministicamente ───────────────────────────
-        # O Python compara a resposta do aluno com a correcta.
-        # O modelo só gera o TEXTO — nunca decide o resultado.
         user_answer    = request.user_query or ""
         correct_answer = request.last_correct_answer or ""
         last_itype     = request.last_interaction_type or "CHIPS"
 
         if correct_answer and _norm(user_answer) == _norm(correct_answer):
-            # ✅ Resposta correcta — confirmado deterministicamente
             assessment_override = "CORRECT"
             system_text = PROMPT_FEEDBACK_CORRECT.format(
-                subject=subject, topic=topic,
-                lang_block=_LANG_BLOCK,
-                vocab_block=_VOCAB_BLOCK,
-                user_answer=user_answer,
-                correct_answer=correct_answer,
-                last_question=request.last_question or "",
+                subject=subject, topic=topic, lang_block=lang_block, vocab_block=vocab_block,
+                user_answer=user_answer, correct_answer=correct_answer,
+                last_question=request.last_question or ""
             )
         elif correct_answer:
-            # ❌ Resposta errada — confirmado deterministicamente
             assessment_override = "INCORRECT"
             system_text = PROMPT_FEEDBACK_INCORRECT.format(
-                subject=subject, topic=topic,
-                lang_block=_LANG_BLOCK,vocab_block=_VOCAB_BLOCK, math_block=_MATH_BLOCK,
-                user_answer=user_answer,
-                correct_answer=correct_answer,
-                last_question=request.last_question or "",
-                last_interaction_type=last_itype,
+                subject=subject, topic=topic, lang_block=lang_block, vocab_block=vocab_block,
+                user_answer=user_answer, correct_answer=correct_answer,
+                last_question=request.last_question or "", last_interaction_type=last_itype
             )
         else:
-            # ⚠️ Sem correct_answer (DIRECT_INPUT aberto, ou frontend antigo)
-            # Não forçamos assessment — o modelo avalia pelo contexto do histórico.
-            # assessment_override fica None → modelo decide (melhor que forçar INCORRECT)
             print(f"⚠️ [FEEDBACK] Sem correct_answer — modelo avalia livremente.")
             system_text = PROMPT_FEEDBACK_INCORRECT.format(
-                subject=subject, topic=topic,
-                lang_block=_LANG_BLOCK,vocab_block=_VOCAB_BLOCK, math_block=_MATH_BLOCK,
-                user_answer=user_answer,
-                correct_answer="INFERIR_DO_CONTEXTO_DO_ALUNO",
-                last_question=request.last_question or "",
-                last_interaction_type=last_itype,
+                subject=subject, topic=topic, lang_block=lang_block, vocab_block=vocab_block,
+                user_answer=user_answer, correct_answer="INFERIR_DO_CONTEXTO_DO_ALUNO",
+                last_question=request.last_question or "", last_interaction_type=last_itype
             )
     else:
-        # Fase desconhecida → fallback seguro para EXPLAIN
         phase = "EXPLAIN"
         system_text = PROMPT_EXPLAIN.format(
             subject=subject, topic=topic,
-            context_rules=context_rules,
-            lang_block=_LANG_BLOCK,vocab_block=_VOCAB_BLOCK, math_block=_MATH_BLOCK,
+            context_rules=curriculum_block, lang_block=lang_block, vocab_block=vocab_block
         )
 
-    # ── Chamada ao modelo ──────────────────────────────────────────────────────
+    # ── 5. Chamada ao Modelo & Pós-Processamento ─────────────────────────────
     try:
         json_obj = await generate_tutor_response(
-            system_prompt=system_text,
-            user_query=request.user_query,
-            history=request.history,
-            phase=phase, 
+            system_prompt=system_text, user_query=request.user_query,
+            history=request.history, phase=phase
         )
-        # 👇 ADICIONA ESTAS DUAS LINHAS 👇
-        if phase == "TEST" and 'ancora_data' in locals() and ancora_data:
-            json_obj["ancora"] = ancora_data
-        # 👆 FIM DA ADIÇÃO 👆
-        # Assessment: sobrescreve SEMPRE com o valor calculado (nunca do modelo)
-        if assessment_override is not None:
-            json_obj["assessment"] = assessment_override
-        else:
-            # EXPLAIN e TEST nunca têm assessment
-            json_obj["assessment"] = None
         
+        if phase == "TEST" and ancora_data:
+            json_obj["ancora"] = ancora_data
+            
+        json_obj["assessment"] = assessment_override
+        
+        # Corrige distratores se necessário
         if json_obj.get("interaction_data", {}).get("options"):
             opts = json_obj["interaction_data"]["options"]
             correct = json_obj.get("correct_answer", "")
-            
-            # Extrai número de contexto se for matemática (para distratores de posição)
             number_context = None
             if subject.lower() in ["matemática", "math", "matematica"]:
-                history_text = " ".join(
-                    msg.get("text", "") for msg in (request.history[-2:] if request.history else [])
-                )
-                all_text = (request.last_question or "") + " " + history_text
-                nums = re.findall(r'\b\d{3,}(?:\.\d{3})*(?:,\d+)?\b', all_text)
-                if nums:
-                    number_context = nums[0]
-            
-            json_obj["interaction_data"]["options"] = _fix_placeholder_options(
-                opts, correct, subject, number_context=number_context
-            )
+                history_text = " ".join(msg.get("text", "") for msg in (request.history[-2:] if request.history else []))
+                nums = re.findall(r'\b\d{3,}(?:\.\d{3})*(?:,\d+)?\b', (request.last_question or "") + " " + history_text)
+                if nums: number_context = nums[0]
+            json_obj["interaction_data"]["options"] = _fix_placeholder_options(opts, correct, subject, number_context=number_context)
 
-        # Sanitiza interaction_type (não toca no assessment)
         json_obj = _sanitize_interaction(json_obj)
-
-        # Correcção determinística de valor posicional
         json_obj["messages"] = correct_place_value(json_obj.get("messages", []), request.last_question or "")
 
-        # Limpeza de encoding
-        json_obj["messages"] = [
-            remove_broken_emojis(clean_unicode(m))
-            for m in json_obj.get("messages", [])
-        ]
+        # ✅ PÓS-PROCESSAMENTO DE VOCABULÁRIO (Seed)
+        if seed:
+            json_obj["messages"] = [seed.apply_vocab(remove_broken_emojis(clean_unicode(m))) for m in json_obj.get("messages", [])]
+        else:
+            json_obj["messages"] = [remove_broken_emojis(clean_unicode(m)) for m in json_obj.get("messages", [])]
 
-        # Áudio
         audio_file = await generate_voice_audio(json_obj.get("messages", []))
         json_obj["audio_url"] = f"/static/audio_cache/{audio_file}" if audio_file else None
-
-        # Devolve a fase ao NestJS para calcular a próxima transição
         json_obj["phase"] = phase
 
-        # Em fase TEST, garante que correct_answer existe no output para o frontend.
-        # O frontend guarda-o e reenvia no próximo pedido (fase FEEDBACK).
-        # Se o modelo não o devolveu, tenta extrair das options (1º elemento = correcto por convenção).
         if phase == "TEST" and not json_obj.get("correct_answer"):
             opts = json_obj.get("interaction_data", {}).get("options", [])
             if opts:
@@ -818,10 +605,6 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
         print(f"ERRO CONTROLADOR [{phase}]: {e}")
         return ChatResponse(response_text=json.dumps({
             "messages": ["Eish, algo correu mal! ⚙️", "Podes tentar de novo?"],
-            "emotion": "SAD",
-            "interaction_type": "CHIPS",
-            "assessment": None,
-            "phase": phase,
-            "interaction_data": {"options": ["Tentar de novo"]},
-            "audio_url": None,
+            "emotion": "SAD", "interaction_type": "CHIPS", "assessment": None,
+            "phase": phase, "interaction_data": {"options": ["Tentar de novo"]}, "audio_url": None
         }, ensure_ascii=False))

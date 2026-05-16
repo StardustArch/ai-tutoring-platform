@@ -1,0 +1,80 @@
+id: "mat3_u1_numeros_naturais"
+subject: "Matemática"
+topic: "Unidade 1: Números Naturais e Operações (1)"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "valor posicional"
+    replacement: "a casa do número"
+  - forbidden: "decompor"
+    replacement: "separar em partes"
+  - forbidden: "decomposição"
+    replacement: "separar em partes"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "sequência"
+    replacement: "fila de números"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+  - forbidden: "representar"
+    replacement: "mostrar"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+  - "estratégia"
+  - "método"
+
+curriculum_notes:
+  - "Números até 10.000"
+  - "Casas: unidades, dezenas, centenas, unidades de milhar"
+  - "Composição: 5.432 = 5.000 + 400 + 30 + 2"
+  - "Recta numérica: localizar número em falta entre dois dados"
+  - "Comparação com sinais > < ="
+  - "Ordinais até quinquagésimo (50º)"
+  - "Romanos até L=50: I=1 V=5 X=10 L=50"
+  - "Regras romanas: IV=4, IX=9, XL=40"
+
+local_examples:
+  - "preços em meticais"
+  - "número de alunos na escola"
+  - "população de aldeias"
+
+tutor:
+  constraints:
+    place_value_correction: true
+    max_sentence_words: 12
+    distractor_strategy: "off_by_position"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Leitura e Escrita de números até 10.000"
+    - "Composição e Decomposição (unidades/dezenas/centenas/milhar)"
+    - "Localizar número que falta na Recta Numérica"
+    - "Comparação e Ordenação de números até 10.000"
+    - "Identificar Número Ordinal até 50º"
+    - "Converter Número Romano até L"
+    - "Valor posicional: qual o valor do dígito X no número Y"
+    - "Verdadeiro ou Falso sobre o valor do dígito"
+    - "Completar a decomposição com o número em falta"
+  distractor_strategy: "off_by_position"
+  positional_correction: true
+  difficulty_range: [1, 4]

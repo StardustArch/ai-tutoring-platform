@@ -1,0 +1,71 @@
+id: "port4_u9_nossa_provincia"
+subject: "Português"
+topic: "Unidade 9: A Nossa Província"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "negação"
+    replacement: "dizer que não"
+  - forbidden: "dupla negação"
+    replacement: "usar dois nãos"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+  - "estratégia"
+  - "método"
+  - "enciclopédia"
+  - "metrificação"
+  - "escansão"
+
+curriculum_notes:
+  - "A própria província do aluno: localização, riquezas naturais, cultura"
+  - "Vida no tempo colonial vs presente: contraste histórico"
+  - "25 de Junho: Dia da Independência de Moçambique"
+  - "Heróis moçambicanos: Samora Machel, Eduardo Mondlane"
+  - "Advérbios de Negação: não, nunca, jamais"
+  - "Dupla negação: Nunca vi nada. / Não fiz nunca."
+  - "Texto poético/narrativo com tema histórico moçambicano"
+  - "Elementos da narrativa: autor, narrador, personagens, espaço, tempo, acções, moral"
+
+local_examples:
+  - "província do aluno: Maputo, Gaza, Inhambane, Sofala, Manica, Tete, Zambézia, Nampula, Cabo Delgado, Niassa"
+  - "riquezas: caju, algodão, carvão, gás natural, turismo"
+  - "avó que viveu no tempo colonial, professor de história Carlos"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 14
+    visual_reference_required: false
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT", "MATCHING"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Vocabulário: riquezas e aspectos da Própria Província"
+    - "Identificar Advérbio de Negação na frase"
+    - "Construir frase negativa com não, nunca ou jamais"
+    - "Identificar Verso, Estrofe e Rima (consolidação final)"
+    - "Dupla negação: identificar e construir correctamente"
+    - "Identificar elementos completos da Narrativa"
+    - "Interpretar texto poético ou narrativo com tema histórico"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

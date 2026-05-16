@@ -11,6 +11,7 @@ from app.utils.textos_ancora import get_ancora
 from app.utils.finite_domains import get_finite_domain_data
 from app.utils.prompts_finite  import PROMPT_FINITE_DOMAIN, PROMPT_FINITE_WITH_NARRATIVE
 from app.utils.geometry_validator import validate_geometry_answer
+from app.seeds.loader import SeedLoader, SeedNotFoundError
 
 # ─── PROMPT GERAL ────────────────────────────────────────────────────────────
 PROMPT_RUSH_JSON = """
@@ -1314,10 +1315,45 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
         # 🆕 BLOCO NOVO — escolha do forced_structure
         # Se o NestJS enviou um override (vem do lesson_plan do slot),
         # usa directamente. Caso contrário, sorteia como antes (Rush/Cron).
+        # ── Carregar seed para obter structures do rush ─────────────────────────
+        seed = None
+        try:
+            # Tenta carregar por ID direto (ex: "mat3_u1_numeros_naturais")
+            seed_id = request.topic_seed_id
+            if seed_id:
+                seed = SeedLoader.get(seed_id)
+        except (SeedNotFoundError, KeyError, AttributeError):
+            # Fallback: busca por nome do tópico + disciplina
+            try:
+                seed = SeedLoader.get_by_topic(subtopic, subject=request.subject)
+            except SeedNotFoundError:
+                seed = None
+                print(f"⚠️ [Rush/Seed] Seed não encontrado para topic='{subtopic}', subject='{request.subject}'")
+
+        # ── Escolher forced_structure: seed > override > fallback antigo ─────────
         if request.forced_structure_override:
+            # Override do NestJS tem prioridade máxima (vem do lesson_plan)
             forced_structure = request.forced_structure_override
+        elif seed and seed.rush.structures:
+            # Usa structures definidas no YAML do seed
+            available = seed.rush.structures
+            # Filtra por difficulty_range se estiver definido
+            if seed.rush.difficulty_range:
+                min_d, max_d = seed.rush.difficulty_range
+                # Se a dificuldade atual estiver dentro do range, usa todas
+                # (a filtragem fina pode ser feita depois se necessário)
+            # Escolhe aleatoriamente, evitando blacklist
+            for _ in range(5):
+                candidate = random.choice(available)
+                if candidate not in session_blacklist:
+                    forced_structure = candidate
+                    break
+            else:
+                # Se todas estiverem na blacklist, escolhe mesmo assim
+                forced_structure = random.choice(available)
+            print(f"🌱 [Rush/Seed] {seed.id} | structures: {len(available)} | escolhida='{forced_structure}'", flush=True)
         else:
-            # 👈 NOVO: Garante que não escolhe uma que já foi para a blacklist
+            # Fallback: lógica antiga de extração de context_rules
             for _ in range(5):
                 forced_structure = _pick_forced_structure_with_diversity(
                     subtopic, request.context_rules, request.recent_questions

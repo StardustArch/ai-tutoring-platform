@@ -1,0 +1,80 @@
+id: "mat3_u4_multiplicacao_divisao"
+subject: "Matemática"
+topic: "Unidade 4: Números Naturais e Operações (3)"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "efectuar"
+    replacement: "fazer"
+  - forbidden: "resultado"
+    replacement: "resposta"
+  - forbidden: "operação"
+    replacement: "conta"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+  - forbidden: "quociente"
+    replacement: "resultado da divisão"
+  - forbidden: "dividendo"
+    replacement: "o número que vamos dividir"
+  - forbidden: "divisor"
+    replacement: "o número pelo qual dividimos"
+  - forbidden: "propriedade comutativa"
+    replacement: "podemos trocar a ordem na multiplicação"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "procedimento"
+
+curriculum_notes:
+  - "Multiplicar por 0: resultado SEMPRE zero (n × 0 = 0)"
+  - "Multiplicar por 10: acrescentar um zero (45 × 10 = 450)"
+  - "Multiplicar por 100: acrescentar dois zeros (45 × 100 = 4.500)"
+  - "2 dígitos × 1 dígito: ex. 34 × 6"
+  - "3 dígitos × 1 dígito: ex. 125 × 4"
+  - "Comutativa da multiplicação: a × b = b × a"
+  - "Divisão usa a tabuada: se 4 × 6 = 24 então 24 ÷ 4 = 6"
+  - "Divisão com resto: 17 ÷ 3 = 5 resto 2"
+  - "Verificar: (quotiente × divisor) + resto = dividendo"
+  - "Divisão na forma vertical: dispor dividendo, divisor, quotiente, resto"
+  - "NÃO usar multiplicadores ou divisores com 2 dígitos"
+
+local_examples:
+  - "distribuição equitativa de sacos de arroz"
+  - "grupos de alunos na escola do professor Albino"
+  - "produção multiplicada por dias de trabalho"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Multiplicação por 0, 10 ou 100"
+    - "Multiplicação de 2 dígitos por 1 dígito"
+    - "Multiplicação de 3 dígitos por 1 dígito"
+    - "Divisão usando a Multiplicação (relação inversa)"
+    - "Divisão com Resto"
+    - "Divisão na Forma Vertical"
+    - "Problema de Multiplicação ou Divisão com contexto real"
+    - "Verdadeiro ou Falso sobre resultado de multiplicação"
+    - "Completar a lacuna na multiplicação ou divisão"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

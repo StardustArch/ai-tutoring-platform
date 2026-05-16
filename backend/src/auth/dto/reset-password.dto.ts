@@ -3,7 +3,7 @@ import { IsString, IsNotEmpty, MinLength, Matches } from 'class-validator';
 export class ResetPasswordDto {
   @IsNotEmpty()
   @IsString()
-  token: string;
+  token!: string;
 
   @IsNotEmpty()
   @IsString()
@@ -12,5 +12,5 @@ export class ResetPasswordDto {
     message:
       'A senha deve ter pelo menos 8 caracteres, uma maiúscula, um número e um caractere especial',
   })
-  newPassword: string;
+  newPassword!: string;
 }

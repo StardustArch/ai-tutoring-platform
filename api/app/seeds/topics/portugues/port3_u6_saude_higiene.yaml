@@ -1,0 +1,62 @@
+id: "port3_u6_saude_higiene"
+subject: "Português"
+topic: "Unidade 6: Saúde e Higiene"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "analisar"
+    replacement: "pensar bem em"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "jargão médico"
+  - "bactéria"
+  - "parasita"
+
+curriculum_notes:
+  - "Adjectivo concorda com o nome em género: leão rápido / leoa rápida"
+  - "Adjectivo concorda com o nome em número: dente saudável / dentes saudáveis"
+  - "Verbos LAVAR e LIMPAR: modelo para verbos regulares em -ar (1ª conjugação)"
+  - "Formas de frase Afirmativa e Negativa — REVISÃO da U4"
+  - "Temas: malária (rede mosquiteira), diarreia, conjuntivite, SIDA"
+  - "NÃO apresentar frases negativas como conteúdo novo — é revisão"
+
+local_examples:
+  - "centro de saúde rural"
+  - "campanha contra a malária da mãe da Fátima"
+  - "água potável no poço do enfermeiro Hélio"
+  - "nomes: Atija, Ana"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "CLOZE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Concordância do Adjectivo com o Nome em Género"
+    - "Concordância do Adjectivo com o Nome em Número"
+    - "Conjugar o verbo Lavar ou Limpar no Presente"
+    - "Transformar frase Afirmativa em Negativa (revisão)"
+    - "Concordância Adjectivo-Nome em Género E Número combinados"
+    - "Completar frase com adjectivo concordando com o nome"
+    - "Verdadeiro ou Falso sobre concordância do adjectivo"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

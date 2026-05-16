@@ -174,7 +174,9 @@ this.logger.log(`🎲 [Rush âncora] ancoras=${ancoras.length} usarAncora=${usar
       };
 
     } catch (err) {
+      if(err instanceof Error){
       this.logger.error(`Erro no motor de questões: ${err.message}`);
+      }
       
       // 🔥 Fallback de emergência: Tenta buscar qualquer exercício deste tópico na BD
       const fallbackExercicio = await this.prisma.exercicio.findFirst({

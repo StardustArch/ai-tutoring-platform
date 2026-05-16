@@ -1,0 +1,65 @@
+id: "mat4_u3_adicao_subtracao"
+subject: "Matemática"
+topic: "Unidade 3: Números Naturais e Operações (2)"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "efectuar"
+    replacement: "fazer"
+  - forbidden: "resultado"
+    replacement: "resposta"
+  - forbidden: "operação"
+    replacement: "conta"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "procedimento"
+
+curriculum_notes:
+  - "Adição com transporte em 4, 5 e 6 dígitos"
+  - "Subtracção com empréstimo em 4, 5 e 6 dígitos"
+  - "O aluno já sabe operações básicas — desafio é a extensão dos números"
+  - "Resolução de problemas com adição e/ou subtracção"
+  - "NÃO usar multiplicação ou divisão"
+  - "NÃO usar mais de 6 dígitos"
+
+local_examples:
+  - "população de províncias moçambicanas"
+  - "produção agrícola em quilos (Sr. Machava)"
+  - "distâncias em km entre cidades"
+  - "preços em meticais no mercado de Maputo"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Adição de números de 4 dígitos com transporte"
+    - "Subtracção de números de 4 dígitos com empréstimo"
+    - "Adição de números de 5 e 6 dígitos"
+    - "Subtracção de números de 5 e 6 dígitos"
+    - "Problema de Adição com contexto real"
+    - "Problema de Subtracção com contexto real"
+    - "Problema misto de Adição e Subtracção"
+    - "Verdadeiro ou Falso sobre resultado de adição ou subtracção"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

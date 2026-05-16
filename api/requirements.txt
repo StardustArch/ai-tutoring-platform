@@ -3,9 +3,9 @@ fastapi
 uvicorn[standard] # O servidor que corre o FastAPI
 python-dotenv
 python-multipart
-sentece-transformers
 openai
 edge-tts
-sentence-transformers
+fastembed
 pydantic
 pydantic-settings
+pyyaml

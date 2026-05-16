@@ -1,0 +1,76 @@
+id: "port4_u2_escola"
+subject: "Português"
+topic: "Unidade 2: A Escola"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "sintáctica"
+    replacement: "na frase"
+  - forbidden: "função sintáctica"
+    replacement: "papel na frase"
+  - forbidden: "flexão"
+    replacement: "mudar de forma"
+  - forbidden: "concordância"
+    replacement: "combinar correctamente"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+  - "estratégia"
+  - "método"
+  - "morfologia"
+  - "sintaxe"
+  - "complemento directo"
+
+curriculum_notes:
+  - "Entrevista: título, tópicos, introdução, perguntas, respostas, conclusão"
+  - "Aviso escolar: destinatário, mensagem, data, assinatura"
+  - "Frase interrogativa: usa Quem, O quê, Onde, Quando, Como, Porquê"
+  - "Discurso Directo: com travessão (—) | Indirecto: sem travessão"
+  - "Frase simples: Grupo Nominal (GN) + Grupo Verbal (GV)"
+  - "Sujeito: quem pratica a acção | Predicado: o que se diz do sujeito"
+  - "Adjectivos: flexão em género (bonito/bonita) e número (bonito/bonitos)"
+  - "Narrador participante (1ª pessoa) vs não participante (3ª pessoa)"
+
+local_examples:
+  - "escola moçambicana, sala de aula, recreio, director"
+  - "professor Armando, directora Glória, aluno Hélio"
+  - "bilhete da Fátima, aviso da escola, entrevista com o professor"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 14
+    visual_reference_required: false
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT", "ORDERING"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Identificar Sujeito e Predicado numa frase simples"
+    - "Identificar Grupo Nominal e Grupo Verbal"
+    - "Distinguir Discurso Directo de Indirecto"
+    - "Identificar os elementos de um Aviso"
+    - "Flexão de Adjectivos em Género e Número"
+    - "Estrutura de uma Entrevista (identificar cada parte)"
+    - "Frase interrogativa: construir com introdutor correcto"
+    - "Narrador: identificar se é participante ou não participante"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

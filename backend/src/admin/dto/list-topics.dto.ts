@@ -6,10 +6,10 @@ export class ListTopicsDto {
   @Type(() => Number)
   @IsInt()
   @IsNotEmpty()
-  classe: number;
+  classe!: number;
 
   @Type(() => Number)
   @IsInt()
   @IsNotEmpty()
-  disciplinaId: number;
+  disciplinaId!: number;
 }

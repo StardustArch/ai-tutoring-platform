@@ -1,0 +1,70 @@
+id: "port3_u4_ambiente"
+subject: "Português"
+topic: "Unidade 4: O Ambiente"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "analisar"
+    replacement: "pensar bem em"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "adjectivos como categoria"
+
+curriculum_notes:
+  - "Banda desenhada: personagens, balões de fala, acção, sequência"
+  - "Fábula: moral/moraleja — revisão da U1"
+  - "Conversa directa: falas com travessão (—)"
+  - "Nomes Próprios: pessoas, localidades, rios — começam com maiúscula"
+  - "Nomes Comuns: seres, coisas, lugares em geral — letra minúscula"
+  - "Género pelo artigo: o/os/um/uns = masculino; a/as/uma/umas = feminino"
+  - "Número: singular e plural (maçã/maçãs, armazém/armazéns, cor/cores)"
+  - "Formas de frase: Afirmativa e Negativa (transformar com 'não')"
+  - "Verbos DAR e FAZER: Presente, Pretérito Perfeito e Futuro Simples"
+  - "Verbo ESTAR: Pretérito Perfeito, Presente, Futuro Simples, Futuro Perifrástico"
+  - "Pronomes Indefinidos variáveis: algum/a, nenhum/a, pouco/a, todo/a, quanto/a"
+  - "Pronomes Indefinidos invariáveis: alguém, ninguém, tudo, nada, cada"
+  - "Expressões estado do tempo: Está a chover / Está quente / Está frio"
+  - "NÃO usar adjectivos como categoria gramatical — são da U5"
+
+local_examples:
+  - "animais da savana e da quinta"
+  - "Parque Nacional da Gorongosa"
+  - "Manjacaze (Gaza) — nomes: Ali, Sónia, professor Mateus"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "CLOZE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Distinguir Nome Próprio de Nome Comum na frase"
+    - "Identificar género pelo artigo (o/a/um/uma)"
+    - "Passar Nomes para o Feminino ou Masculino"
+    - "Passar Nomes para o Plural (ou singular)"
+    - "Transformar frase Afirmativa em Negativa com não"
+    - "Conjugar os verbos Dar e Fazer nos três tempos"
+    - "Conjugar o verbo Estar (incluindo Futuro Simples)"
+    - "Identificar o Pronome Indefinido na frase"
+    - "Completar frase com o Pronome Indefinido correcto"
+    - "Verdadeiro ou Falso sobre forma de frase"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

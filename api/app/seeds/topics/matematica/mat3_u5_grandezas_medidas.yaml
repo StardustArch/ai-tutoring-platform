@@ -1,0 +1,78 @@
+id: "mat3_u5_grandezas_medidas"
+subject: "Matemática"
+topic: "Unidade 5: Grandezas e Medidas"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+  - forbidden: "efectuar"
+    replacement: "fazer"
+  - forbidden: "resultado"
+    replacement: "resposta"
+  - forbidden: "unidade de medida"
+    replacement: "a medida que usamos"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "procedimento"
+
+curriculum_notes:
+  - "Comprimento: mm, cm, m — 1 cm = 10 mm; 1 m = 100 cm"
+  - "Operações mistas: 7 cm 5 mm + 3 cm 2 mm = 10 cm 7 mm"
+  - "Conversão: 2 m = 200 cm; 350 cm = 3 m e 50 cm"
+  - "Perímetro = soma de todos os lados da figura"
+  - "Massa: g e kg — 1 kg = 1000 g"
+  - "Capacidade: mL, dL, L — 1 dL = 100 mL; 1 L = 10 dL; 1 L = 1000 mL"
+  - "Relógio analógico: ponteiro curto = horas; ponteiro comprido = minutos"
+  - "AM/PM: período da tarde/noite adicionar 12"
+  - "Meia hora = 30 min (ponteiro no 6); quarto = 15 min (ponteiro no 3)"
+  - "Duração: diferença entre hora inicial e hora final"
+  - "Calendário: 7 dias/semana; 12 meses/ano"
+  - "NÃO usar decimais nas medidas — usar formas mistas (1 kg e 500 g)"
+  - "NÃO usar km nesta unidade"
+  - "NÃO usar relógio digital"
+  - "NÃO usar segundos"
+
+local_examples:
+  - "medir terreno da machamba da avó Lurdes"
+  - "pesar caju no mercado do sr. Cossa"
+  - "litros de água no poço"
+  - "horário escolar de Joana e Paulo"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Escolher a unidade correcta (m/cm/mm, kg/g, L/mL)"
+    - "Medir e comparar comprimentos (cm e mm)"
+    - "Leitura de horas no relógio (horas certas, AM/PM)"
+    - "Leitura de horas e minutos no relógio"
+    - "Calcular duração (horas ou minutos entre dois momentos)"
+    - "Conversão de unidades (m↔cm, cm↔mm, L↔mL)"
+    - "Calcular o Perímetro de triângulo ou quadrilátero"
+    - "Problema misto de Grandezas com contexto real"
+    - "Verdadeiro ou Falso sobre unidades de medida"
+    - "Completar a conversão com o valor em falta"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

@@ -1,0 +1,71 @@
+id: "port3_u3_comunidade"
+subject: "Português"
+topic: "Unidade 3: A Comunidade"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "analisar"
+    replacement: "pensar bem em"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "derivação complexa"
+
+curriculum_notes:
+  - "Texto Poético: versos, estrofes, rima — interpretar sentimento"
+  - "Convite: destinatário, motivo, local, data e hora"
+  - "Família de palavras: mesma raiz (trabalho/trabalhador/trabalhar)"
+  - "Verbo VIR no Presente: venho, vens, vem, vimos, vêm"
+  - "Expressões temporais: Antes / Agora / Depois"
+  - "Ortografia: O pode soar como U no fim da palavra (copo, saco)"
+  - "Ortografia: E pode soar como I no início ou meio de palavra (emenda)"
+  - "Letra maiúscula NOVA U3: nomes geográficos (Zambeze, Maputo)"
+  - "Letra maiúscula NOVA U3: instituições (Escola Primária Samora Machel)"
+  - "Letra maiúscula NOVA U3: factos históricos (Dia da Independência)"
+  - "Expressões para criticar: Fizeste mal!, Não devias ter feito isso!"
+  - "Expressões para elogiar: Parabéns!, Fizeste bem!, Bravo!"
+  - "Expressões para pedir ajuda: Socorro!, Ajuda-me!, Peço ajuda!"
+  - "NÃO usar prefixos e sufixos complexos"
+  - "NÃO usar família de palavras com raiz 'casa' — já foi na U1"
+
+local_examples:
+  - "comunidade e serviços sociais moçambicanos"
+  - "hospital, escola, mercado da comunidade do Luís"
+  - "nomes: Luís, Saíde, avó Conceição"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "CLOZE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Interpretação de um Texto Poético (versos e estrofes)"
+    - "Identificar os elementos de um Convite"
+    - "Encontrar palavras da mesma Família (mesma raiz)"
+    - "Conjugar o verbo Vir no Presente do Indicativo"
+    - "Ordenar acções usando Antes, Agora e Depois"
+    - "Usar Expressões para criticar, elogiar ou pedir ajuda"
+    - "Ortografia: identificar som U escrito com O"
+    - "Aplicar regras de Letra Maiúscula (nomes geográficos e inst.)"
+    - "Completar frase com a forma correcta do verbo Vir"
+    - "Verdadeiro ou Falso sobre regras de maiúscula"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

@@ -1,0 +1,73 @@
+id: "port4_u3_comunidade"
+subject: "Português"
+topic: "Unidade 3: A Comunidade"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "contracção"
+    replacement: "junção de palavras"
+  - forbidden: "preposição"
+    replacement: "palavra que liga"
+  - forbidden: "demonstrativo"
+    replacement: "que mostra a distância"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+  - "estratégia"
+  - "método"
+  - "morfologia"
+  - "sintaxe"
+  - "oração subordinada"
+
+curriculum_notes:
+  - "Instituições públicas: hospital, esquadra, escola, câmara municipal, correios"
+  - "Profissões: enfermeiro, médico, polícia, professor, carpinteiro, pescador"
+  - "Modo Imperativo: dar ordens, conselhos, instruções (Vai!, Lê!, Não faças!)"
+  - "Preposições grupo 1: a, até, com, em, entre, de, desde, para"
+  - "Preposições grupo 2: durante, por, perante, sob, sobre, trás"
+  - "Contracções: no, na, nos, nas, pelo, pela, pelos, pelas"
+  - "Pronomes Demonstrativos: este/esse/aquele (e variações) por distância"
+  - "Verbos irregulares no Presente: ser, estar, dar, ter, ler"
+
+local_examples:
+  - "hospital rural, esquadra de polícia, escola da comunidade"
+  - "datas moçambicanas: 7 de Abril, 25 de Junho, 25 de Setembro"
+  - "enfermeiro Hélio, polícia Armindo, professora Glória"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 14
+    visual_reference_required: false
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT", "MATCHING"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Vocabulário: profissões e instituições da comunidade"
+    - "Identificar e usar o Modo Imperativo"
+    - "Escolher a Preposição correcta na frase"
+    - "Aplicar a Contracção correcta (no/na/pelo/pela...)"
+    - "Identificar o Pronome Demonstrativo pela distância"
+    - "Conjugar Verbo Irregular (ser/estar/dar/ter/ler) no Presente"
+    - "Transformar frase para o Modo Imperativo"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

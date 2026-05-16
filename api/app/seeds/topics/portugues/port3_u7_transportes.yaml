@@ -1,0 +1,68 @@
+id: "port3_u7_transportes"
+subject: "Português"
+topic: "Unidade 7: Meios de Transporte e Vias de Comunicação"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "analisar"
+    replacement: "pensar bem em"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "advérbio de modo"
+  - "perto"
+  - "longe"
+  - "acolá"
+
+curriculum_notes:
+  - "Tipos de transporte: terrestres, aquáticos, aéreos"
+  - "Advérbios de Lugar APENAS estes três: aqui, ali, lá"
+  - "aqui = perto de quem fala; ali = perto de quem ouve; lá = longe de ambos"
+  - "Verbo ANDAR (1ª conjugação, regular): Pretérito Perfeito, Presente, Futuro Simples, Futuro Perifrástico"
+  - "Sinais de trânsito: passagem para peões, paragem de transportes, trânsito proibido a peões"
+  - "Regras para peões: usar passadeira, olhar esquerda e direita, respeitar semáforos"
+  - "NÃO usar advérbios de modo (rapidamente, devagar)"
+  - "NÃO usar 'perto, longe, acolá' — são da 4ª classe"
+  - "NÃO usar código da estrada avançado"
+
+local_examples:
+  - "LAM, autocarro, bicicleta, chapa 100 em Moçambique"
+  - "Aeroporto de Mavalane, Avenida 24 de Julho"
+  - "nomes: Carlos, tio, primo"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "CLOZE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Identificar tipos de Meios de Transporte (terrestre/aquático/aéreo)"
+    - "Identificar Advérbio de Lugar (aqui/ali/lá) na frase"
+    - "Completar frase com o Advérbio de Lugar correcto"
+    - "Conjugar o verbo Andar no Presente do Indicativo"
+    - "Conjugar o verbo Andar no Futuro Simples"
+    - "Interpretar um Sinal de Trânsito"
+    - "Regras de Segurança Rodoviária para peões"
+    - "Distinguir Advérbio de Lugar de outro advérbio na frase"
+    - "Completar frase com a forma correcta do verbo Andar"
+    - "Verdadeiro ou Falso sobre advérbio de lugar"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

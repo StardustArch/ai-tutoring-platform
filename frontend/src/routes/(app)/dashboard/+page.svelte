@@ -3,7 +3,7 @@
     import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
     import { 
-        Users, School, ArrowRight, Loader2 
+        Users, School, ArrowRight, Loader2, Hand 
     } from 'lucide-svelte';
     import '../../../app.css';
 
@@ -84,7 +84,7 @@
             
             <div class="space-y-2">
                 <h1 class="text-3xl md:text-4xl font-black text-surface-900 dark:text-white tracking-tight">
-                    Olá, {getFirstName()}! 👋
+                    Olá, {getFirstName()}! <Hand size={28}/>
                 </h1>
                 <p class="text-lg text-surface-600 dark:text-surface-400">
                     Como deseja utilizar o KMind hoje?

@@ -6,28 +6,28 @@ import { Type } from 'class-transformer';
 export class CreateDisciplinaDto {
   @IsString()
   @IsNotEmpty()
-  nome: string;
+  nome!: string;
 }
 
 export class UpdateDisciplinaDto {
   @IsString()
   @IsNotEmpty()
-  nome: string;
+  nome!: string;
 }
 
 // --- TÓPICO ---
 export class CreateTopicDto {
   @IsString()
   @IsNotEmpty()
-  nome: string;
+  nome!: string;
 
   @IsInt()
   @Min(1)
   @Max(13) // Assumindo sistema até 13ª classe
-  classe: number;
+  classe!: number;
 
   @IsInt()
-  disciplinaId: number;
+  disciplinaId!: number;
 
   @IsInt()
   @IsOptional()

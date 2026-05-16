@@ -1,0 +1,68 @@
+id: "mat3_u9_tabelas_graficos"
+subject: "Matemática"
+topic: "Unidade 9: Tabelas e Gráficos"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "média"
+  - "moda"
+  - "mediana"
+  - "gráfico de linhas"
+
+curriculum_notes:
+  - "Tabela: ler dado específico, identificar máximo e mínimo"
+  - "Tabela: calcular total de coluna/linha; calcular diferença entre valores"
+  - "Gráfico de BARRAS (não de linhas — esse é 4ª classe)"
+  - "Eixo horizontal = categorias; eixo vertical = valores"
+  - "Ler altura de uma barra = valor daquela categoria"
+  - "Identificar barra mais alta (maior) e mais baixa (menor)"
+  - "Calcular diferença entre duas barras"
+  - "Calcular total de todas as barras"
+  - "NÃO calcular médias, modas ou medianas"
+  - "NÃO pedir ao aluno para construir gráficos — apenas interpretar"
+
+local_examples:
+  - "número de alunos por turma (professora Ana)"
+  - "fruta preferida na escola da Fátima"
+  - "animais na quinta"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "DIRECT_INPUT", "TRUE_FALSE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Ler valor específico numa Tabela"
+    - "Identificar valor Maior/Menor numa Tabela ou Gráfico"
+    - "Calcular o total de duas ou mais categorias"
+    - "Calcular diferença entre duas categorias"
+    - "Interpretar Gráfico de Barras descrito (ler valor)"
+    - "Problema completo com Gráfico de Barras"
+    - "Verdadeiro ou Falso sobre dados de uma tabela"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

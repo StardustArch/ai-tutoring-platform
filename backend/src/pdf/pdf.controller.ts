@@ -13,7 +13,6 @@ export class PdfController {
     @Param('studentId') alunoId: string,
     @Query('range') periodo: string,
     @Req() req: any,
-    // @Res() res: express.Response
   ) {
     const dadosPdf =
       await this.pdfService.getStudentReportForTeacherPdf(

@@ -1,0 +1,77 @@
+id: "port3_u1_familia"
+subject: "Português"
+topic: "Unidade 1: A Família"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "conceito"
+    replacement: "ideia"
+  - forbidden: "analisar"
+    replacement: "pensar bem em"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "procedimento"
+  - "modo subjuntivo"
+  - "condicional"
+
+curriculum_notes:
+  - "Fábula: história com animais/plantas como personagens — identificar personagens e moral"
+  - "Verbos variam em tempo, número, pessoa e modo"
+  - "Pretérito Perfeito (passado terminado): Ontem dancei"
+  - "Presente (agora): Hoje danço"
+  - "Futuro Perifrástico (dois verbos): Amanhã vou dançar"
+  - "Verbos SER e ESTAR: Pretérito Perfeito, Presente e Futuro Perifrástico"
+  - "Modo Indicativo: exprime uma acção real"
+  - "Parágrafo: identificar e separar parágrafos"
+  - "Sinonímia: palavras com significado semelhante (ex: feliz/contente)"
+  - "Família de palavras com raiz 'casa': casa, casinha, casarão, caseiro"
+  - "Divisão silábica: separar palavras em sílabas"
+  - "Retrato: características físicas (alto, baixo, gordo, magro)"
+  - "USAR 'Pretérito Perfeito' NÃO 'Passado'"
+  - "USAR 'Futuro Perifrástico' NÃO apenas 'Futuro'"
+  - "Futuro Simples NÃO é desta unidade — é conteúdo da U2"
+  - "NÃO usar antónimos — são da Unidade 2"
+  - "NÃO usar adjectivos como categoria — são da Unidade 5"
+
+local_examples:
+  - "família moçambicana da Ana e Josina"
+  - "casa de capim e machamba"
+  - "nomes: Ana, Josina, Carlos, Fátima"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "CLOZE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Interpretação de texto narrativo curto sobre família"
+    - "Identificar elementos de uma Fábula (personagens e moral)"
+    - "Retrato: descrever características físicas de alguém"
+    - "Conjugar Ser ou Estar no Presente do Indicativo"
+    - "Identificar o Tempo do verbo (Pret. Perfeito/Pres./Fut. Perifrástico)"
+    - "Encontrar Sinónimos de palavras simples"
+    - "Divisão silábica de palavras do quotidiano"
+    - "Família de palavras com raiz casa"
+    - "Completar frase com Ser ou Estar no tempo correcto"
+    - "Verdadeiro ou Falso sobre o tempo verbal"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

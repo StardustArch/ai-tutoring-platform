@@ -1,0 +1,66 @@
+id: "port3_u2_escola"
+subject: "Português"
+topic: "Unidade 2: A Escola"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "analisar"
+    replacement: "pensar bem em"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "orações subordinadas"
+
+curriculum_notes:
+  - "Texto Narrativo: início, desenvolvimento e fim"
+  - "Bilhete: destinatário, mensagem, remetente e data"
+  - "Antonímia: palavras de sentido contrário (ex: grande/pequeno)"
+  - "Pontuação: ponto final (.), interrogação (?), exclamação (!), vírgula (,)"
+  - "Frase interrogativa e introdutores: Quem, O quê, Onde, Quando, Como, Porquê"
+  - "Letra maiúscula: início de frase e nomes próprios"
+  - "NOVIDADE U2: Futuro Simples (uma palavra): Amanhã estudarei"
+  - "Verbos IR, ESTUDAR, ESCREVER: Pretérito Perfeito, Presente, Futuro Simples"
+  - "Preposições simples: em, de, para, com, por, a"
+  - "NÃO focar verbos SER/ESTAR — já foram na U1"
+
+local_examples:
+  - "escola moçambicana do professor João"
+  - "sala de aula e recreio de Saide e Fátima"
+  - "escola da Beira"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "CLOZE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Identificar os elementos de um Bilhete"
+    - "Encontrar o antónimo de palavras simples"
+    - "Escolher o sinal de pontuação correcto para a frase"
+    - "Identificar introdutores interrogativos (Quem/Onde/Quando)"
+    - "Aplicar a regra da Letra Maiúscula"
+    - "Conjugar verbo Ir/Estudar/Escrever no Futuro Simples"
+    - "Distinguir Futuro Simples de Futuro Perifrástico na frase"
+    - "Substituir palavra na frase pelo seu antónimo"
+    - "Completar a lacuna com o verbo no Futuro Simples"
+    - "Verdadeiro ou Falso sobre o tipo de frase"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

@@ -1,0 +1,76 @@
+id: "mat3_u6_fracao"
+subject: "Matemática"
+topic: "Unidade 6: Fracção"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "numerador"
+    replacement: "o número de cima"
+  - forbidden: "denominador"
+    replacement: "o número de baixo"
+  - forbidden: "traço de fracção"
+    replacement: "o traço do meio"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "representar"
+    replacement: "mostrar"
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "fracção equivalente"
+  - "simplificar"
+  - "amplificar"
+
+curriculum_notes:
+  - "Fracção = partes iguais de uma unidade inteira"
+  - "Número de cima (numerador): quantas partes são tomadas"
+  - "Número de baixo (denominador): em quantas partes foi dividido"
+  - "Fracções do livro: 1/2, 1/3, 1/4, 2/3, 3/4, 2/5, 4/5, 1/6, 1/8, 1/9, 1/10"
+  - "Leitura: 1/2=um meio, 1/3=um terço, 2/3=dois terços, 3/4=três quartos"
+  - "Fracção e divisão: 1/2 de 10 = 10 ÷ 2 = 5"
+  - "Quando numerador = denominador: fracção = 1 inteiro (ex: 4/4 = 1)"
+  - "Comparar com mesmo denominador: comparar numeradores (4/5 > 2/5)"
+  - "NÃO fazer adição ou subtracção de fracções"
+  - "NÃO comparar fracções com denominadores diferentes"
+  - "NÃO usar fracções impróprias (numerador > denominador), excepto n/n = 1"
+
+local_examples:
+  - "fita métrica dividida em partes iguais"
+  - "recipiente de litro dividido em partes (Ana e João)"
+  - "laranja dividida em quartos pela Sónia"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Identificar o número de cima e o número de baixo de uma fracção"
+    - "Ler e escrever fracções simples (1/2, 1/3, 1/4, 2/3, 3/4)"
+    - "Identificar fracção representada numa figura"
+    - "Calcular fracção de uma medida (ex: 3/4 de 1 m)"
+    - "Reconhecer quando fracção = unidade inteira (n/n = 1)"
+    - "Comparar fracções com denominadores iguais (>, <, =)"
+    - "Problema com fracções e contexto real"
+    - "Verdadeiro ou Falso sobre fracções simples"
+    - "Completar a fracção com o número em falta"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

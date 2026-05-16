@@ -1,0 +1,66 @@
+id: "mat3_u7_literacia_financeira"
+subject: "Matemática"
+topic: "Unidade 7: Literacia Financeira"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "efectuar"
+    replacement: "fazer"
+  - forbidden: "resultado"
+    replacement: "resposta"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+
+forbidden_words:
+  - "portanto"
+  - "juros"
+  - "câmbio"
+  - "lucro"
+  - "desconto"
+  - "centavos"
+
+curriculum_notes:
+  - "Moedas do Metical: 1 MT, 2 MT, 5 MT, 10 MT, 20 MT, 50 MT"
+  - "Notas do Metical: 50 MT, 100 MT, 200 MT, 500 MT"
+  - "Calcular total de uma compra: somar 2-3 preços"
+  - "Calcular troco: Troco = valor entregue − total"
+  - "Verificar se o dinheiro chega para comprar"
+  - "Usar apenas valores inteiros em MT (sem centavos)"
+  - "NÃO usar juros, câmbios, lucro ou desconto"
+
+local_examples:
+  - "barraca da escola da vendedeira Lurdes"
+  - "mercado moçambicano da Sónia"
+  - "compra de cadernos e lápis pela mãe do Hélio"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Identificar notas e moedas do Metical"
+    - "Calcular o total de uma compra (2-3 itens)"
+    - "Calcular o troco"
+    - "Problema: o dinheiro chega para comprar?"
+    - "Verdadeiro ou Falso sobre o troco"
+    - "Completar a operação com o valor em falta"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

@@ -1,0 +1,77 @@
+id: "mat4_u2_espaco_forma"
+subject: "Matemática"
+topic: "Unidade 2: Espaço e Forma"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+  - forbidden: "representar"
+    replacement: "mostrar"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "fórmula de área"
+  - "coordenadas"
+  - "transferidor"
+
+curriculum_notes:
+  - "Ângulo recto: 90°; Agudo: < 90°; Obtuso: > 90° e < 180°; Raso: 180°"
+  - "Circunferência: linha curva fechada; Círculo: região interior"
+  - "Centro, Raio (centro à circunferência), Diâmetro (atravessa o centro)"
+  - "Diâmetro = 2 × raio; Raio = Diâmetro ÷ 2"
+  - "Triângulos pelos LADOS: Equilátero=3 iguais, Isósceles=2 iguais, Escaleno=3 diferentes"
+  - "Triângulos pelos ÂNGULOS: Rectângulo=tem 90°, Acutângulo=todos agudos, Obtusângulo=tem obtuso"
+  - "Quadriláteros — 5 tipos: Quadrado, Rectângulo, Paralelogramo, Losango, Trapézio"
+  - "Quadrado: 4 lados iguais, 4 ângulos rectos"
+  - "Rectângulo: lados opostos iguais, 4 ângulos rectos"
+  - "Losango: 4 lados iguais, ângulos opostos iguais"
+  - "Trapézio: apenas um par de lados paralelos"
+  - "Sólidos: Cubo, Paralelepípedo, Esfera, Cilindro, Cone, Pirâmide"
+  - "NÃO medir ângulos com transferidor — apenas identificar o tipo"
+  - "NÃO usar fórmulas de área"
+  - "Varia exemplos de objectos — não repetir sempre os mesmos"
+
+local_examples:
+  - "panela/lata de conserva (cilindro)"
+  - "caixa de sabão/tijolo (paralelepípedo)"
+  - "bola de futebol (esfera)"
+  - "borracha cilíndrica/lápis (cilindro)"
+  - "pirâmide de açúcar (pirâmide)"
+  - "cubo de madeira (cubo)"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Identificar o tipo de Ângulo (recto/agudo/obtuso/raso)"
+    - "Identificar Centro, Raio e Diâmetro no Círculo"
+    - "Calcular Raio dado o Diâmetro (ou vice-versa)"
+    - "Classificar Triângulo pelos lados (equilátero/isósceles/escaleno)"
+    - "Classificar Triângulo pelos ângulos (rectângulo/acutângulo/obtusângulo)"
+    - "Identificar o tipo de Quadrilátero"
+    - "Identificar o Sólido Geométrico pela descrição"
+    - "Distinguir se a afirmação sobre a figura geométrica é verdadeira"
+    - "Completar a frase com o nome da figura correcta"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

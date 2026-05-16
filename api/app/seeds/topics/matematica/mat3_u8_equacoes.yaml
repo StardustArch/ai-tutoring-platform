@@ -1,0 +1,70 @@
+id: "mat3_u8_equacoes"
+subject: "Matemática"
+topic: "Unidade 8: Equações"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "incógnita"
+    replacement: "o número que falta"
+  - forbidden: "equação"
+    replacement: "conta com número em falta"
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+  - forbidden: "solução"
+    replacement: "resposta"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "variável"
+  - "x"
+  - "y"
+  - "n"
+
+curriculum_notes:
+  - "Usar ? ou □ para o número desconhecido — NUNCA letras como x ou n"
+  - "Adição: 5 + ? = 12 → ? = 12 − 5 = 7"
+  - "Adição com ? no início: ? + 8 = 15 → ? = 15 − 8 = 7"
+  - "Subtracção: 15 − ? = 10 → ? = 15 − 10 = 5"
+  - "Subtracção com ? no início: ? − 6 = 9 → ? = 9 + 6 = 15"
+  - "Verificar: substituir ? pelo valor encontrado"
+  - "Números envolvidos: até 3 dígitos (máximo ~500)"
+  - "NÃO usar multiplicação ou divisão com incógnita"
+  - "NÃO usar dois desconhecidos"
+
+local_examples:
+  - "a Fátima tinha ? meticais e recebeu mais 8 — agora tem 23"
+  - "numa turma havia 30 alunos — faltaram ? — estavam presentes 24"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Encontrar ? em Adição simples (resultado < 30)"
+    - "Encontrar ? em Subtracção simples (início < 30)"
+    - "Encontrar ? em Adição com números até 100"
+    - "Encontrar ? em Subtracção com números até 100"
+    - "Encontrar ? quando é o primeiro número (? + b = c)"
+    - "Equação com números de 3 dígitos e contexto real"
+    - "Verdadeiro ou Falso sobre o resultado de uma equação simples"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

@@ -1,0 +1,66 @@
+id: "port4_u5_corpo_humano"
+subject: "Português"
+topic: "Unidade 5: O Corpo Humano"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "vestuário"
+    replacement: "roupa"
+  - forbidden: "consolidação"
+    replacement: "revisão"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+  - "estratégia"
+  - "método"
+  - "anatomia"
+  - "reflexo"
+  - "verbo reflexivo"
+
+curriculum_notes:
+  - "Vestuário moçambicano: capulana, chitenge, blusa, calças, sapatos"
+  - "Higiene do vestuário: lavar, passar a ferro, guardar"
+  - "Cartaz: mensagem visual com texto curto para informar"
+  - "Frase simples: Grupo Nominal + Grupo Verbal (revisão)"
+  - "Tempos verbais: Presente, Pretérito Perfeito, Futuro (revisão)"
+
+local_examples:
+  - "mercado de roupa em Maputo, lavagem no rio, campanha escolar"
+  - "mãe de Sónia, professora Amélia, centro de saúde"
+  - "capulana colorida, chitenge estampado, uniforme escolar"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 14
+    visual_reference_required: true
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Vocabulário: peças de vestuário moçambicanas"
+    - "Interpretar mensagem de um Cartaz"
+    - "Identificar Grupo Nominal e Grupo Verbal (revisão)"
+    - "Identificar o Tempo Verbal (Pres/Perf/Fut) — revisão"
+    - "Completar frase com o verbo no tempo correcto"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

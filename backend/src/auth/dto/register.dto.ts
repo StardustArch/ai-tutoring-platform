@@ -10,11 +10,11 @@ import {
 export class RegisterDto {
   @IsString()
   @IsNotEmpty()
-  nome: string; // <-- CORRIGIDO (era nomeCompleto)
+  nome!: string; // <-- CORRIGIDO (era nomeCompleto)
 
   @IsString()
   @IsNotEmpty()
-  sobrenome: string; // <-- NOVO
+  sobrenome!: string; // <-- NOVO
 
   @IsString()
   @IsOptional()
@@ -25,7 +25,7 @@ export class RegisterDto {
 
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email!: string;
 
   @IsString()
   @IsNotEmpty()
@@ -34,5 +34,5 @@ export class RegisterDto {
     message:
       'A senha deve ter pelo menos 8 caracteres, uma maiúscula, um número e um caractere especial',
   })
-  password: string;
+  password!: string;
 }

@@ -1,0 +1,67 @@
+id: "mat4_u7_decimais"
+subject: "Matemática"
+topic: "Unidade 7: Números Decimais"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "percentagem"
+  - "milésimas"
+
+curriculum_notes:
+  - "1/10 = 0,1 (uma décima); 1/100 = 0,01 (uma centésima)"
+  - "Leitura: 0,3 = três décimas; 0,45 = quarenta e cinco centésimas"
+  - "Escrita: dois vírgula sete = 2,7"
+  - "Valor posicional: unidades | vírgula | décimas | centésimas"
+  - "Comparar decimais: 0,7 > 0,3; 1,2 < 1,9"
+  - "Adição: alinhar a vírgula antes de calcular"
+  - "Subtracção: alinhar a vírgula antes de calcular"
+  - "NÃO usar multiplicação ou divisão de decimais"
+  - "NÃO usar milésimas (0,001)"
+  - "NÃO usar percentagem"
+
+local_examples:
+  - "preços no mercado (25,50 MT) da vendedeira Lurdes"
+  - "pesagem com balança (2,3 kg) do Sr. Cossa"
+  - "comprimento com fita métrica (1,75 m)"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Converter fracção decimal em número decimal (1/10=0,1)"
+    - "Ler e escrever números decimais (décimas e centésimas)"
+    - "Comparar dois números decimais (usar > < =)"
+    - "Adição de números decimais alinhando a vírgula"
+    - "Subtracção de números decimais alinhando a vírgula"
+    - "Problema com decimais: preços ou medidas"
+    - "Localizar número decimal na Recta Numérica"
+    - "Verdadeiro ou Falso sobre número decimal"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationDto } from './dto/pagination.dto';
 import { ListTopicsDto } from './dto/list-topics.dto';
@@ -7,17 +11,23 @@ import * as bcrypt from 'bcrypt';
 import { HttpService } from '@nestjs/axios';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { CreateDisciplinaDto, CreateTopicDto, FilterTopicDto, UpdateDisciplinaDto, UpdateTopicDto } from './dto/content.dto';
+import {
+  CreateDisciplinaDto,
+  CreateTopicDto,
+  FilterTopicDto,
+  UpdateDisciplinaDto,
+  UpdateTopicDto,
+} from './dto/content.dto';
 import * as os from 'os';
 
 @Injectable()
 export class AdminService {
-    private readonly aiUrl: string;
+  private readonly aiUrl: string;
   constructor(
     private prisma: PrismaService,
     private httpService: HttpService,
   ) {
-        const baseUrl = process.env.IA_API_URL;
+    const baseUrl = process.env.IA_API_URL;
     this.aiUrl = `${baseUrl}/health`;
   }
 
@@ -50,19 +60,18 @@ export class AdminService {
 
     try {
       // Tenta bater na rota /health com timeout de 3s
-      await firstValueFrom(
-        this.httpService.get(this.aiUrl, { timeout: 3000 }),
-      );
+      await firstValueFrom(this.httpService.get(this.aiUrl, { timeout: 3000 }));
 
       const latency = Date.now() - start;
       return { status: 'ONLINE', latency: `${latency}ms` };
     } catch (error) {
-      console.error('IA Service Error:', error.message);
+      if (error instanceof Error) {
+        console.error('IA Service Error:', error.message);
+      }
       return { status: 'OFFLINE', error: 'Timeout ou Erro de Conexão' };
     }
   }
   // --- GESTÃO DE TÓPICOS ---
-
 
   // Agora recebe o DTO
   async listTopics(params: ListTopicsDto) {
@@ -75,15 +84,14 @@ export class AdminService {
     });
   }
 
-
   // ==========================================================
   // GESTÃO DE DISCIPLINAS
   // ==========================================================
-  
+
   async getDisciplinas() {
     return this.prisma.disciplina.findMany({
       include: { _count: { select: { topicos: true } } }, // Traz contagem de tópicos
-      orderBy: { nome: 'asc' }
+      orderBy: { nome: 'asc' },
     });
   }
 
@@ -97,9 +105,13 @@ export class AdminService {
 
   async deleteDisciplina(id: number) {
     // Verifica se tem tópicos antes de apagar para evitar desastres
-    const count = await this.prisma.topico.count({ where: { disciplinaId: id } });
+    const count = await this.prisma.topico.count({
+      where: { disciplinaId: id },
+    });
     if (count > 0) {
-      throw new BadRequestException(`Não é possível apagar. Esta disciplina tem ${count} tópicos associados.`);
+      throw new BadRequestException(
+        `Não é possível apagar. Esta disciplina tem ${count} tópicos associados.`,
+      );
     }
     return this.prisma.disciplina.delete({ where: { id } });
   }
@@ -117,21 +129,18 @@ export class AdminService {
       where: whereClause,
       include: {
         disciplina: true, // Saber de que matéria é
-        requisito: { select: { id: true, nome: true } } // Saber o pré-requisito
+        requisito: { select: { id: true, nome: true } }, // Saber o pré-requisito
       },
-      orderBy: [
-        { nivelClasse: 'asc' },
-        { ordem: 'asc' }
-      ]
+      orderBy: [{ nivelClasse: 'asc' }, { ordem: 'asc' }],
     });
   }
 
   async getTopicById(id: number) {
     const topic = await this.prisma.topico.findUnique({
-        where: { id },
-        include: { requisito: true }
+      where: { id },
+      include: { requisito: true },
     });
-    if (!topic) throw new NotFoundException("Tópico não encontrado");
+    if (!topic) throw new NotFoundException('Tópico não encontrado');
     return topic;
   }
 
@@ -141,14 +150,14 @@ export class AdminService {
     let ordemFinal = dto.ordem;
 
     if (!ordemFinal) {
-        const lastTopic = await this.prisma.topico.findFirst({
-            where: { 
-                disciplinaId: dto.disciplinaId,
-                nivelClasse: dto.classe 
-            },
-            orderBy: { ordem: 'desc' }
-        });
-        ordemFinal = lastTopic ? lastTopic.ordem + 1 : 1;
+      const lastTopic = await this.prisma.topico.findFirst({
+        where: {
+          disciplinaId: dto.disciplinaId,
+          nivelClasse: dto.classe,
+        },
+        orderBy: { ordem: 'desc' },
+      });
+      ordemFinal = lastTopic ? lastTopic.ordem + 1 : 1;
     }
 
     // 2. Criar
@@ -159,8 +168,8 @@ export class AdminService {
         disciplinaId: dto.disciplinaId,
         ordem: ordemFinal,
         requisitoId: dto.requisitoId,
-        metadata: dto.metadata || {} // Garante que nunca é null
-      }
+        metadata: dto.metadata || {}, // Garante que nunca é null
+      },
     });
   }
 
@@ -168,12 +177,12 @@ export class AdminService {
     return this.prisma.topico.update({
       where: { id },
       data: {
-          nome: dto.nome,
-          nivelClasse: dto.classe,
-          ordem: dto.ordem,
-          requisitoId: dto.requisitoId,
-          metadata: dto.metadata 
-      }
+        nome: dto.nome,
+        nivelClasse: dto.classe,
+        ordem: dto.ordem,
+        requisitoId: dto.requisitoId,
+        metadata: dto.metadata,
+      },
     });
   }
 
@@ -184,46 +193,51 @@ export class AdminService {
   // BÓNUS: Endpoint para "Árvore de Conteúdos"
   // Útil para o frontend montar menus do tipo: Matemática -> 10ª Classe -> Tópicos
   async getContentTree() {
-      const disciplinas = await this.prisma.disciplina.findMany({
-          orderBy: { nome: 'asc' }
-      });
+    const disciplinas = await this.prisma.disciplina.findMany({
+      orderBy: { nome: 'asc' },
+    });
 
-      const tree = await Promise.all(disciplinas.map(async (d) => {
-          // Agrupar tópicos por classe
-          const topics = await this.prisma.topico.groupBy({
-              by: ['nivelClasse'],
-              where: { disciplinaId: d.id },
-              _count: true
-          });
-          
-          return {
-              ...d,
-              classesDisponiveis: topics.map(t => ({
-                  classe: t.nivelClasse,
-                  totalTopicos: t._count
-              })).sort((a,b) => a.classe - b.classe)
-          };
-      }));
+    const tree = await Promise.all(
+      disciplinas.map(async (d) => {
+        // Agrupar tópicos por classe
+        const topics = await this.prisma.topico.groupBy({
+          by: ['nivelClasse'],
+          where: { disciplinaId: d.id },
+          _count: true,
+        });
 
-      return tree;
+        return {
+          ...d,
+          classesDisponiveis: topics
+            .map((t) => ({
+              classe: t.nivelClasse,
+              totalTopicos: t._count,
+            }))
+            .sort((a, b) => a.classe - b.classe),
+        };
+      }),
+    );
+
+    return tree;
   }
 
-
-
-
   // --- GESTÃO DE UTILIZADORES ---
-// 1. LISTAR COM PESQUISA E PAGINAÇÃO
+  // 1. LISTAR COM PESQUISA E PAGINAÇÃO
   async getAllUsers(params: PaginationDto) {
     const page = params.page || 1;
     const limit = params.limit || 20;
     const skip = (page - 1) * limit;
 
-    const whereClause = params.search ? {
-      OR: [
-        { nome: { contains: params.search, mode: 'insensitive' as const } },
-        { email: { contains: params.search, mode: 'insensitive' as const } }
-      ]
-    } : {};
+    const whereClause = params.search
+      ? {
+          OR: [
+            { nome: { contains: params.search, mode: 'insensitive' as const } },
+            {
+              email: { contains: params.search, mode: 'insensitive' as const },
+            },
+          ],
+        }
+      : {};
 
     const [users, total] = await Promise.all([
       this.prisma.usuario.findMany({
@@ -231,34 +245,35 @@ export class AdminService {
         take: limit,
         where: whereClause,
         orderBy: { id: 'desc' },
-        select: { // NÃO RETORNAR PASSWORD HASH
-          id: true, 
-          nome: true, 
+        select: {
+          // NÃO RETORNAR PASSWORD HASH
+          id: true,
+          nome: true,
           sobrenome: true,
-          email: true, 
+          email: true,
           role: true,
           ativo: true, // <--- Novo campo
           telefone: true,
           perfilProfessor: { select: { id: true, escolaNome: true } },
-          perfilEncarregado: { select: { id: true } }
-        }
+          perfilEncarregado: { select: { id: true } },
+        },
       }),
-      this.prisma.usuario.count({ where: whereClause })
+      this.prisma.usuario.count({ where: whereClause }),
     ]);
 
     return {
       data: users,
-      meta: { total, page, lastPage: Math.ceil(total / limit) }
+      meta: { total, page, lastPage: Math.ceil(total / limit) },
     };
   }
-// 2. OBTER UM UTILIZADOR (Detalhes) - CORRIGIDO
+  // 2. OBTER UM UTILIZADOR (Detalhes) - CORRIGIDO
   async getUserById(id: number) {
     const user = await this.prisma.usuario.findUnique({
       where: { id },
       include: {
-        perfilProfessor: { include: { turmas: true } }, 
-        perfilEncarregado: { include: { alunos: true } }
-      }
+        perfilProfessor: { include: { turmas: true } },
+        perfilEncarregado: { include: { alunos: true } },
+      },
     });
 
     if (!user) throw new NotFoundException('Utilizador não encontrado');
@@ -266,13 +281,15 @@ export class AdminService {
     // SOLUÇÃO PARA O ERRO DO DELETE:
     // Em vez de "delete user.passwordHash", usamos desestruturação para tirar os campos sensíveis
     const { passwordHash, hashedRt, ...userWithoutSecrets } = user;
-    
+
     return userWithoutSecrets;
   }
 
   // 3. CRIAR UTILIZADOR (Manual) - CORRIGIDO (O erro do 'ativo' some após o npx prisma generate)
   async createUser(dto: CreateUserDto) {
-    const exists = await this.prisma.usuario.findUnique({ where: { email: dto.email } });
+    const exists = await this.prisma.usuario.findUnique({
+      where: { email: dto.email },
+    });
     if (exists) throw new BadRequestException('Email já registado');
 
     const hash = await bcrypt.hash(dto.password, 10);
@@ -285,8 +302,8 @@ export class AdminService {
         telefone: dto.telefone,
         passwordHash: hash,
         role: dto.role,
-        ativo: true // Este erro desaparece depois de correres o comando no terminal
-      }
+        ativo: true, // Este erro desaparece depois de correres o comando no terminal
+      },
     });
   }
 
@@ -294,7 +311,7 @@ export class AdminService {
   async updateUser(id: number, dto: UpdateUserDto) {
     return this.prisma.usuario.update({
       where: { id },
-      data: { ...dto }
+      data: { ...dto },
     });
   }
 
@@ -306,7 +323,7 @@ export class AdminService {
     return this.prisma.usuario.update({
       where: { id },
       data: { ativo: !user.ativo }, // O TS agora vai reconhecer o campo 'ativo'
-      select: { id: true, ativo: true, email: true }
+      select: { id: true, ativo: true, email: true },
     });
   }
   // 6. RESET DE SENHA (Manual pelo Admin)
@@ -316,7 +333,7 @@ export class AdminService {
 
     await this.prisma.usuario.update({
       where: { id },
-      data: { passwordHash: hash }
+      data: { passwordHash: hash },
     });
 
     return { message: `Senha resetada para: ${defaultPass}` };
@@ -327,63 +344,62 @@ export class AdminService {
     return this.prisma.usuario.update({
       where: { id },
       data: { role },
-      select: { id: true, role: true }
+      select: { id: true, role: true },
     });
   }
 
-
   // No topo do ficheiro
 
-// Dentro da classe AdminService
-async getSystemHealth() {
+  // Dentro da classe AdminService
+  async getSystemHealth() {
     const memory = process.memoryUsage();
-    
+
     // Teste de latência da BD
     const dbStart = Date.now();
-    await this.prisma.$queryRaw`SELECT 1`; 
+    await this.prisma.$queryRaw`SELECT 1`;
     const dbLatency = Date.now() - dbStart;
 
     // Teste de latência da IA
     const aiHealth = await this.checkAiHealth();
 
     const now = new Date();
-    
+
     // Configurador de Data "Enterprise" (DD/MM/AAAA HH:mm:ss)
     const dateFormatter = new Intl.DateTimeFormat('pt-PT', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false, // <--- Força formato 24h (sem AM/PM)
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone // Garante que usa o fuso do servidor
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false, // <--- Força formato 24h (sem AM/PM)
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Garante que usa o fuso do servidor
     });
 
     return {
-        server: {
-            uptime: process.uptime(), // Segundos
-            nodeVersion: process.version,
-            platform: `${os.type()} ${os.release()} (${os.arch()})`,
-            memory: {
-                heapUsed: Math.round(memory.heapUsed / 1024 / 1024), // MB
-                rss: Math.round(memory.rss / 1024 / 1024), // MB
-                total: Math.round(os.totalmem() / 1024 / 1024) // MB Sistema
-            }
+      server: {
+        uptime: process.uptime(), // Segundos
+        nodeVersion: process.version,
+        platform: `${os.type()} ${os.release()} (${os.arch()})`,
+        memory: {
+          heapUsed: Math.round(memory.heapUsed / 1024 / 1024), // MB
+          rss: Math.round(memory.rss / 1024 / 1024), // MB
+          total: Math.round(os.totalmem() / 1024 / 1024), // MB Sistema
         },
-        services: {
-            database: { status: 'ONLINE', latency: dbLatency },
-            ai: aiHealth
-        },
-        env: {
-            // MOSTRAR APENAS VARIÁVEIS SEGURAS
-            apiUrl: process.env.PUBLIC_API_URL_HOST || 'Não definido',
-            aiUrl: this.aiUrl || 'Não definido',
-            envMode: process.env.NODE_ENV || 'development',
-timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, 
-serverTime: dateFormatter.format(now)
-        },
-        timestamp: new Date().toISOString()
+      },
+      services: {
+        database: { status: 'ONLINE', latency: dbLatency },
+        ai: aiHealth,
+      },
+      env: {
+        // MOSTRAR APENAS VARIÁVEIS SEGURAS
+        apiUrl: process.env.PUBLIC_API_URL_HOST || 'Não definido',
+        aiUrl: this.aiUrl || 'Não definido',
+        envMode: process.env.NODE_ENV || 'development',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        serverTime: dateFormatter.format(now),
+      },
+      timestamp: new Date().toISOString(),
     };
-}
+  }
 }

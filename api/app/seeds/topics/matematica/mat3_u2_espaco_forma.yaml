@@ -1,0 +1,72 @@
+id: "mat3_u2_espaco_forma"
+subject: "Matemática"
+topic: "Unidade 2: Espaço e Forma"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "representar"
+    replacement: "mostrar"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+  - forbidden: "conceito"
+    replacement: "ideia"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "procedimento"
+  - "estratégia"
+
+curriculum_notes:
+  - "Triângulo: 3 lados, 3 ângulos — distinguir de quadriláteros e círculo"
+  - "Rectas perpendiculares: cruzam-se formando ângulo recto (90°)"
+  - "Rectas paralelas: nunca se encontram, sempre à mesma distância"
+  - "Rectângulo: 4 lados, 4 ângulos rectos, lados opostos iguais"
+  - "Quadrado: 4 lados IGUAIS, 4 ângulos rectos — caso especial do rectângulo"
+  - "Circunferência: contorno curvo fechado; Círculo: região interior + contorno"
+  - "Sólidos: Cubo, Paralelepípedo, Esfera, Cilindro, Cone, Pirâmide"
+  - "Cubo tem 6 faces; Paralelepípedo tem 6 faces"
+  - "NÃO classificar triângulos por lados ou ângulos — isso é 4ª classe"
+  - "NÃO usar fórmulas de área ou perímetro"
+
+local_examples:
+  - "panela (cilindro), copo (cilindro), balde (cilindro)"
+  - "caixa de sapatos (paralelepípedo), cubo de madeira (cubo)"
+  - "bola de futebol (esfera), cone de milho (cone)"
+  - "esquinas de uma sala (rectas perpendiculares)"
+  - "trilhos de comboio (rectas paralelas)"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Identificar Triângulo entre figuras planas"
+    - "Identificar Rectas Perpendiculares vs Paralelas"
+    - "Diferenciar Rectângulo de Quadrado"
+    - "Identificar Centro e Circunferência do Círculo"
+    - "Identificar Sólido Geométrico pela descrição"
+    - "Contar Faces de um Sólido (cubo, paralelepípedo)"
+    - "Distinguir Figura Plana de Sólido Geométrico"
+    - "Verdadeiro ou Falso sobre propriedades de figuras"
+    - "Completar a frase com o nome da figura correcta"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

@@ -1,0 +1,62 @@
+id: "port3_u5_corpo_humano"
+subject: "Português"
+topic: "Unidade 5: O Corpo Humano"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "analisar"
+    replacement: "pensar bem em"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "superlativo"
+  - "comparativo"
+
+curriculum_notes:
+  - "Adjectivos: qualidade do nome (casa grande, menino alegre)"
+  - "Identificar o adjectivo na frase e associar ao nome correcto"
+  - "Verbos FALAR (-ar = 1ª conjugação) e COMER (-er = 2ª conjugação)"
+  - "Conjugação COMPLETA: Pretérito Perfeito, Presente, Futuro Simples, Futuro Perifrástico"
+  - "Servem de modelo para todos os verbos regulares em -ar e -er"
+  - "Identificar a conjugação (1ª ou 2ª) pelo infinitivo"
+  - "NÃO usar graus do adjectivo (Comparativo e Superlativo) — são 4ª classe"
+  - "NÃO usar concordância adjectivo-nome em género/número — é U6"
+
+local_examples:
+  - "criança com deficiência visual ou motora (inclusão)"
+  - "escola moçambicana inclusiva"
+  - "nomes: Jorge, Sónia, Professora Amélia"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "CLOZE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Identificar o Adjectivo na frase"
+    - "Escolher o Adjectivo adequado para descrever o nome"
+    - "Identificar se o verbo é 1ª ou 2ª conjugação (-ar / -er)"
+    - "Conjugar Falar ou Comer no Presente do Indicativo"
+    - "Conjugar Falar ou Comer no Futuro Simples"
+    - "Completar frase com Adjectivo e Verbo correcto"
+    - "Verdadeiro ou Falso sobre a conjugação do verbo"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

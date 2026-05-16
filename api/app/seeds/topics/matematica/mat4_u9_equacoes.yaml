@@ -1,0 +1,64 @@
+id: "mat4_u9_equacoes"
+subject: "Matemática"
+topic: "Unidade 9: Equações"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "incógnita"
+    replacement: "o número que falta"
+  - forbidden: "equação"
+    replacement: "conta com número em falta"
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "variável"
+  - "x"
+  - "y"
+  - "n"
+
+curriculum_notes:
+  - "Usar □ ou ___ para o número desconhecido — NUNCA letras"
+  - "□ × 5 = 20 → □ = 20 ÷ 5 = 4"
+  - "3 × □ = 24 → □ = 24 ÷ 3 = 8"
+  - "□ ÷ 4 = 6 → □ = 6 × 4 = 24"
+  - "12 ÷ □ = 3 → □ = 12 ÷ 3 = 4"
+  - "APENAS multiplicação e divisão com □ — NÃO adição ou subtracção"
+  - "NÃO usar duas operações na mesma equação"
+
+local_examples:
+  - "distribuição de alimentos em sacos do professor Albino"
+  - "grupos de alunos na cooperativa da aldeia"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "□ × n = resultado (descobrir o factor desconhecido)"
+    - "n × □ = resultado (factor desconhecido no 2º lugar)"
+    - "□ ÷ n = resultado (descobrir o dividendo)"
+    - "Problema: encontrar □ com multiplicação ou divisão"
+    - "Verdadeiro ou Falso sobre o resultado de uma equação"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [2, 4]

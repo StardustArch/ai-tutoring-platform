@@ -1,0 +1,67 @@
+id: "mat4_u4_mult_div_expressoes"
+subject: "Matemática"
+topic: "Unidade 4: Números Naturais e Operações (3)"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "efectuar"
+    replacement: "fazer"
+  - forbidden: "resultado"
+    replacement: "resposta"
+  - forbidden: "quociente"
+    replacement: "resultado da divisão"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "potência"
+  - "raiz"
+
+curriculum_notes:
+  - "2 dígitos × 2 dígitos: ex. 24 × 13"
+  - "3 dígitos × 2 dígitos: ex. 145 × 23"
+  - "2 dígitos ÷ 1 dígito: ex. 48 ÷ 6"
+  - "3 dígitos ÷ 1 dígito: ex. 126 ÷ 3 (pode ter resto)"
+  - "Expressões sem parênteses: × e ÷ antes de + e −"
+  - "Expressões com parênteses: calcular parênteses primeiro"
+  - "NÃO dividir por 2 dígitos"
+  - "NÃO multiplicar 4 ou mais dígitos"
+
+local_examples:
+  - "produção de caju por aldeias (cooperativa)"
+  - "número de alunos por turmas do professor Albino"
+  - "distribuição de alimentos em sacos de arroz"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Multiplicação de 2 dígitos por 2 dígitos"
+    - "Multiplicação de 3 dígitos por 2 dígitos"
+    - "Divisão de 2 dígitos por 1 dígito (com e sem resto)"
+    - "Divisão de 3 dígitos por 1 dígito"
+    - "Problema de Multiplicação com contexto real"
+    - "Problema de Divisão com contexto real"
+    - "Expressão numérica com parênteses (4 operações)"
+    - "Verdadeiro ou Falso sobre resultado de multiplicação ou divisão"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

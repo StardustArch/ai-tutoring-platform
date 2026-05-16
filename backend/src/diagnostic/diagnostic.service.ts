@@ -95,38 +95,44 @@ export class DiagnosticService {
       perguntasPorTopico = 2;
     }
 
-      const perguntasFinal: any[] = [];
+    const perguntasFinal: any[] = [];
 
     // 🔥 USANDO PARALELISMO COM O CACHE
     for (const topico of topicosParaGerar) {
-        // Esta lista vai crescendo a cada iteração para o mesmo tópico
-        const historicoDoTopico: string[] = []; 
+      // Esta lista vai crescendo a cada iteração para o mesmo tópico
+      const historicoDoTopico: string[] = [];
 
-        for (let i = 0; i < perguntasPorTopico; i++) {
-            try {
-                const res = await this.cacheService.getQuestion({
-                    classe,
-                    disciplina: disciplina.toLowerCase(),
-                    topicoId: topico.id,
-                    dificuldade: 3, 
-                    historicoRecente: historicoDoTopico // Envia a lista das perguntas que JÁ saíram neste teste
-                });
+      for (let i = 0; i < perguntasPorTopico; i++) {
+        try {
+          const res = await this.cacheService.getQuestion({
+            classe,
+            disciplina: disciplina.toLowerCase(),
+            topicoId: topico.id,
+            dificuldade: 3,
+            historicoRecente: historicoDoTopico, // Envia a lista das perguntas que JÁ saíram neste teste
+          });
 
-                if (res && res.question) {
-                    historicoDoTopico.push(res.question); // Adiciona a nova pergunta à "Lista Negra" temporária
-                    perguntasFinal.push({ topico: topico.nome, ...res });
-                }
-            } catch(err) {
-                this.logger.error(`Erro ao obter questão de diagnóstico para ${topico.nome}: ${err.message}`);
-            }
+          if (res && res.question) {
+            historicoDoTopico.push(res.question); // Adiciona a nova pergunta à "Lista Negra" temporária
+            perguntasFinal.push({ topico: topico.nome, ...res });
+          }
+        } catch (err) {
+          if (err instanceof Error) {
+            this.logger.error(
+              `Erro ao obter questão de diagnóstico para ${topico.nome}: ${err.message}`,
+            );
+          }
         }
+      }
     }
 
     return {
-      alunoId, disciplina, classe,
+      alunoId,
+      disciplina,
+      classe,
       foco: topicoAlvo || 'Automático',
       totalPerguntas: perguntasFinal.length,
-      perguntas: perguntasFinal
+      perguntas: perguntasFinal,
     };
   }
 
@@ -203,46 +209,53 @@ export class DiagnosticService {
       where: {
         nome: { in: nomesTopicos },
         nivelClasse: aluno.classe,
-        disciplina: { 
-           nome: disciplina.toLowerCase() === 'matematica' ? 'Matemática' : 'Português' 
-        }
-      }
+        disciplina: {
+          nome:
+            disciplina.toLowerCase() === 'matematica'
+              ? 'Matemática'
+              : 'Português',
+        },
+      },
     });
 
     // 2. Para cada tópico, calculamos a % de acerto e atualizamos o nível do aluno
     for (const t of topicosDb) {
       const dadosTopico = detalhesTopicos[t.nome];
-      const percTopico = dadosTopico.total > 0 ? (dadosTopico.acertos / dadosTopico.total) * 100 : 0;
+      const percTopico =
+        dadosTopico.total > 0
+          ? (dadosTopico.acertos / dadosTopico.total) * 100
+          : 0;
 
       // Define o nível baseado no acerto do TÓPICO (ajuste as réguas como preferir)
       let nivelNumerico = 1;
       let nivelNome = 'INICIANTE';
 
-      if (percTopico >= 90) {  
-        nivelNumerico = 4; nivelNome = 'AVANCADO'; 
-      } else if (percTopico >= 60) { 
-        nivelNumerico = 3; nivelNome = 'NA_MEDIA'; 
-      } else if (percTopico >= 40) { 
-        nivelNumerico = 2; nivelNome = 'ABAIXO_MEDIA'; 
+      if (percTopico >= 90) {
+        nivelNumerico = 4;
+        nivelNome = 'AVANCADO';
+      } else if (percTopico >= 60) {
+        nivelNumerico = 3;
+        nivelNome = 'NA_MEDIA';
+      } else if (percTopico >= 40) {
+        nivelNumerico = 2;
+        nivelNome = 'ABAIXO_MEDIA';
       }
-  
-  
 
       // 3. Salva a proficiência no banco
       await this.prisma.alunoProficienciaTopico.upsert({
-         where: { 
-            // Verifique no seu schema.prisma o nome exato desse index único (geralmente alunoId_topicoId)
-            alunoId_topicoId: { alunoId, topicoId: t.id } 
-         }, 
-         create: {
-            alunoId,
-            nivel: nivelNome as any, 
-            topicoId: t.id,
-            vidasRestantes: 3
-         },
-         update: {
-            nivel: nivelNome as any
-         }
+        where: {
+          // Verifique no seu schema.prisma o nome exato desse index único (geralmente alunoId_topicoId)
+          alunoId_topicoId: { alunoId, topicoId: t.id },
+        },
+        create: {
+          alunoId,
+          nivel: nivelNome as any,
+          topicoId: t.id,
+          vidasRestantes: 3,
+        },
+        update: {
+          nivel: nivelNome as any,
+        },
       });
     }
 

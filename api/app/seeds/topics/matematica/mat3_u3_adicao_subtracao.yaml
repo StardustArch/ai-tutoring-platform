@@ -1,0 +1,75 @@
+id: "mat3_u3_adicao_subtracao"
+subject: "Matemática"
+topic: "Unidade 3: Números Naturais e Operações (2)"
+grade: [3]
+
+vocab_rules:
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "efectuar"
+    replacement: "fazer"
+  - forbidden: "resultado"
+    replacement: "resposta"
+  - forbidden: "operação"
+    replacement: "conta"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "propriedade comutativa"
+    replacement: "podemos trocar a ordem"
+  - forbidden: "propriedade associativa"
+    replacement: "podemos juntar de formas diferentes"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "procedimento"
+  - "estratégia"
+
+curriculum_notes:
+  - "Adição com transporte em 3 e 4 dígitos"
+  - "Subtracção com empréstimo em 3 e 4 dígitos"
+  - "Comutativa da adição: a + b = b + a (ex: 234 + 56 = 56 + 234)"
+  - "Associativa da adição: (a + b) + c = a + (b + c)"
+  - "A subtracção NÃO é comutativa: a − b ≠ b − a"
+  - "Números máximos: 4 dígitos"
+  - "NÃO usar multiplicação ou divisão"
+
+local_examples:
+  - "produção de caju em quilos"
+  - "número de alunos nas escolas de Maputo"
+  - "preços no mercado da Fátima"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "DIRECT_INPUT", "TRUE_FALSE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Adição de 3 dígitos com transporte"
+    - "Subtracção de 3 dígitos com empréstimo"
+    - "Adição de 4 dígitos com transporte"
+    - "Subtracção de 4 dígitos com empréstimo"
+    - "Identificar Propriedade Comutativa ou Associativa"
+    - "Problema de Adição ou Subtracção com contexto real"
+    - "Problema misto de Adição e Subtracção"
+    - "Verdadeiro ou Falso sobre a propriedade da adição"
+    - "Completar a lacuna na adição ou subtracção"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

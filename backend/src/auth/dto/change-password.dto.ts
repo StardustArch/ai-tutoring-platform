@@ -3,7 +3,7 @@ import { IsString, IsNotEmpty, MinLength, Matches } from 'class-validator';
 export class ChangePasswordDto {
   @IsNotEmpty()
   @IsString()
-  currentPassword: string;
+  currentPassword!: string;
 
   @IsNotEmpty()
   @IsString()
@@ -11,5 +11,5 @@ export class ChangePasswordDto {
     message:
       'A senha deve ter pelo menos 8 caracteres, uma maiúscula, um número e um caractere especial',
   })
-  newPassword: string;
+  newPassword!: string;
 }

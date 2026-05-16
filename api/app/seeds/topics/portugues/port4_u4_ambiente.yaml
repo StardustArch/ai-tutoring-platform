@@ -1,0 +1,72 @@
+id: "port4_u4_ambiente"
+subject: "Português"
+topic: "Unidade 4: O Ambiente"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "onomatopeia"
+    replacement: "som da palavra"
+  - forbidden: "nome colectivo"
+    replacement: "palavra para um grupo"
+  - forbidden: "advérbio"
+    replacement: "palavra de lugar"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+  - "estratégia"
+  - "método"
+  - "aqui"
+  - "ali"
+  - "lá"
+
+curriculum_notes:
+  - "Onomatopeias: au au (cão), miau (gato), mu (vaca), chu-chu (comboio)"
+  - "Nomes Colectivos: rebanho (ovelhas), manada (elefantes), bando (pássaros)"
+  - "Família de palavras: mesma raiz (água/aguaceiro/aguardar)"
+  - "Advérbios de Lugar (4ª classe): perto, longe, onde, aonde"
+  - "Tempos verbais no Indicativo: Presente (come), Pretérito Perfeito (comeu), Futuro (comerá)"
+  - "Texto poético: versos, estrofes, rima"
+
+local_examples:
+  - "Parque Nacional da Gorongosa, rio Zambeze, animais da savana"
+  - "guarda-florestal Mateus, conservação florestal, água potável"
+  - "animais moçambicanos: elefante, leão, búfalo, impala"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 14
+    visual_reference_required: false
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT", "MATCHING"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Associar Onomatopeia ao animal correcto"
+    - "Identificar o Nome Colectivo correcto"
+    - "Identificar Advérbio de Lugar (perto/longe/onde/aonde)"
+    - "Encontrar palavras da mesma Família de Palavras"
+    - "Identificar o Tempo Verbal na frase (Pres/Perf/Fut)"
+    - "Conjugar verbo no Pretérito Perfeito"
+    - "Identificar Verso, Estrofe e Rima num Poema"
+    - "Completar frase com o Tempo Verbal correcto"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

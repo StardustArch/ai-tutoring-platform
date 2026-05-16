@@ -1,0 +1,72 @@
+id: "mat4_u6_fracoes"
+subject: "Matemática"
+topic: "Unidade 6: Fracções"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "numerador"
+    replacement: "o número de cima"
+  - forbidden: "denominador"
+    replacement: "o número de baixo"
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+
+forbidden_words:
+  - "portanto"
+  - "fracção equivalente"
+  - "simplificar"
+  - "amplificar"
+  - "denominadores diferentes"
+
+curriculum_notes:
+  - "Fracção Própria: número de cima < número de baixo (ex: 3/4)"
+  - "Fracção Imprópria: número de cima ≥ número de baixo (ex: 7/4)"
+  - "Fracção de inteiro: n/n = 1 (ex: 4/4 = 1)"
+  - "Forma Mista: parte inteira + fracção própria (ex: 1 e 3/4 = um e três quartos)"
+  - "Converter imprópria → mista: dividir; ex: 7/3 = 2 e 1/3"
+  - "Converter mista → imprópria: (inteira × baixo) + cima; ex: 2 e 3/5 = 13/5"
+  - "Comparar mistas: partes inteiras primeiro; se iguais, comparar fraccionárias"
+  - "Adição/Subtracção APENAS com mesmo denominador"
+  - "2/6 + 5/6 = 7/6 = 1 e 1/6 (converter resultado se impróprio)"
+  - "NÃO usar fracções equivalentes (não estão no livro)"
+  - "NÃO comparar fracções com denominadores diferentes"
+
+local_examples:
+  - "fita métrica dividida em partes (senhora Paula)"
+  - "recipiente de litro dividido em partes (Nayuca e João)"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "semantic"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Identificar Fracção Própria ou Imprópria"
+    - "Identificar fracção na Forma Mista e ler correctamente"
+    - "Converter Fracção Imprópria para Forma Mista"
+    - "Converter Forma Mista para Fracção Imprópria"
+    - "Representar fracção na Recta Numérica"
+    - "Comparar fracções com denominadores iguais (>, <, =)"
+    - "Adição de Fracções com o mesmo denominador"
+    - "Subtracção de Fracções com o mesmo denominador"
+    - "Adição de Fracções na Forma Mista (denominadores iguais)"
+    - "Problema misto de Adição e Subtracção de Fracções"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

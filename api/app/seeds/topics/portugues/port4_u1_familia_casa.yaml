@@ -1,0 +1,75 @@
+id: "port4_u1_familia_casa"
+subject: "Português"
+topic: "Unidade 1: A Família e a Casa"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "classificar"
+    replacement: "colocar no grupo certo"
+  - forbidden: "flexão"
+    replacement: "mudar de forma"
+  - forbidden: "concordância"
+    replacement: "combinar correctamente"
+  - forbidden: "distinguir"
+    replacement: "ver a diferença"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+  - "estratégia"
+  - "método"
+  - "morfologia"
+  - "sintaxe"
+
+curriculum_notes:
+  - "Nomes comuns: pessoas, lugares, coisas em geral"
+  - "Nomes próprios: nomes de pessoas, lugares — começam com maiúscula"
+  - "Flexão em género: masculino (o, os, um, uns) / feminino (a, as, uma, umas)"
+  - "Nomes terminados em -ão: irmão/irmã, cidadão/cidadã, leão/leoa"
+  - "Nomes abstractos: amizade, felicidade, liberdade (não se tocam)"
+  - "Adjectivos qualificativos: palavras que dizem como é o nome"
+  - "Artigos definidos: o, a, os, as | indefinidos: um, uma, uns, umas"
+  - "Pronomes pessoais (sujeito): eu, tu, ele/ela, nós, vós, eles/elas"
+  - "Sinónimos: palavras com significado parecido | Antónimos: significado contrário"
+
+local_examples:
+  - "casa de alvenaria, casa de caniço, machamba, quintal"
+  - "família moçambicana: avô Augusto, mãe Lurdes, Fátima"
+  - "bairro de Maputo, Beira, Nampula"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 14
+    visual_reference_required: false
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT", "MATCHING"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Distinguir Artigo Definido de Indefinido"
+    - "Identificar Nomes Comuns e flexão em Género"
+    - "Flexão de Nomes terminados em -ão (ex: irmão/irmã)"
+    - "Identificar os elementos de uma Carta Familiar"
+    - "Distinguir Sinónimo de Antónimo na frase"
+    - "Identificar Pronome Pessoal (sujeito) na frase"
+    - "Identificar elementos da Narrativa (personagem/espaço/tempo)"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

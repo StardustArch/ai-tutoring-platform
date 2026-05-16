@@ -10,13 +10,13 @@ import {
 
 export class SendChatDto {
   @IsNumber()
-  alunoId: number;
+  alunoId!: number;
 
   @IsString()
   @IsNotEmpty({ message: 'A mensagem não pode estar vazia.' })
   @MaxLength(1000)
   @Transform(({ value }) => value?.trim())
-  userQuery: string;
+  userQuery!: string;
 
   @IsString()
   @IsOptional()
@@ -67,17 +67,17 @@ export class SendChatDto {
 }
 
 export class MicroserviceChatRequestDto {
-  student_id: number;
-  student_class: number;
-  user_query: string;
-  mode: string;
-  history: any[];
-  subject: string;
-  topic: string;
-  context_rules: string;
+  student_id!: number;
+  student_class!: number;
+  user_query!: string;
+  mode!: string;
+  history!: any[];
+  subject!: string;
+  topic!: string;
+  context_rules!: string;
 
   // Campos da state machine
-  phase: string;
+  phase!: string;
   last_question?: string;
   last_correct_answer?: string;
   last_interaction_type?: string;

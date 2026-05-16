@@ -1,0 +1,65 @@
+id: "mat4_u10_tabelas_graficos"
+subject: "Matemática"
+topic: "Unidade 10: Tabelas e Gráficos"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+
+forbidden_words:
+  - "portanto"
+  - "média"
+  - "moda"
+  - "mediana"
+  - "gráfico de barras"
+
+curriculum_notes:
+  - "Tabela de duas entradas: ler dado específico, máximo e mínimo"
+  - "Tabela: calcular total de linha/coluna; calcular diferença"
+  - "Gráfico de LINHAS (não de barras — esse é 3ª classe)"
+  - "Eixo horizontal = tempo/categorias; eixo vertical = valores"
+  - "Ler valor de um ponto específico no gráfico"
+  - "Comparar dois pontos: qual é maior, qual é menor"
+  - "Tendência: a linha sobe (aumenta) ou desce (diminui)"
+  - "NÃO calcular médias, modas ou medianas"
+  - "NÃO pedir ao aluno para construir gráficos — apenas interpretar"
+
+local_examples:
+  - "produção de caju por mês"
+  - "temperatura em Maputo ao longo do ano"
+  - "número de alunos presentes por semana"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "DIRECT_INPUT", "TRUE_FALSE"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Ler dado específico numa Tabela"
+    - "Identificar valor máximo e mínimo na Tabela"
+    - "Calcular total ou diferença a partir da Tabela"
+    - "Ler o valor de um ponto no Gráfico de Linhas"
+    - "Comparar dois pontos no Gráfico de Linhas"
+    - "Descrever tendência no Gráfico (sobe/desce/igual)"
+    - "Problema misto: Tabela + Gráfico de Linhas"
+    - "Verdadeiro ou Falso sobre dados do gráfico"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

@@ -1,0 +1,68 @@
+id: "port4_u6_saude_higiene"
+subject: "Português"
+topic: "Unidade 6: Saúde e Higiene"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "possessivo"
+    replacement: "que mostra posse"
+  - forbidden: "flexão"
+    replacement: "mudar de forma"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+  - "estratégia"
+  - "método"
+  - "demonstrativo"
+  - "relativo"
+  - "medicamento"
+
+curriculum_notes:
+  - "Cuidados com alimentos: lavar, cozinhar bem, conservar"
+  - "Família de palavras: saúde/saudável/saudar/saudação"
+  - "Cartaz de saúde: mensagem clara para prevenir doenças"
+  - "Pronomes Possessivos: meu/minha, teu/tua, seu/sua, nosso/nossa"
+  - "Flexão dos possessivos em género e número: meus, minhas, teus, tuas..."
+  - "Narrador participante (1ª pessoa) vs não participante (3ª pessoa)"
+
+local_examples:
+  - "centro de saúde rural, campanha contra a malária, rede mosquiteira"
+  - "enfermeiro Hélio, mãe de Fátima, água potável, poço"
+  - "higiene alimentar: lavar frutas, cozinhar bem, guardar comida"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 14
+    visual_reference_required: true
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT", "MATCHING"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Interpretar mensagem de Cartaz de saúde"
+    - "Organizar Família de Palavras (saúde/higiene)"
+    - "Identificar Pronome Possessivo na frase"
+    - "Escolher o Pronome Possessivo correcto"
+    - "Flexionar Pronome Possessivo em Género e Número"
+    - "Identificar narrador participante/não participante"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

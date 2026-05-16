@@ -1,0 +1,66 @@
+id: "mat4_u8_literacia_financeira"
+subject: "Matemática"
+topic: "Unidade 8: Literacia Financeira"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "calcular"
+    replacement: "descobrir quanto é"
+  - forbidden: "efectuar"
+    replacement: "fazer"
+  - forbidden: "determinar"
+    replacement: "descobrir"
+
+forbidden_words:
+  - "portanto"
+  - "juros"
+  - "câmbio"
+  - "percentagem"
+  - "moeda estrangeira"
+
+curriculum_notes:
+  - "Orçamento: plano para estimar receitas e despesas para um período"
+  - "Receita: dinheiro que entra (salários, rendimentos)"
+  - "Despesa: dinheiro que sai (água, electricidade, gás, rancho, transporte)"
+  - "Saldo = Receita total − Despesa total"
+  - "Poupança: guardar o saldo para uso futuro"
+  - "Calcular receita total, despesa total, saldo e despesa desconhecida"
+  - "Montantes na ordem das dezenas de milhar (ex: 20.000 MT)"
+  - "NÃO usar notas e moedas (isso é 3ª classe)"
+  - "NÃO usar juros, câmbio ou percentagem"
+
+local_examples:
+  - "orçamento familiar da família Mazive"
+  - "salário do pai e mãe da família Mutimuculo"
+  - "despesas de água, electricidade e rancho"
+  - "preparar festa de família do senhor Aziz"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 12
+    distractor_strategy: "off_by_one"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Calcular Receita Total (somar rendimentos)"
+    - "Calcular Despesa Total (somar gastos)"
+    - "Calcular Saldo (receita total − despesa total)"
+    - "Calcular valor desconhecido de uma despesa dado total"
+    - "Problema completo de Orçamento familiar"
+    - "Verdadeiro ou Falso sobre saldo ou despesa"
+  distractor_strategy: "off_by_one"
+  positional_correction: false
+  difficulty_range: [1, 4]

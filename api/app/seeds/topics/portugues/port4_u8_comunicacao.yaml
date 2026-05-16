@@ -1,0 +1,70 @@
+id: "port4_u8_comunicacao"
+subject: "Português"
+topic: "Unidade 8: Comunicação"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "advérbio"
+    replacement: "palavra de modo"
+  - forbidden: "emissor"
+    replacement: "quem envia"
+  - forbidden: "receptor"
+    replacement: "quem recebe"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+  - "estratégia"
+  - "método"
+  - "superlativo"
+  - "comparativo"
+  - "grau do adjectivo"
+
+curriculum_notes:
+  - "Carta e Postal: emissor, receptor, assunto, data, local"
+  - "Poema: verso (linha), estrofe (grupo de versos), rima (som final igual)"
+  - "Rima emparelhada (AABB) vs cruzada (ABAB) — apenas identificar"
+  - "Advérbios de Modo: bem, mal, depressa, devagar"
+  - "Advérbios em -mente: rapidamente, lentamente, alegremente, calmamente"
+  - "Localização da Província no mapa de Moçambique"
+
+local_examples:
+  - "carta de aluno para o avô, postal de férias de Inhambane"
+  - "poema sobre a bandeira de Moçambique, hino nacional"
+  - "mapa de Moçambique: localizar a própria província do aluno"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 14
+    visual_reference_required: false
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT", "MATCHING"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Identificar emissor, receptor e assunto de uma Carta"
+    - "Identificar Advérbio de Modo na frase"
+    - "Identificar Verso, Estrofe e Rima num Poema"
+    - "Escolher Advérbio de Modo correcto"
+    - "Expandir frase com Advérbio de Modo (-mente)"
+    - "Identificar a Rima entre dois versos"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]

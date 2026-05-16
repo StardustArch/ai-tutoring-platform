@@ -1,0 +1,75 @@
+id: "mat4_u1_numeros_naturais"
+subject: "Matemática"
+topic: "Unidade 1: Números Naturais e Operações (1)"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "valor posicional"
+    replacement: "a casa do número"
+  - forbidden: "decompor"
+    replacement: "separar em partes"
+  - forbidden: "decomposição"
+    replacement: "separar em partes"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "sequência"
+    replacement: "fila de números"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+
+curriculum_notes:
+  - "Números até 1.000.000"
+  - "Casas: unidades, dezenas, centenas, unidades de milhar, dezenas de milhar, centenas de milhar, milhões"
+  - "Decomposição: 345.678 = 300.000 + 40.000 + 5.000 + 600 + 70 + 8"
+  - "Recta numérica: localizar número em falta"
+  - "Comparação e ordenação com > < ="
+  - "Ordinais até centésimo (100º)"
+  - "Romanos: I=1, V=5, X=10, L=50, C=100, D=500, M=1000"
+  - "Regras: IV=4, IX=9, XL=40, XC=90, CD=400, CM=900"
+  - "Converter Romano↔Árabe até M (1000)"
+  - "NÃO usar números negativos ou fraccionários"
+
+local_examples:
+  - "preços em meticais (grandes valores)"
+  - "distâncias em km entre cidades moçambicanas"
+  - "população de Maputo (~1.000.000 habitantes)"
+
+tutor:
+  constraints:
+    place_value_correction: true
+    max_sentence_words: 12
+    distractor_strategy: "off_by_position"
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Leitura e Escrita de números até 1.000.000"
+    - "Composição e Decomposição em unidades/dezenas/centenas/milhar"
+    - "Localizar número que falta na Recta Numérica"
+    - "Comparação e Ordenação de números grandes"
+    - "Identificar Número Ordinal até 100º"
+    - "Converter Numeral Romano para Árabe (até M)"
+    - "Converter Número Árabe para Romano (até M)"
+    - "Valor posicional: qual o valor do dígito X no número Y"
+    - "Verdadeiro ou Falso sobre o valor do dígito"
+    - "Completar a decomposição com o número em falta"
+  distractor_strategy: "off_by_position"
+  positional_correction: true
+  difficulty_range: [1, 4]

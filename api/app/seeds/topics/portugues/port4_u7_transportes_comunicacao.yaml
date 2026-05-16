@@ -1,0 +1,71 @@
+id: "port4_u7_transportes_comunicacao"
+subject: "Português"
+topic: "Unidade 7: Meios de Transporte e Comunicação"
+grade: [4]
+
+vocab_rules:
+  - forbidden: "algarismo"
+    replacement: "número"
+  - forbidden: "identificar"
+    replacement: "encontrar"
+  - forbidden: "onomatopeia"
+    replacement: "som da palavra"
+  - forbidden: "advérbio"
+    replacement: "palavra de tempo"
+
+forbidden_words:
+  - "portanto"
+  - "verificar"
+  - "conceito"
+  - "procedimento"
+  - "estratégia"
+  - "método"
+  - "hoje"
+  - "amanhã"
+  - "nunca"
+  - "já"
+
+curriculum_notes:
+  - "Transportes terrestres: chapa 100, machimbombo, comboio, bicicleta"
+  - "Transportes marítimos: barco, dhow, navio"
+  - "Transportes aéreos: avião, helicóptero"
+  - "Onomatopeias: brum-brum (carro), chu-chu (comboio), vrum (moto)"
+  - "Meios de comunicação: carta, postal, telefone, rádio, jornal, TV, internet"
+  - "Advérbios de Tempo (4ª classe): cedo, tarde, logo, sempre, quando"
+  - "Regras de trânsito: passadeira, semáforo, olhar esquerda/direita"
+
+local_examples:
+  - "estrada Maputo-Matola, barco em Inhambane, chapa 100 em Nampula"
+  - "motorista Estevão, professora Amélia, aeroporto de Mavalane"
+  - "sinais de trânsito moçambicanos: stop, passadeira, proibido entrar"
+
+tutor:
+  constraints:
+    place_value_correction: false
+    max_sentence_words: 14
+    visual_reference_required: true
+  phases:
+    EXPLAIN:
+      max_bubbles: 3
+      interaction_types: ["EXPLANATION"]
+      must_end_with_confirmation: true
+    TEST:
+      interaction_types: ["CHIPS", "TRUE_FALSE", "DIRECT_INPUT", "MATCHING"]
+      requires_correct_answer: true
+      assessment_source: "deterministic"
+    FEEDBACK:
+      interaction_types: ["CHIPS"]
+      assessment_source: "deterministic"
+
+rush:
+  structures:
+    - "Classificar transporte (terrestre/marítimo/aéreo)"
+    - "Associar Onomatopeia ao transporte correcto"
+    - "Identificar Advérbio de Tempo na frase"
+    - "Escolher o Advérbio de Tempo correcto"
+    - "Identificar Meio de Comunicação e a sua função"
+    - "Interpretar Regra ou Sinal de Trânsito"
+    - "Expandir frase com Advérbio de Tempo"
+  distractor_strategy: "semantic"
+  positional_correction: false
+  difficulty_range: [1, 4]
