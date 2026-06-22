@@ -207,6 +207,11 @@ REGRAS DE OURO:
 4. A "correct_answer" DEVE ser a opção correta.
 5. Não repita perguntas passadas: {exclude_list}
  
+⚠️ Para tópicos de FRACÇÕES: a lacuna DEVE testar o conceito, não a narrativa.
+✅ BOM: "A fracção 7/4 é uma fracção ___ porque o numerador é maior que o denominador."
+✅ BOM: "O resultado de 2/6 + 3/6 é ___."
+❌ MAU: "A senhora Paula tem uma fita de 3 metros e ___" (a lacuna não testa nada)
+
 ⚠️ VERIFICAÇÃO FACTUAL OBRIGATÓRIA:
 - A palavra ou forma que preenche a lacuna DEVE ser factualmente correcta.
 - Quando tiveres dúvida sobre um facto, escolhe outro aspecto do tópico.
@@ -585,7 +590,14 @@ def _pick_forced_structure(subtopic: str, context_rules: str, recent_questions: 
     if not structures_tf:
         structures_tf = [f"Distinguir se a afirmação sobre {subtopic.split()[0].lower()} é verdadeira"]
     if not structures_cloze:
-        structures_cloze = [f"Completar a lacuna sobre {subtopic.split()[0].lower()}"]
+        # Ignora palavras genéricas como "Unidade", "Parte", "Capítulo"
+        SKIP_WORDS = {'unidade', 'parte', 'capítulo', 'secção', 'módulo'}
+        meaningful = [
+            w for w in subtopic.split()
+            if len(w) > 4 and w.lower() not in SKIP_WORDS
+        ]
+        topic_key = meaningful[-1].lower() if meaningful else subtopic.split()[-1].lower()
+        structures_cloze = [f"Completar a lacuna sobre {topic_key}"]
     if not structures_mc:
         structures_mc = ["Identificar o conceito correcto"]
 
@@ -990,8 +1002,95 @@ def _generate_smart_distractors(correct_value: int):
     return distractors[:3]
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# SUBSTITUIR a função _is_duplicate no rush_service.py pela versão abaixo.
+# ── Fallback Topic-Aware ──────────────────────────────────────────────────────
+# Cobre os casos raros em que todos os modelos falham.
+# Usa palavras-chave do forced_structure para devolver uma pergunta do tópico
+# em vez de expor uma pergunta genérica fora do contexto.
+
+_FALLBACK_POOL: list[dict] = [
+    # Ângulos
+    {
+        "keywords": ["ângulo", "recto", "agudo", "obtuso", "raso"],
+        "question": "Um ângulo de 90° chama-se ângulo ___.",
+        "options": ["Recto", "Agudo", "Obtuso", "Raso"],
+        "correct_answer": "Recto",
+        "explanation": "Um ângulo recto mede exactamente 90 graus.",
+    },
+    # Triângulos pelos lados
+    {
+        "keywords": ["equilátero", "isósceles", "escaleno", "lados"],
+        "question": "Um triângulo com 3 lados iguais chama-se ___.",
+        "options": ["Equilátero", "Isósceles", "Escaleno", "Rectângulo"],
+        "correct_answer": "Equilátero",
+        "explanation": "Triângulo equilátero tem os 3 lados iguais.",
+    },
+    # Triângulos pelos ângulos
+    {
+        "keywords": ["acutângulo", "obtusângulo", "rectângulo", "ângulos"],
+        "question": "Um triângulo com um ângulo de 90° chama-se triângulo ___.",
+        "options": ["Rectângulo", "Acutângulo", "Obtusângulo", "Equilátero"],
+        "correct_answer": "Rectângulo",
+        "explanation": "O triângulo rectângulo tem um ângulo recto (90°).",
+    },
+    # Circunferência / raio / diâmetro
+    {
+        "keywords": ["raio", "diâmetro", "centro", "circunferência", "círculo"],
+        "question": "O diâmetro de um círculo é igual a ___ vezes o raio.",
+        "options": ["2", "3", "4", "1"],
+        "correct_answer": "2",
+        "explanation": "Diâmetro = 2 × raio.",
+    },
+    # Quadriláteros
+    {
+        "keywords": ["quadrado", "rectângulo", "losango", "trapézio", "paralelogramo", "quadrilátero"],
+        "question": "Qual figura tem 4 lados iguais e 4 ângulos rectos?",
+        "options": ["Quadrado", "Rectângulo", "Losango", "Trapézio"],
+        "correct_answer": "Quadrado",
+        "explanation": "O quadrado tem 4 lados iguais e 4 ângulos rectos.",
+    },
+    # Sólidos geométricos
+    {
+        "keywords": ["sólido", "cubo", "esfera", "cilindro", "cone", "pirâmide", "paralelepípedo"],
+        "question": "Uma bola de futebol tem a forma de ___.",
+        "options": ["Esfera", "Cubo", "Cilindro", "Cone"],
+        "correct_answer": "Esfera",
+        "explanation": "A bola tem forma esférica — redonda em todas as direcções.",
+    },
+]
+
+_FALLBACK_DEFAULT = {
+    "question": "Quantos lados tem um triângulo?",
+    "options": ["3", "4", "5", "6"],
+    "correct_answer": "3",
+    "explanation": "Um triângulo tem sempre 3 lados.",
+}
+
+
+def _build_topic_fallback(forced_structure: str, subtopic: str, subject: str) -> "RushResponse":
+    """Devolve uma pergunta de fallback relevante para o tópico actual."""
+    combined = (forced_structure + " " + subtopic).lower()
+
+    for entry in _FALLBACK_POOL:
+        if any(kw in combined for kw in entry["keywords"]):
+            return RushResponse(
+                type="multiple_choice",
+                question=entry["question"],
+                options=entry["options"],
+                correct_answer=entry["correct_answer"],
+                explanation=entry["explanation"],
+            )
+
+    # Último recurso — pelo menos é matemática
+    return RushResponse(
+        type="multiple_choice",
+        question=_FALLBACK_DEFAULT["question"],
+        options=_FALLBACK_DEFAULT["options"],
+        correct_answer=_FALLBACK_DEFAULT["correct_answer"],
+        explanation=_FALLBACK_DEFAULT["explanation"],
+    )
+
+
+
 # Adiciona verificação semântica: bloqueia quando o mesmo par
 # (objecto, sólido/figura) já apareceu nas perguntas recentes,
 # mesmo que o tipo de interacção seja diferente (cloze vs true_false vs MC).
@@ -1088,14 +1187,18 @@ def _is_duplicate(new_question: str, recent_questions: list[str], has_ancora: bo
                 print(f"🔁 [DuplicateCheck] Template idêntico: '{prev[:70]}'", flush=True)
                 return True
 
-    # check semântico (par objecto/sólido) — mantém igual
-    new_pair = _extract_geometric_pair(new_question)
-    if new_pair:
-        for prev in recent_questions:
-            prev_pair = _extract_geometric_pair(prev)
-            if prev_pair and new_pair == prev_pair:
-                print(f"🔁 [DuplicateCheck] Par semântico idêntico: obj='{new_pair[0]}' sólido='{new_pair[1]}'", flush=True)
-                return True
+    # check semântico (par objecto/sólido) — só para perguntas SEM âncora.
+    # Com âncora, o core-check acima já trata duplicatas; o pair check
+    # bloquearia perguntas válidas sobre a mesma figura com estruturas diferentes
+    # (ex: classificar triângulo pelos lados vs pelos ângulos → mesmo par, pergunta diferente).
+    if not has_ancora:
+        new_pair = _extract_geometric_pair(new_question)
+        if new_pair:
+            for prev in recent_questions:
+                prev_pair = _extract_geometric_pair(prev)
+                if prev_pair and new_pair == prev_pair:
+                    print(f"🔁 [DuplicateCheck] Par semântico idêntico: obj='{new_pair[0]}' sólido='{new_pair[1]}'", flush=True)
+                    return True
 
     return False
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1365,16 +1468,80 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
             )
         else:
             finite_data = get_finite_domain_data(
-                forced_structure,
-                request.student_class,
-                request.difficulty_level,
-            )
+            forced_structure,
+            request.student_class,
+            request.difficulty_level,
+        )
+
+        # Rejeita FiniteDomain quando o tipo é "conversao" mas o tópico é frações
+        # (evita que o modelo gere perguntas de cm→m em vez de fracções)
+        if finite_data and finite_data.get("type") == "conversao":
+            subtopic_lower = subtopic.lower()
+            is_fraction_topic = any(k in subtopic_lower for k in [
+                "fração", "frações", "fracção", "fracções"
+            ])
+            if is_fraction_topic:
+                print(
+                    f"🚫 [FiniteDomain] Rejeitado — type=conversao não se aplica a fracções "
+                    f"(subtopic='{subtopic}')",
+                    flush=True,
+                )
+                finite_data = None
  
         ancora_data = None
         if request.ancora:
             ancora_data = get_ancora(request.ancora)
 
-        if finite_data:
+        if finite_data and ancora_data:
+            # ── Conflito resolvido: âncora tem prioridade visual ─────────────
+            # A resposta correcta vem do FiniteDomain (determinística),
+            # mas a pergunta DEVE referenciar a figura descrita na âncora.
+            override_type = "multiple_choice"
+            math_data     = finite_data  # garante que correct_answer não é adulterado pela IA
+
+            if ancora_data["tipo"] == "visual":
+                ancora_label        = "FIGURA / IMAGEM DESCRITA"
+                ancora_label_lower  = "figura acima"
+                ancora_ref_instrucao = (
+                    'A pergunta DEVE começar com "Na figura acima," ou "Observando a figura acima,"\n'
+                    '   — NUNCA usar "De acordo com o texto" ou "Olhando para o cartaz".'
+                )
+            else:
+                ancora_label        = "TEXTO DE SUPORTE"
+                ancora_label_lower  = "texto acima"
+                ancora_ref_instrucao = (
+                    'A pergunta DEVE começar com "De acordo com o texto acima," ou "Com base no texto acima,"\n'
+                    '   — NUNCA usar "Observando a figura" ou "Na imagem".'
+                )
+
+            finite_constraint = (
+                f"\n🔒 RESPOSTA PRÉ-CALCULADA (NÃO ALTERES ESTES VALORES):\n"
+                f"- Opções obrigatórias: {finite_data['options_json']}\n"
+                f"- Resposta correcta obrigatória: \"{finite_data['correct_answer']}\"\n"
+                f"- NÃO calcules nem inventes — usa exactamente estes valores."
+            )
+
+            prompt = PROMPT_ANCORA.format(
+                student_class=request.student_class,
+                subject=subject,
+                subtopic=subtopic,
+                difficulty_level=request.difficulty_level,
+                forced_structure=forced_structure,
+                ancora_label=ancora_label,
+                ancora_label_lower=ancora_label_lower,
+                ancora_conteudo=ancora_data["conteudo"],
+                ancora_ref_instrucao=ancora_ref_instrucao,
+                context_rules=request.context_rules,
+                exclude_list=exclude_list,
+            ) + finite_constraint
+
+            print(
+                f"🔒⚓ [FiniteDomain+Âncora] type={finite_data['type']} | "
+                f"correct='{finite_data['correct_answer']}' | ancora='{request.ancora}'",
+                flush=True,
+            )
+
+        elif finite_data:
             # Valores pré-calculados — IA só escreve narrativa + explicação
             override_type = "multiple_choice"
             math_data     = finite_data   # reutiliza o mecanismo já existente
@@ -1589,11 +1756,6 @@ async def generate_rush_question_logic(request: RushRequest) -> RushResponse:
             await asyncio.sleep(1)
             continue
  
-    return RushResponse(
-        type="multiple_choice",
-        question="Ocorreu uma pequena falha técnica. Qual é a capital de Moçambique?",
-        options=["Beira", "Maputo", "Nampula", "Tete"],
-        correct_answer="Maputo",
-        explanation="O servidor precisou de um descanso, mas seguimos em frente!"
-    )
- 
+    # Fallback topic-aware — usa o tópico actual para não expor a falha
+    print(f"⚠️ [Fallback] Todos os modelos falharam para '{forced_structure}'. A usar fallback do tópico.", flush=True)
+    return _build_topic_fallback(forced_structure, subtopic, subject)

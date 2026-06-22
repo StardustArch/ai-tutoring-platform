@@ -7,8 +7,8 @@
     import '../../../../app.css'
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
-    import { notifications } from '$lib/store/notifications';
-    import Notification from '$lib/components/Notification.svelte'; // Não esquecer o componente
+    import { notify } from '$lib/store/toaster';
+    import Toast from '$lib/components/ToastContainer.svelte'; // Não esquecer o componente
 
     let isLoadingProfile = false;
     let isLoadingPassword = false;
@@ -39,14 +39,14 @@
             });
 
             if (response.ok) {
-                notifications.send('Perfil atualizado com sucesso!', 'success');
+                notify('Salvo','Perfil atualizado com sucesso!', 'success');
                 await auth.refreshUser();
             } else {
                 const error = await response.json();
                 throw new Error(error.message);
             }
         } catch (error: any) {
-            notifications.send(error.message || 'Erro de conexão.', 'error');
+            notify('Erro',error.message || 'Erro de conexão.', 'error');
         } finally {
             isLoadingProfile = false;
         }
@@ -55,11 +55,11 @@
     // --- ALTERAR SENHA ---
     async function changePassword() {
         if (passwordData.newPassword.length < 6) {
-            notifications.send('A nova senha deve ter pelo menos 6 caracteres.', 'warning');
+            notify('Atenção','A nova senha deve ter pelo menos 6 caracteres.', 'warning');
             return;
         }
         if (passwordData.newPassword !== passwordData.confirmNewPassword) {
-            notifications.send('A confirmação da senha não coincide.', 'warning');
+            notify('Atenção','A confirmação da senha não coincide.', 'warning');
             return;
         }
 
@@ -74,7 +74,7 @@
             });
 
             if (response.ok) {
-                notifications.send('Senha alterada com sucesso!', 'success');
+                notify('Salvo','Senha alterada com sucesso!', 'success');
                 // Limpar formulário de senha
                 passwordData = { currentPassword: '', newPassword: '', confirmNewPassword: '' };
             } else {
@@ -82,7 +82,7 @@
                 throw new Error(error.message);
             }
         } catch (error: any) {
-            notifications.send(error.message || 'Erro ao alterar senha.', 'error');
+            notify('Erro',error.message || 'Erro ao alterar senha.', 'error');
         } finally {
             isLoadingPassword = false;
         }

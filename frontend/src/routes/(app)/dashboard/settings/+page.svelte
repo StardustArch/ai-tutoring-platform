@@ -6,14 +6,17 @@
     import { auth } from '$lib/store/auth';
     import { apiFetch } from '$lib/utils/api';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
-    import { User, Mail, Phone, Save, Loader, ShieldCheck, Lock, KeyRound, ChevronLeft } from 'lucide-svelte';
+    import { User, Mail, Phone, Save, Loader, ShieldCheck, Lock, KeyRound, ChevronLeft, Trash2, AlertTriangle, X } from 'lucide-svelte';
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
-    import { notifications } from '$lib/store/notifications';
+    import { notify } from '$lib/store/toaster';
 
     let isLoadingProfile = false;
     let isLoadingPassword = false;
     let isUserLoaded = false;
+    let isDeleting = false;
+    let showDeleteModal = false;
+    let deleteConfirmText = '';
     
     $: isOAuthUser = !!$auth.user?.oauthId;
 
@@ -36,7 +39,7 @@
 
     async function updateProfile() {
         if (!formData.nome.trim() || !formData.sobrenome.trim()) {
-            notifications.send('Nome e Sobrenome são obrigatórios.', 'warning');
+            notify('Atenção','Nome e Sobrenome são obrigatórios.', 'warning');
             return;
         }
 
@@ -48,14 +51,14 @@
             });
 
             if (response.ok) {
-                notifications.send('Perfil atualizado com sucesso.', 'success');
+                notify('Salvo','Perfil atualizado com sucesso.', 'success');
                 await auth.refreshUser();
             } else {
                 const error = await response.json();
                 throw new Error(error.message);
             }
         } catch (error: any) {
-            notifications.send(error.message || 'Erro ao atualizar perfil.', 'error');
+            notify('Erro',error.message || 'Erro ao atualizar perfil.', 'error');
         } finally {
             isLoadingProfile = false;
         }
@@ -63,11 +66,11 @@
 
     async function changePassword() {
         if (passwordData.newPassword.length < 6) {
-            notifications.send('A nova senha deve ter pelo menos 6 caracteres.', 'warning');
+            notify('Atenção','A nova senha deve ter pelo menos 6 caracteres.', 'warning');
             return;
         }
         if (passwordData.newPassword !== passwordData.confirmNewPassword) {
-            notifications.send('A confirmação da senha não coincide.', 'warning');
+            notify('Atenção','A confirmação da senha não coincide.', 'warning');
             return;
         }
 
@@ -82,16 +85,55 @@
             });
 
             if (response.ok) {
-                notifications.send('Senha alterada com sucesso.', 'success');
+                notify('Salvo','Senha alterada com sucesso.', 'success');
                 passwordData = { currentPassword: '', newPassword: '', confirmNewPassword: '' };
             } else {
                 const error = await response.json();
                 throw new Error(error.message);
             }
         } catch (error: any) {
-            notifications.send(error.message || 'Falha na verificação da senha atual.', 'error');
+            notify('Erro',error.message || 'Falha na verificação da senha atual.', 'error');
         } finally {
             isLoadingPassword = false;
+        }
+    }
+
+    function openDeleteModal() {
+        showDeleteModal = true;
+        deleteConfirmText = '';
+    }
+
+    function closeDeleteModal() {
+        showDeleteModal = false;
+        deleteConfirmText = '';
+    }
+
+    async function deleteAccount() {
+        if (deleteConfirmText !== 'ELIMINAR') {
+            notify('Atenção', 'Digite "ELIMINAR" para confirmar a eliminação.', 'warning');
+            return;
+        }
+
+        isDeleting = true;
+        try {
+            const response = await apiFetch(`${PUBLIC_API_URL_HOST}/api/auth/delete-account`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                notify('Conta Eliminada', 'A sua conta foi removida com sucesso.', 'success');
+                // Limpar sessão e redirecionar
+                await auth.logout();
+                goto('/');
+            } else {
+                const error = await response.json();
+                throw new Error(error.message);
+            }
+        } catch (error: any) {
+            notify('Erro', error.message || 'Erro ao eliminar conta.', 'error');
+        } finally {
+            isDeleting = false;
+            closeDeleteModal();
         }
     }
 
@@ -265,6 +307,135 @@
                 </div>
             </form>
         </section>
+    {/if}
+
+    <!-- Secção de Eliminação de Conta -->
+    <section class="bg-white dark:bg-surface-800 rounded-lg border border-red-200 dark:border-red-800/30 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-red-100 dark:border-red-900/20 bg-red-50/50 dark:bg-red-900/10">
+            <h2 class="text-sm font-bold uppercase tracking-wide text-red-700 dark:text-red-400 flex items-center gap-2">
+                <AlertTriangle size={16} /> Zona de Risco - Eliminar Conta
+            </h2>
+        </div>
+
+        <div class="p-6 md:p-8">
+            <div class="max-w-2xl">
+                <p class="text-sm text-surface-600 dark:text-surface-300 mb-4">
+                    Ao eliminar a sua conta, todos os dados associados serão permanentemente removidos. 
+                    Esta ação é <span class="font-bold text-red-600 dark:text-red-400">irreversível</span>.
+                </p>
+                
+                <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-md p-4 mb-6">
+                    <div class="flex items-start gap-3">
+                        <AlertTriangle size={18} class="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div class="text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                            <p><span class="font-semibold">Antes de eliminar, considere:</span></p>
+                            <ul class="list-disc list-inside space-y-0.5 ml-1">
+                                <li>Perderá acesso a todos os dados e conteúdos</li>
+                                <li>Não poderá recuperar a conta após a eliminação</li>
+                                <li>Alguns dados podem ser retidos por obrigações legais</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4 flex-wrap">
+                    <button
+                        on:click={openDeleteModal}
+                        class="btn bg-red-600 hover:bg-red-700 text-white font-medium rounded-md py-2 px-6 flex items-center gap-2 shadow-sm transition-all focus:ring-2 focus:ring-offset-1 focus:ring-red-500 text-sm"
+                        disabled={isDeleting}
+                    >
+                        {#if isDeleting}
+                            <Loader size={16} class="animate-spin" />
+                            <span>A Eliminar...</span>
+                        {:else}
+                            <Trash2 size={16} />
+                            <span>Eliminar Conta</span>
+                        {/if}
+                    </button>
+                    
+                    <span class="text-xs text-surface-400">
+                        Esta ação requer confirmação adicional
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal de Confirmação de Eliminação -->
+    {#if showDeleteModal}
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+            <div class="bg-white dark:bg-surface-800 rounded-lg shadow-xl max-w-md w-full border border-surface-200 dark:border-surface-700 overflow-hidden">
+                <div class="p-6 border-b border-surface-200 dark:border-surface-700 bg-red-50/50 dark:bg-red-900/10 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                            <AlertTriangle size={20} class="text-red-600 dark:text-red-400" />
+                        </div>
+                        <h3 class="text-lg font-bold text-surface-900 dark:text-surface-50">Confirmar Eliminação</h3>
+                    </div>
+                    <button 
+                        on:click={closeDeleteModal}
+                        class="text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <div class="p-6 space-y-4">
+                    <p class="text-sm text-surface-600 dark:text-surface-300">
+                        Tem a certeza que deseja eliminar permanentemente a sua conta?
+                    </p>
+                    
+                    <div class="bg-surface-50 dark:bg-surface-700/50 rounded-md p-3">
+                        <p class="text-xs text-surface-500 dark:text-surface-400">
+                            <span class="font-semibold">Email:</span> {$auth.user?.email}
+                        </p>
+                        <p class="text-xs text-surface-500 dark:text-surface-400">
+                            <span class="font-semibold">Nome:</span> {$auth.user?.nome} {$auth.user?.sobrenome}
+                        </p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="deleteConfirm" class="text-xs font-medium text-surface-700 dark:text-surface-300">
+                            Digite <span class="font-bold text-red-600 dark:text-red-400">ELIMINAR</span> para confirmar
+                        </label>
+                        <input 
+                            id="deleteConfirm"
+                            type="text" 
+                            class="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-md focus:ring-2 focus:ring-red-500/20 focus:border-red-500 bg-white dark:bg-surface-700 text-sm text-surface-900 dark:text-surface-100"
+                            bind:value={deleteConfirmText}
+                            placeholder="ELIMINAR"
+                            on:keydown={(e) => {
+                                if (e.key === 'Enter' && deleteConfirmText === 'ELIMINAR') {
+                                    deleteAccount();
+                                }
+                            }}
+                        />
+                    </div>
+                </div>
+                
+                <div class="p-6 border-t border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-900/20 flex justify-end gap-3">
+                    <button
+                        on:click={closeDeleteModal}
+                        class="px-4 py-2 text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 rounded-md transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        on:click={deleteAccount}
+                        class="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        disabled={deleteConfirmText !== 'ELIMINAR' || isDeleting}
+                    >
+                        {#if isDeleting}
+                            <Loader size={16} class="animate-spin" />
+                            A Eliminar...
+                        {:else}
+                            <Trash2 size={16} />
+                            Eliminar Conta
+                        {/if}
+                    </button>
+                </div>
+            </div>
+        </div>
     {/if}
 </div>
 

@@ -4,5 +4,5 @@ export class ConfirmEmailDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(512)
-  token: string;
+  token!: string;
 }

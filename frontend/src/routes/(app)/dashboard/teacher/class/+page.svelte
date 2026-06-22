@@ -7,7 +7,7 @@
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import { goto } from '$app/navigation';
-  import { notifications } from '$lib/store/notifications';
+  import { notify } from '$lib/store/toaster';
   
   import { 
     School, Plus, BookOpen, Settings, Copy, AlertCircle, Search,
@@ -40,7 +40,7 @@
     } catch (err) {
       console.error('Erro:', err);
       error = 'Não foi possível carregar as suas turmas.';
-      notifications.send(error, 'error');
+      notify('Erro',error, 'error');
     } finally {
       isLoading = false;
     }
@@ -66,7 +66,7 @@
   function copiarCodigo(codigo: string, e: Event) {
     e.stopPropagation();
     navigator.clipboard.writeText(codigo);
-    notifications.send('Código copiado para a área de transferência.', 'success');
+    notify('Info','Código copiado para a área de transferência.', 'info');
     activeMenuId = null; 
   }
 

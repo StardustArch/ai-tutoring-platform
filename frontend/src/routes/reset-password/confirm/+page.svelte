@@ -8,10 +8,10 @@
   import { goto } from '$app/navigation';
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { notifications } from '$lib/store/notifications'; 
-  import Notification from '$lib/components/Notification.svelte';
+  import { notify } from '$lib/store/toaster'; 
   import { Lock, CheckCircle, Loader2, Eye, EyeOff, ArrowLeft, Check, X } from 'lucide-svelte';
   import '../../../app.css'
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
 
   let newPassword = '';
   let confirmPassword = '';
@@ -53,7 +53,7 @@
   onMount(() => {
     token = $page.url.searchParams.get('token') || '';
     if (!token) {
-        notifications.send('Link inválido ou expirado.', 'error');
+        notify('Erro','Link inválido ou expirado.', 'error');
         setTimeout(() => goto('/forgot-password'), 3000);
     }
   });
@@ -61,11 +61,11 @@
   async function handleReset() {
     // Validação
     if (passwordStrength.score < 2) {
-        notifications.send('A senha é muito fraca. Use letras maiúsculas, números ou símbolos.', 'warning');
+        notify('Atenção','A senha é muito fraca. Use letras maiúsculas, números ou símbolos.', 'warning');
         return;
     }
     if (!passwordsMatch) {
-        notifications.send('As senhas não coincidem.', 'warning');
+        notify('Atenção','As senhas não coincidem.', 'warning');
         return;
     }
 
@@ -78,21 +78,21 @@
 
         if (res.ok) {
             success = true;
-            notifications.send('Senha alterada com sucesso!', 'success');
+            notify('Salvo','Senha alterada com sucesso!', 'success');
             setTimeout(() => goto('/login'), 3000);
         } else {
             const err = await res.json();
             throw new Error(err.message || 'Link expirado ou inválido.');
         }
     } catch (err: any) {
-        notifications.send(err.message, 'error');
+        notify('Erro',err.message, 'error');
     } finally {
         isLoading = false;
     }
   }
 </script>
 
-<Notification />
+<ToastContainer />
 
 <div class="min-h-screen flex items-center justify-center bg-white dark:bg-surface-950 relative overflow-hidden p-4">
   

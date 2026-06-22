@@ -8,7 +8,7 @@
   import { goto } from '$app/navigation';
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { notifications } from '$lib/store/notifications';
+  import { notify } from '$lib/store/toaster';
   
   import { 
     ArrowLeft, User, School, BookOpen, 
@@ -39,7 +39,7 @@
       if (res.ok) student = await res.json();
       console.log(student)
     } catch (err) { 
-      notifications.send('Erro ao carregar dados do aluno.', 'error');
+      notify('Erro','Erro ao carregar dados do aluno.', 'error');
     } finally { 
       isLoading = false; 
     }
@@ -59,7 +59,7 @@
 
   async function verifyCode() {
     if (!joinCode || joinCode.length < 6) {
-      notifications.send('O código deve ter 6 caracteres.', 'warning');
+      notify('Atenção','O código deve ter 6 caracteres.', 'warning');
       return;
     }
 
@@ -78,7 +78,7 @@
         throw new Error('Código inválido ou turma não encontrada.');
       }
     } catch (err: any) {
-      notifications.send(err.message, 'error');
+      notify('Erro',err.message, 'error');
     } finally {
       joinLoading = false;
     }
@@ -96,7 +96,7 @@
       });
 
       if (res.ok) {
-        notifications.send('Vínculo escolar realizado com sucesso!', 'success');
+        notify('Salvo','Vínculo escolar realizado com sucesso!', 'success');
         closeModal();
         await loadStudent();
       } else {
@@ -104,7 +104,7 @@
         throw new Error(err.message || 'Erro ao entrar na turma.');
       }
     } catch (err: any) {
-      notifications.send(err.message, 'error');
+      notify('Erro',err.message, 'error');
     } finally {
       joinLoading = false;
     }

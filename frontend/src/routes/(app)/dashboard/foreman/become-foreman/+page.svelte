@@ -7,7 +7,7 @@
   import { auth } from '$lib/store/auth'; 
   import { apiFetch } from '$lib/utils/api'; 
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { notifications } from '$lib/store/notifications'; 
+  import { notify } from '$lib/store/toaster'; 
   import { page } from '$app/stores';
   
   import { Users, Check, ArrowLeft, Loader, Info, ShieldCheck } from 'lucide-svelte';
@@ -25,7 +25,7 @@
 
       if (response.ok) {
         await auth.refreshUser();
-        notifications.send('Perfil familiar ativado com sucesso.', 'success');
+        notify('Salvo','Perfil familiar ativado com sucesso.', 'success');
         
         setTimeout(() => {
             goto('/dashboard/foreman/student/create?first_time=true');
@@ -37,7 +37,7 @@
       }
     } catch (error: any) {
       console.error(error);
-      notifications.send(error.message || 'Erro de conexão.', 'error');
+      notify('Erro',error.message || 'Erro de conexão.', 'error');
     } finally {
       isLoading = false;
     }

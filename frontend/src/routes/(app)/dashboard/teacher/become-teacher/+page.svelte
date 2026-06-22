@@ -7,7 +7,7 @@
     import { goto } from '$app/navigation';
     import { auth } from '$lib/store/auth'; 
     import { apiFetch } from '$lib/utils/api'; 
-    import { notifications } from '$lib/store/notifications';
+    import { notify } from '$lib/store/toaster';
     import { PUBLIC_API_URL_HOST } from '$env/static/public';
     import { School, Check, ArrowLeft, Info, Loader, Building2 } from 'lucide-svelte';
     import { page } from '$app/stores';
@@ -20,11 +20,11 @@
 
     async function handleSubmit() {
         if (!escolaNome || escolaNome.trim() === "") {
-            notifications.send('O nome da escola é obrigatório.', "error");
+            notify('Erro','O nome da escola é obrigatório.', "error");
             return;
         }
         if (escolaNome.length > 0 && escolaNome.length < 3) {
-            notifications.send('O nome da escola é muito curto.', 'warning');
+            notify('Atenção','O nome da escola é muito curto.', 'warning');
             return;
         }
 
@@ -40,7 +40,7 @@
 
             if (response.ok) {
                 await auth.refreshUser();
-                notifications.send('Perfil docente ativado com sucesso.', 'success');
+                notify('Salvo','Perfil docente ativado com sucesso.', 'success');
                 setTimeout(() => {
                     goto('/dashboard/unified/overview');
                 }, 1000);
@@ -50,7 +50,7 @@
             }
         } catch (error: any) {
             console.error(error);
-            notifications.send(error.message || 'Erro de conexão.', 'error');
+            notify('Erro',error.message || 'Erro de conexão.', 'error');
         } finally {
             isLoading = false;
         }

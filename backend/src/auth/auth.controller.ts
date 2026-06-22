@@ -11,6 +11,7 @@ import {
   Res,
   UnauthorizedException,
   Patch,
+  Delete,
 } from '@nestjs/common';
 import { AuthService, TokenResponse } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -137,5 +138,12 @@ export class AuthController {
   @Patch('change-password')
   async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(req.user.id, dto);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete('delete-account')
+  async deleteAccount(@Request() req) {
+    const userId = req.user.id;
+    return this.authService.deleteAccount(userId);
   }
 }

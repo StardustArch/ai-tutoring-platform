@@ -4,14 +4,14 @@ export class CreateClassDto {
   @IsNotEmpty()
   @IsString()
   @Length(3, 50)
-  nome: string;
+  nome!: string;
 
   @IsNotEmpty()
   @IsInt()
-  disciplinaId: number;
+  disciplinaId!: number;
 
   @IsInt()
   @Min(3)
   @Max(4)
-  classe: number;
+  classe!: number;
 }

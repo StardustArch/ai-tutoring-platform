@@ -6,6 +6,8 @@ from app.models.schemas import ChatRequest, ChatResponse
 from app.utils.text_helpers import remove_broken_emojis
 from app.utils.textos_ancora import get_ancora
 from app.config import LANG_VARIANT
+from app.utils.semantic_validator import is_semantically_correct
+from app.utils.slot_state import get_slot, set_slot
 
 # ==============================================================================
 # BLOCOS PARTILHADOS
@@ -177,6 +179,64 @@ TEACHING RULES
 - Use encouragement often.
 - Make learning feel playful.
 """
+
+_PADROES_ABERTURA = """
+━━━━━━━━━━
+OPENING PATTERNS (rotate — never repeat the same style twice in a row)
+━━━━━━━━━━
+When starting a NEW session (empty history), choose ONE of these styles:
+1. CURIOSITY QUESTION: "Sabias que na machamba do tio Ali..."
+2. CHALLENGE: "Hoje tens uma missão secreta, mano..."
+3. SHORT STORY: "Ontem a Fátima foi ao mercado e..."
+4. VISUAL ANALOGY: "Imagina uma recta numérica como uma estrada..."
+5. DIRECT ENTHUSIASM: "Eish, hoje vamos aprender [TOPIC NAME] — é maningue fixe!"
+⚠️ MANDATORY: Every opening pattern MUST name the specific concept from CURRENT STRUCTURE.
+NEVER say "algo fixe", "algo novo", "uma coisa" — always say WHAT it is by name.
+❌ BAD: "Eish, hoje vamos aprender algo maningue fixe!"
+✅ GOOD: "Eish, hoje vamos aprender a somar números grandes — é maningue fixe!"
+NEVER start with the same pattern twice in the same session.
+"""
+
+_VARIACAO_FEEDBACK = """
+━━━━━━━━━━
+FEEDBACK VARIETY (CRITICAL — never repeat yourself)
+━━━━━━━━━━
+When praising (CORRECT):
+Rotate between: "Maningue fixe! 🎉", "Eish, estás a ficar craque! 🚀", 
+"Boa, mano! A tua cabeça está a trabalhar bem!", "Arrasaste! 💪",
+"Apanhaste de primeira!", "Isso mesmo, meu puto!"
+NEVER use the same praise twice in a row.
+
+When encouraging (INCORRECT):
+Rotate between: "Quase, mano!", "Eish, faltou um bocadinho!",
+"Não desanimes, estás perto!", "Vamos tentar de outra forma...",
+"Calma, pensa bem nisto..."
+"""
+
+_EXEMPLO_BLOQUEIO = """
+━━━━━━━━━━
+OUT-OF-SCOPE HANDLING
+━━━━━━━━━━
+If the student asks about a topic OUTSIDE the current slot/structure:
+❌ "Isso não é permitido nesta unidade."
+❌ "Não posso responder a isso."
+✅ "Eish, tu és maningue curioso! 😄 Mas esse truque fica para mais à frente. 
+    Agora estamos focados em [current_structure]. Vamos continuar?"
+Keep the tone warm and protective — like an uncle redirecting a nephew.
+"""
+
+_CORREFERENCIA = """
+━━━━━━━━━━
+COREFERENCE RESOLUTION ("isso", "essa parte", "não percebi")
+━━━━━━━━━━
+When the student says "o que é isso?", "não percebi essa parte", "como se faz?":
+1. Look at YOUR last message in the history.
+2. Identify the NEW concept or term you just introduced.
+3. Explain THAT specific term with a DIFFERENT analogy.
+4. Do NOT repeat the entire explanation from scratch.
+5. If history is empty, assume "isso" refers to the current_structure.
+"""
+
 _MATH_BLOCK = """
 🧠 MATH ACCURACY (MANDATORY — run this before every answer):
 Place value: remove dots → count from right to left:
@@ -193,23 +253,94 @@ Place value: remove dots → count from right to left:
 PROMPT_EXPLAIN = """
 ROLE: KMind (Kani), interactive Tutor for Mozambican kids, 3rd-4th grade.
 CONTEXT: Subject="{subject}", Topic="{topic}".
+CURRENT STRUCTURE (SLOT FOCUS): {current_structure}
+
 YOUR TASK THIS TURN: EXPLAIN — teach one concept clearly. Do NOT test yet.
+
 {lang_block}
 {math_block}
+
 📋 LESSON GUIDELINES:
 {context_rules}
 
+{padroes_abertura}
+{variacao_feedback}
+{exemplo_bloqueio}
+{correferencia}
+
 RULES FOR THIS TURN:
-1. Explain using a short local analogy or example (Mozambican context).
-2. Split into 2-3 short bubbles (max 20 words each).
-3. LAST bubble MUST be a confirmation: "Ficou claro?", "Percebeste?".
-4. NEVER ask a quiz question — testing happens in the next phase.
-5. If history shows "Não percebi": use a COMPLETELY DIFFERENT analogy.
-6. If history shows the student just completed a topic and chose to advance,
-   START with a smooth transition: "Muito bem! Agora vamos aprender..."
-   NEVER jump directly into new content without acknowledging the previous topic.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SLOT INFERENCE & FOCUS (CRITICAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+You receive the full lesson context in {{context_rules}} (which contains all subtopics/slots).
+Your job: figure out EXACTLY which subtopic the student is asking about right now.
+
+1. IF `CURRENT STRUCTURE` is provided above: 
+   - Focus 100% EXCLUSIVELY on it. Treat it as the absolute truth.
+   - If the student asks a vague question ("o que é isso?", "não percebi"), assume they are asking about THIS structure.
+
+2. IF `CURRENT STRUCTURE` is NOT provided or is "Tópico geral":
+   - Look at the conversation history to infer the current slot.
+   - If history is empty → Start with the FIRST subtopic in {{context_rules}}.
+   - If history shows you just explained "X" and the student said "Entendi" → You are now on the NEXT subtopic.
+   - If the student asks "O que é isso?" → Look at YOUR last message. Explain THAT specific concept again, simpler.
+
+3. NEVER jump randomly between subtopics. Progress logically.
+4. If the student tries to talk about a future subtopic, redirect warmly using the EXEMPLO_BLOQUEIO pattern.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SESSION INITIATIVE (if history is empty)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+If the conversation history is EMPTY:
+- DO NOT wait for the student to ask something.
+- Take the initiative: introduce the topic with energy using one of the OPENING PATTERNS.
+- Example: "Olá, mano! Hoje vamos descobrir [current_structure or first subtopic]. Preparado? 🚀"
+- Then give a brief, engaging introduction to the concept.
+
+EXPLANATION RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Explain using a short local analogy or example (Mozambican context).
+- Split into 2-3 short bubbles (max 20 words each).
+⚠️ CRITICAL — EXPLAIN PHASE ONLY:
+- Your ONLY job is to EXPLAIN and give an example.
+- NEVER ask "Quantas tens?", "Quanto dá?", "Qual é?" or any question with a numerical answer.
+- The ONLY question allowed is a comprehension check: "Ficou claro? 😊" or "Percebeste?"
+- If you find yourself asking a math question → STOP. Move it to the last bubble as "Ficou claro?"
+
+❌ BAD: "Imagina 3 sacos com 4 mangas. Quantas mangas tens?"
+✅ GOOD: "Imagina 3 sacos com 4 mangas — dá 12 mangas no total! Ficou claro? 😊"
+
+⚠️ CRITICAL — AVOID TECHNICAL JARGON:
+- NEVER say "transporta o 1" or "vai 1" without explaining WHAT it means.
+- Use VISUAL analogies: "Imagina que tens 15 mangas. Colocas 5 num saco e sobram 10. 
+  O '1' que sobra vai para o grupo das dezenas."
+- Use CONCRETE objects: fingers, coins, mangoes, chairs, packets of sugar.
+- NEVER use abstract terms like "transporte", "empréstimo", "decomposição" 
+  without a physical example first.
+
+✅ GOOD: "5+8=13. Escreves o 3 em baixo. O 1 vai para cima porque são 10 unidades!"
+❌ BAD: "Guarda o 5 e 'transporta' o 1 para as dezenas."
+
+If history shows the student wants a DIFFERENT EXPLANATION or ANOTHER EXAMPLE:
+Signals: "outro exemplo", "explica de outra forma", "não bateu", "dá-me outro",
+"mais uma vez", "podes repetir diferente", "outro jeito", "não percebi",
+"não entendi", "não apanhei", "fica confuso", "explica melhor".
+
+→ Use a COMPLETELY DIFFERENT approach — NOT the same decomposition or formula.
+→ Change the ANALOGY entirely:
+  - If you used "metro dividido em partes" → switch to "bolo", "capulana", "pizzas", "chocolates"
+  - If you used numbers → switch to physical objects (fingers, coins, mangoes, chairs)
+  - If you used abstract → switch to a STORY ("Imagina que a Fátima foi ao mercado...")
+→ Break into MORE steps than before — one tiny idea per bubble.
+→ NEVER repeat the same number, example, or analogy from the previous explanation.
+→ Start with: "Claro! Vamos tentar de outra maneira. 😊" or "Boa ideia! Olha por este ângulo..."
+
+If history shows the student just completed a topic and chose to advance:
+- START with a smooth transition: "Muito bem! Agora vamos aprender..."
+- NEVER jump directly into new content without acknowledging the previous topic.
 
 {vocab_block}
+
 OUTPUT JSON:
 {{
   "messages": ["Bubble 1.", "Bubble 2.", "Ficou claro? 😊"],
@@ -261,6 +392,55 @@ RULES FOR THIS TURN:
 4. VARIETY: check last 3 history entries — do NOT repeat same type.
 5. Start simple. Increase difficulty if student has answered correctly before.
 
+🚨 PRE-FLIGHT CHECK (run this before generating output):
+1. Read your "messages" array.
+2. Does any bubble contain the correct answer or its value? 
+   → If YES: rewrite that bubble WITHOUT the answer.
+3. Does any bubble say "é X porque..." or "□ = X"?
+   → If YES: DELETE that part. The student must discover X themselves.
+4. Only after this check: output the JSON.
+
+❌ FORBIDDEN IN messages[]:
+- "□ é 4 porque 3 × 4 = 12"
+- "A resposta é 4"
+- "O resultado é 12"
+- Any bubble that makes the correct_answer obvious
+- "7 (centenas de milhar), 2 (dezenas de milhar)..." before asking the question
+- Any bubble that decomposes the number digit-by-digit before asking
+
+✅ CORRECT approach for number reading:
+- "Como se lê o número 720.000?" ← just ask directly
+- "O número 305.000 — consegues lê-lo?" ← challenge without hints
+
+✅ CORRECT:
+- "3 × □ = 12. Qual é o número que falta?"
+- "Se tens 12 mangas em 3 sacos iguais, quantas há em cada saco?"
+
+CRITICAL — "correct_answer" field is MANDATORY:
+- CHIPS/CLOZE/TRUE_FALSE: must exactly match one option string.
+- DIRECT_INPUT: write the ideal/expected answer (used for grading).
+- DRAG_DROP: items joined by space in correct order.
+
+⚠️ CRITICAL — correct_answer FORMAT FOR NUMBER READING:
+- NEVER mix digits with words. NEVER write "567 mil 890" or "300 mil".
+- ALWAYS write the full Portuguese reading:
+  ✅ "quinhentos e sessenta e sete mil, oitocentos e noventa"
+  ✅ "trezentos mil"
+  ❌ "567 mil 890"  ← PROIBIDO
+  ❌ "300 mil"      ← PROIBIDO (só aceite se for número redondo)
+- The same rule applies to options in CHIPS — all options must be full words.
+
+⚠️ CRITICAL: NEVER use placeholder text like "wrong_option_1". 
+Generate REAL plausible wrong answers:
+- For math: use common mistakes (off-by-one, wrong place value, digit swap)
+- For concepts: use partially correct or common misconceptions
+- Options must be distinct and believable
+
+⚠️ TOPIC LOCK: Your question MUST test ONLY the concept in CURRENT STRUCTURE.
+Topic="{topic}", Structure="{current_structure}".
+If current_structure is about decimals → question must involve decimals.
+NEVER ask about unrelated concepts even if they seem easier.
+
 {vocab_block}
 OUTPUT JSON:
 {{
@@ -278,15 +458,6 @@ OUTPUT JSON:
 }}
 }}
 
-CRITICAL — "correct_answer" field is MANDATORY:
-- CHIPS/CLOZE/TRUE_FALSE: must exactly match one option string.
-- DIRECT_INPUT: write the ideal/expected answer (used for grading).
-- DRAG_DROP: items joined by space in correct order.
-⚠️ CRITICAL: NEVER use placeholder text like "wrong_option_1". 
-Generate REAL plausible wrong answers:
-- For math: use common mistakes (off-by-one, wrong place value, digit swap)
-- For concepts: use partially correct or common misconceptions
-- Options must be distinct and believable
 """
 
 
@@ -563,56 +734,65 @@ def generate_math_distractors(correct_answer: str, number_context: str = None) -
 def _fix_placeholder_options(options: list, correct_answer: str, subject: str, number_context: str = None) -> list:
     """Substitui placeholders por distratores gerados deterministicamente."""
     fixed = []
-    placeholder_count = 0
     
     for opt in options:
         # Detecta placeholders literais
         if opt in ["wrong_option_1", "wrong_option_2", "wrong_option_3", 
                    "distrator_plausivel_1", "outra_resposta_possivel", "mais_uma_opcao_plausivel"]:
-            placeholder_count += 1
-            
             # Se for Matemática e resposta numérica → usa gerador inteligente
             if subject.lower() in ["matemática", "math", "matematica"] and correct_answer.isdigit():
                 distractors = generate_math_distractors(correct_answer, number_context)
-                # Adiciona distratores únicos que ainda não estão na lista
                 for d in distractors:
                     if d not in fixed and d != correct_answer:
                         fixed.append(d)
                         if len([x for x in fixed if x != correct_answer]) >= 2:
                             break
             else:
-                # Fallback genérico para outras matérias
-                if correct_answer.isdigit():
-                    num = int(correct_answer)
-                    candidate = str(num - 1 if num > 0 else num + 1)
-                    if candidate not in fixed:
-                        fixed.append(candidate)
-                else:
-                    fixed.append(f"Outra opção")
+                # Fallback genérico para outras matérias — SEM números aleatórios
+                generic_fallbacks = [
+                    "Nenhuma das anteriores",
+                    "Todas as anteriores", 
+                    "Não sei",
+                    "Outra resposta"
+                ]
+                for fallback in generic_fallbacks:
+                    if fallback not in fixed:
+                        fixed.append(fallback)
+                        break
         else:
             # Mantém opção válida gerada pelo LLM
             if opt not in fixed:
                 fixed.append(opt)
     
-    # Garante: [correta, distrator1, distrator2]
-    # 1. Garante que a correta está em primeiro (por convenção do frontend)
+    # Garante que a correta está em primeiro
     if correct_answer and correct_answer not in fixed:
         fixed = [correct_answer] + fixed
     elif correct_answer and fixed[0] != correct_answer:
-        fixed.remove(correct_answer)
+        if correct_answer in fixed:
+            fixed.remove(correct_answer)
         fixed = [correct_answer] + fixed
     
-    # 2. Completa com fallbacks se faltar opções
-    fallbacks = ["7", "9", "5", "3", "1"]  # números genéricos
-    i = 0
+    # Se ainda faltam opções, gera distratores inteligentes baseados no contexto
     while len(fixed) < 3:
-        candidate = fallbacks[i % len(fallbacks)]
-        if candidate not in fixed:
-            fixed.append(candidate)
-        i += 1
+        if subject.lower() in ["matemática", "math", "matematica"] and correct_answer.isdigit():
+            # Para matemática: gera distratores baseados na resposta correta
+            num = int(correct_answer)
+            candidate = str(num + len(fixed))  # evita duplicatas
+            if candidate not in fixed:
+                fixed.append(candidate)
+            else:
+                fixed.append(str(num - len(fixed)))
+        else:
+            # Para outras matérias: usa opções genéricas inteligentes
+            smart_fallbacks = ["Outra opção", "Nenhuma das anteriores", "Todas as anteriores"]
+            for fb in smart_fallbacks:
+                if fb not in fixed:
+                    fixed.append(fb)
+                    break
     
-    return list(dict.fromkeys(fixed))  # remove duplicatas mantendo ordem
-
+    GENERIC_FALLBACKS = {"outra opção", "nenhuma das anteriores", "todas as anteriores", "outra resposta", "não sei"}
+    real = [o for o in dict.fromkeys(fixed) if o.lower() not in GENERIC_FALLBACKS]
+    return (real if len(real) >= 2 else list(dict.fromkeys(fixed)))[:3]
 
 
 # ==============================================================================
@@ -643,17 +823,40 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
     phase         = request.phase or "EXPLAIN"
 
     assessment_override: str | None = None
+    current_structure = getattr(request, 'current_structure', None)
 
     # ── Selecciona prompt pela fase ────────────────────────────────────────────
     if phase == "EXPLAIN":
+        print(f"🔍 DEBUG → session_id={request.session_id} | slot_number={request.slot_number}", flush=True)
+        slot_number = getattr(request, 'slot_number', None)
+
+        if request.session_id and slot_number:
+            # Persiste sempre o slot actual — vem do frontend já incrementado
+            set_slot(request.session_id, request.topic, slot_number)
+        elif not current_structure and request.session_id:
+            # Fallback: frontend não enviou slot → recupera o último guardado
+            saved_slot = get_slot(request.session_id, request.topic)
+            print(f"🔁 [slot_state] fallback → slot {saved_slot} (current_structure ausente)")
+
+        current_structure = current_structure or "Tópico geral"
+        
         system_text = PROMPT_EXPLAIN.format(
-            subject=subject, topic=topic,
-            context_rules=context_rules,
-            lang_block=_LANG_BLOCK,vocab_block=_VOCAB_BLOCK, math_block=_MATH_BLOCK,
+            subject=subject, 
+            topic=topic,
+            current_structure=current_structure,  # <-- ISTO É O SEGREDO
+            context_rules=context_rules,          # <-- CONTÉM O LESSON_PLAN COMPLETO
+            lang_block=_LANG_BLOCK,
+            vocab_block=_VOCAB_BLOCK, 
+            math_block=_MATH_BLOCK,
+            padroes_abertura=_PADROES_ABERTURA,
+            variacao_feedback=_VARIACAO_FEEDBACK,
+            exemplo_bloqueio=_EXEMPLO_BLOQUEIO,
+            correferencia=_CORREFERENCIA,
         )
 
     elif phase == "TEST":
  
+        current_structure = current_structure or "Tópico geral"
         # 🆕 Resolver âncora aleatória se o tópico tiver âncoras
         ancora_data = None
         if request.ancoras:
@@ -678,6 +881,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
                 ancora_conteudo=ancora_data["conteudo"],
                 history=request.history,                 # ⬅️ MUDOU DE formatted_history PARA request.history
                 user_query=request.user_query,
+                current_structure=current_structure, 
             )
             print(f"⚓ [Tutor/TEST] Âncora '{request.ancoras}' → {ancora_data['tipo']}", flush=True)
  
@@ -693,6 +897,7 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
                 lang_block=_LANG_BLOCK,
                 vocab_block=_VOCAB_BLOCK,
                 math_block=_MATH_BLOCK,
+                current_structure=current_structure,
             )
     elif phase == "FEEDBACK":
         # ── Assessment calculado deterministicamente ───────────────────────────
@@ -703,8 +908,20 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
         last_itype     = request.last_interaction_type or "CHIPS"
 
         if correct_answer and _norm(user_answer) == _norm(correct_answer):
-            # ✅ Resposta correcta — confirmado deterministicamente
+            # ✅ Match exato — confirmado deterministicamente
             assessment_override = "CORRECT"
+            system_text = PROMPT_FEEDBACK_CORRECT.format(
+                subject=subject, topic=topic,
+                lang_block=_LANG_BLOCK,
+                vocab_block=_VOCAB_BLOCK,
+                user_answer=user_answer,
+                correct_answer=correct_answer,
+                last_question=request.last_question or "",
+            )
+        elif correct_answer and is_semantically_correct(user_answer, correct_answer, last_itype):
+            # ✅ Equivalência semântica (ex: "trezentos mil" == "300.000")
+            assessment_override = "CORRECT"
+            print(f"✅ [Semantic] Match aceite: '{user_answer}' ≈ '{correct_answer}'", flush=True)
             system_text = PROMPT_FEEDBACK_CORRECT.format(
                 subject=subject, topic=topic,
                 lang_block=_LANG_BLOCK,
@@ -740,10 +957,19 @@ async def generate_chat_response_logic(request: ChatRequest) -> ChatResponse:
     else:
         # Fase desconhecida → fallback seguro para EXPLAIN
         phase = "EXPLAIN"
+        current_structure = getattr(request, 'current_structure', None) or "Tópico geral"
         system_text = PROMPT_EXPLAIN.format(
-            subject=subject, topic=topic,
+            subject=subject, 
+            topic=topic,
+            current_structure=current_structure,
             context_rules=context_rules,
-            lang_block=_LANG_BLOCK,vocab_block=_VOCAB_BLOCK, math_block=_MATH_BLOCK,
+            lang_block=_LANG_BLOCK,
+            vocab_block=_VOCAB_BLOCK, 
+            math_block=_MATH_BLOCK,
+            padroes_abertura=_PADROES_ABERTURA,
+            variacao_feedback=_VARIACAO_FEEDBACK,
+            exemplo_bloqueio=_EXEMPLO_BLOQUEIO,
+            correferencia=_CORREFERENCIA,
         )
 
     # ── Chamada ao modelo ──────────────────────────────────────────────────────

@@ -9,11 +9,11 @@
   import { get } from 'svelte/store'; 
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import { auth } from '$lib/store/auth'; 
-  import { notifications } from '$lib/store/notifications';
-  import Notification from '$lib/components/Notification.svelte'; 
+  import { notify } from '$lib/store/toaster';
   import { LogIn, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-svelte';
   import { browser } from '$app/environment';
   import '../../app.css'
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
   
   let email = '';
   let password = '';
@@ -66,7 +66,7 @@ let isGoogleLoading = false;
   $: {
     const errorParam = $page.url.searchParams.get('error');
     if (errorParam === "processing_failed") {
-        notifications.send("Falha no login Google. Tente novamente.", "error");
+        notify('Erro',"Falha no login Google. Tente novamente.", "error");
         // Limpa a URL sem recarregar
         const newUrl = new URL($page.url);
         newUrl.searchParams.delete('error');
@@ -135,7 +135,7 @@ async function handleGoogleLogin() {
   const inputClass = "w-full px-4 py-3 bg-surface-50 dark:bg-surface-900/50 border border-surface-200 dark:border-surface-700 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all text-sm font-medium text-surface-900 dark:text-white placeholder:text-surface-400";
   const labelClass = "block text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-400 mb-1.5 ml-0.5";
 </script>
-<Notification />
+<ToastContainer />
 
 <div class="min-h-screen flex items-center justify-center bg-white dark:bg-surface-950 relative overflow-hidden p-4">
   
@@ -145,7 +145,9 @@ async function handleGoogleLogin() {
     
     <div class="text-center mb-8">
       <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary-600 text-white font-bold text-xl shadow-lg shadow-primary-500/30 mb-6">
-        K
+        <a href="/">
+          K
+        </a>
       </div>
       <h1 class="text-2xl font-bold text-surface-900 dark:text-white tracking-tight">Bem-vindo de volta</h1>
       <p class="text-sm text-surface-500 mt-2">Aceda ao seu tutor inteligente KMind</p>

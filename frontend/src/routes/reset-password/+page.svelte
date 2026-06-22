@@ -5,10 +5,10 @@
 <script lang="ts">
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { notifications } from '$lib/store/notifications';
-  import Notification from '$lib/components/Notification.svelte';
+  import { notify } from '$lib/store/toaster';
   import { ArrowLeft, Mail, Send, Loader2, KeyRound, CheckCircle } from 'lucide-svelte';
   import '../../app.css'
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
 
   let email = '';
   let isLoading = false;
@@ -16,7 +16,7 @@
 
   async function handleForgot() {
     if (!email) {
-        notifications.send('Por favor, insira o seu email.', 'warning');
+        notify('Atenção','Por favor, insira o seu email.', 'warning');
         return;
     }
 
@@ -30,9 +30,9 @@
         
         // Sucesso visual
         isSent = true;
-        notifications.send(r.message, 'success');
+        notify('Salvo',r.message, 'success');
     } catch (err) {
-        notifications.send('Erro ao conectar ao servidor.', 'error');
+        notify('Erro','Erro ao conectar ao servidor.', 'error');
     } finally {
         isLoading = false;
     }
@@ -43,7 +43,7 @@
   const labelClass = "block text-[10px] font-bold uppercase tracking-widest text-surface-500 dark:text-surface-400 mb-1.5 ml-0.5";
 </script>
 
-<Notification />
+<ToastContainer />
 
 <div class="min-h-screen flex items-center justify-center bg-white dark:bg-surface-950 relative overflow-hidden p-4">
   

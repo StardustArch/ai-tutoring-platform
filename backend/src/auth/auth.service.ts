@@ -382,4 +382,97 @@ export class AuthService {
       }),
     ]);
   }
+
+    async deleteAccount(userId: number) {
+    try {
+      // Iniciar transação para garantir consistência
+      return await this.prisma.$transaction(async (prisma) => {
+        // 1. Verificar se o utilizador existe
+        const user = await prisma.usuario.findUnique({
+          where: { id: userId },
+          include: {
+            perfilProfessor: true,
+            perfilEncarregado: true,
+          },
+        });
+
+        if (!user) {
+          throw new NotFoundException('Utilizador não encontrado');
+        }
+
+        // 2. Eliminar registos relacionados em ordem (para evitar violações de FK)
+        
+        // 2.1 Se for professor, eliminar dados associados
+        if (user.perfilProfessor) {
+          // Eliminar alunos_turmas das turmas do professor
+          await prisma.alunoTurma.deleteMany({
+            where: {
+              turma: {
+                professorId: user.perfilProfessor.id,
+              },
+            },
+          });
+
+          // Eliminar turmas do professor
+          await prisma.turma.deleteMany({
+            where: {
+              professorId: user.perfilProfessor.id,
+            },
+          });
+
+          // Eliminar perfil professor
+          await prisma.professor.delete({
+            where: { id: user.perfilProfessor.id },
+          });
+        }
+
+        // 2.2 Se for encarregado, eliminar dados associados
+        if (user.perfilEncarregado) {
+          // Buscar alunos associados ao encarregado
+          const alunos = await prisma.aluno.findMany({
+            where: { encarregadoId: user.perfilEncarregado.id },
+            select: { id: true },
+          });
+
+          // Eliminar registos de exercícios dos alunos
+          if (alunos.length > 0) {
+            await prisma.exercicioResultado.deleteMany({
+              where: {
+                alunoId: {
+                  in: alunos.map(a => a.id),
+                },
+              },
+            });
+          }
+
+          // Eliminar alunos do encarregado
+          await prisma.aluno.deleteMany({
+            where: { encarregadoId: user.perfilEncarregado.id },
+          });
+
+          // Eliminar perfil encarregado
+          await prisma.encarregado.delete({
+            where: { id: user.perfilEncarregado.id },
+          });
+        }
+
+        // 3. Finalmente, eliminar o utilizador
+        await prisma.usuario.delete({
+          where: { id: userId },
+        });
+
+        return { 
+          message: 'Conta eliminada com sucesso',
+          deletedUser: {
+            id: user.id,
+            email: user.email,
+            nome: user.nome,
+          }
+        };
+      });
+    } catch (error) {
+      console.error('Erro ao eliminar conta:', error);
+      throw error;
+    }
+  }
 }

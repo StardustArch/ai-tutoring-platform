@@ -8,7 +8,7 @@
   import { goto } from '$app/navigation';
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { notifications } from '$lib/store/notifications';
+  import { notify } from '$lib/store/toaster';
   import { confirm } from '$lib/store/confirm';
   import { 
     ArrowLeft, Save, Trash2, AlertTriangle, User, 
@@ -52,7 +52,7 @@
         throw new Error('Erro ao carregar dados.');
       }
     } catch (err: any) {
-      notifications.send(err.message, 'error');
+      notify('Erro',err.message, 'error');
       goBack();
     } finally {
       isLoading = false;
@@ -61,7 +61,7 @@
 
   async function saveChanges() {
     if (!formData.nome || !formData.sobrenome || !formData.dataNascimento) {
-        notifications.send('Preencha todos os campos obrigatórios.', 'warning');
+        notify('Atenção','Preencha todos os campos obrigatórios.', 'warning');
         return;
     }
 
@@ -76,13 +76,13 @@
         });
 
         if (res.ok) {
-            notifications.send('Dados atualizados com sucesso!', 'success');
+            notify('Salvo','Dados atualizados com sucesso!', 'success');
             goBack();
         } else {
             throw new Error('Falha ao atualizar.');
         }
     } catch (err: any) {
-        notifications.send(err.message || 'Erro ao guardar.', 'error');
+        notify('Erro',err.message || 'Erro ao guardar.', 'error');
     } finally {
         isSaving = false;
     }
@@ -104,13 +104,13 @@ if (!aceitou) return; // Se disser não, para aqui.
         });
 
         if (res.ok) {
-            notifications.send('Educando removido com sucesso.', 'success');
+            notify('Salvo','Educando removido com sucesso.', 'success');
             goto('/dashboard/foreman/student');
         } else {
             throw new Error('Falha ao remover.');
         }
     } catch (err: any) {
-        notifications.send(err.message || 'Erro ao remover.', 'error');
+        notify('Erro',err.message || 'Erro ao remover.', 'error');
     } finally {
         isDeleting = false;
     }

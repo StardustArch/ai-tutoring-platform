@@ -37,6 +37,9 @@ class ChatRequest(BaseModel):
     last_correct_answer: Optional[str] = None
     last_interaction_type: Optional[str] = None
     ancoras: list[str] = []
+    current_structure: Optional[str] = None
+    session_id: Optional[int] = None 
+    slot_number: Optional[int] = None
 
 class ChatResponse(BaseModel):
     response_text: str

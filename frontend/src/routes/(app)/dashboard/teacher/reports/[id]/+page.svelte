@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import { apiFetch } from '$lib/utils/api';
 	import { PUBLIC_API_URL_HOST } from '$env/static/public';
-	import { notifications } from '$lib/store/notifications';
+	import { notify } from '$lib/store/toaster';
 	import {
 		ArrowLeft, AlertTriangle, TrendingUp, Clock, Calendar,
 		FileText, Loader, Award, ChevronDown, ChevronUp, Target,
@@ -65,7 +65,7 @@
 				throw new Error('Falha ao carregar detalhe');
 			}
 		} catch {
-			notifications.send('Não foi possível carregar o detalhe da sessão.', 'error');
+			notify('Erro','Não foi possível carregar o detalhe da sessão.', 'error');
 			sessaoAberta = null;
 		} finally {
 			isLoadingDetalhe = false;
@@ -94,9 +94,9 @@
 			a.click();
 			a.remove();
 			window.URL.revokeObjectURL(url);
-			notifications.send('PDF gerado com sucesso!', 'success');
+			notify('Salvo','PDF gerado com sucesso!', 'success');
 		} catch {
-			notifications.send('Falha ao exportar o PDF.', 'error');
+			notify('Erro','Falha ao exportar o PDF.', 'error');
 		} finally {
 			isExporting = false;
 		}
@@ -109,13 +109,13 @@
 				body: JSON.stringify({ idContexto, isAdequado })
 			});
 			if (res.ok) {
-				notifications.send('Avaliação registada! Obrigado pelo feedback.', 'success');
+				notify('Salvo','Avaliação registada! Obrigado pelo feedback.', 'success');
 				report.trilhaAuditoria = report.trilhaAuditoria.map((t: any) =>
 					t.idContexto === idContexto ? { ...t, avaliado: true, voto: isAdequado } : t
 				);
 			}
 		} catch {
-			notifications.send('Erro ao guardar avaliação.', 'error');
+			notify('Erro','Erro ao guardar avaliação.', 'error');
 		}
 	}
 

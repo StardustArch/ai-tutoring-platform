@@ -34,8 +34,11 @@ constructor(
     dificuldade: number;
     historicoRecente: string[];
     structure?: string; // opcional — só o LessonService envia
-    ancora?: string; // 🆕 chave da âncora (ex: 'texto_bilhete_fatima')
+    ancora?: string; 
+    skipRefill?: boolean;
   }) {
+
+    
     const {
       topicoId,
       dificuldade,
@@ -44,6 +47,8 @@ constructor(
       historicoRecente,
       structure,
     } = params;
+
+  
 
     const topico = await this.prisma.topico.findUnique({
       where: { id: topicoId },
@@ -74,7 +79,7 @@ constructor(
       cacheWhere.structure = structure; // 🆕 filtro por estrutura do slot
     }
 
-    const cachedPool = await this.prisma.questaoCache.findMany({
+       const cachedPool = await this.prisma.questaoCache.findMany({
       where: cacheWhere,
       take: 5,
     });
@@ -82,8 +87,15 @@ constructor(
 if (cachedPool.length > 0) {
   const selected = cachedPool[Math.floor(Math.random() * cachedPool.length)];
 
+  // Descarta entradas de fallback que possam ter ficado no cache em versões anteriores
+  const FALLBACK_MARKERS = ['capital de moçambique', 'falha técnica', 'servidor precisou'];
+  const isPoisoned = FALLBACK_MARKERS.some(m => selected.pergunta.toLowerCase().includes(m));
+  if (isPoisoned) {
+    this.logger.warn(`🚫 [CACHE POISONED] Entrada de fallback no cache descartada: "${selected.pergunta.substring(0, 60)}" → gerando ao vivo`);
+    // não faz return — cai para generateAndCache abaixo
+  }
   // Se foi pedida âncora mas a pergunta do cache não tem → ignora cache, gera ao vivo
-  if (params.ancora && !selected.ancoraChave) {
+  else if (params.ancora && !selected.ancoraChave) {
     this.logger.warn(`🐢 [CACHE MISS âncora] Tópico ${topicoId} - Pergunta sem âncora no cache, gerando ao vivo`);
     // não faz return — cai para generateAndCache abaixo
   } else {
@@ -118,11 +130,11 @@ const result = await this.generateAndCache(
   topico.nome,
   false,
 );
-if (!structure) { // Fazemos refill apenas no modo Rush genérico (sem structure fixa)
-      this.refillStock(topicoId, 3, true).catch(e => 
-        this.logger.warn(`Background refill ignorado: ${e.message}`)
-      );
-    }
+if (!structure && !params.skipRefill) {
+  this.refillStock(topicoId, 3, true).catch(e => 
+    this.logger.warn(`Background refill ignorado: ${e.message}`)
+  );
+}
 return {
   ...result,
   ancora: result.ancora_chave ? {

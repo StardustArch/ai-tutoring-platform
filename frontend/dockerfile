@@ -1,14 +1,10 @@
-# Dockerfile.dev (para desenvolvimento)
-FROM node:22
+FROM node:22-slim
 
 WORKDIR /app
 
-# Copia apenas package.json e instala dependências
 COPY package*.json ./
 RUN npm install
 
-# Exponha a porta usada pelo Svelte
 EXPOSE 5173
 
-# Comando padrão (modo dev + host 0.0.0.0)
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

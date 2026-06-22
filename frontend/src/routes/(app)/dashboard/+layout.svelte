@@ -8,7 +8,7 @@
     // Componentes
     import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
     import LogoutButton from '$lib/components/LogoutButton.svelte';
-    import Notification from '$lib/components/Notification.svelte'; 
+    import Toast from '$lib/components/ToastContainer.svelte'; 
     import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
     // Ícones Lucide
@@ -166,7 +166,7 @@
     }
 </script>
 
-<Notification/>
+<Toast/>
 <ConfirmDialog /> {#if $auth.isLoading}
     <div class="min-h-screen w-full flex flex-col items-center justify-center bg-white dark:bg-surface-950 p-4">
         <div class="text-center space-y-6 animate-fade-in">

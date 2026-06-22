@@ -1,7 +1,6 @@
-# 1. Usamos uma imagem estável
-FROM node:22
+FROM node:22-slim
 
-# Instalar dependências do sistema para o Puppeteer e Chrome
+# Dependências do sistema para o Puppeteer/Chromium
 RUN apt-get update && apt-get install -y \
     gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 \
     libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 \
@@ -14,28 +13,19 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# A CORRECÇÃO COMEÇA AQUI:
-# 2. Copia os ficheiros de dependências
 COPY package*.json ./
+RUN npm install
 
-# 3. Instala tudo (incluindo as devDependencies para poder fazer o BUILD)
-RUN npm install --legacy-peer-deps
-
-# 4. AGORA COPIAMOS O CÓDIGO TODO (O que faltava!)
 COPY . .
 
-# 5. Gera o cliente do Prisma (Essencial para o Supabase)
 RUN npx prisma generate
 
-# 6. COMPILA O PROJECTO (Cria a pasta /dist)
-RUN npm run build
-
-# 7. Instala o Chrome para o Puppeteer
 RUN npx puppeteer install chrome
 
-# Expor a porta
+
 EXPOSE 3000
 
-# 8. COMANDO FINAL: Usar o node diretamente no ficheiro compilado
-# Isso evita depender do nest-cli em produção
-CMD ["node", "dist/src/main.js"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

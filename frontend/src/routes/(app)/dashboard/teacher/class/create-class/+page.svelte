@@ -6,7 +6,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { apiFetch } from '$lib/utils/api';
-  import { notifications } from '$lib/store/notifications'; 
+  import { notify } from '$lib/store/toaster'; 
   import { 
     School, ArrowLeft, Plus, Save, AlertCircle, 
     CheckCircle2, BookOpen, Copy, Loader, GraduationCap
@@ -44,7 +44,7 @@
         disciplinas = await res.json();
       }
     } catch (err) {
-      notifications.send('Erro ao carregar disciplinas.', 'error');
+      notify('Erro','Erro ao carregar disciplinas.', 'error');
     } finally {
       loadingDisciplinas = false;
     }
@@ -52,7 +52,7 @@
 
   async function criarTurma() {
     if (!formData.nome || !formData.disciplinaId || !formData.classe) {
-        notifications.send('Preencha todos os campos obrigatórios.', 'warning');
+        notify('Atenção','Preencha todos os campos obrigatórios.', 'warning');
         return;
     }
 
@@ -70,13 +70,13 @@
       if (res.ok) {
         const result = await res.json();
         turmaCriada = result.turma;
-        notifications.send('Turma criada com sucesso!', 'success');
+        notify('Salvo','Turma criada com sucesso!', 'success');
       } else {
         const errorData = await res.json();
         throw new Error(errorData.message || 'Erro ao criar turma');
       }
     } catch (err: any) {
-      notifications.send(err.message || 'Erro ao criar turma.', 'error');
+      notify('Erro',err.message || 'Erro ao criar turma.', 'error');
     } finally {
       isCreating = false;
     }
@@ -85,7 +85,7 @@
   function copiarCodigo() {
     if (turmaCriada?.codigo) {
       navigator.clipboard.writeText(turmaCriada.codigo);
-      notifications.send('Código copiado!', 'success');
+      notify('Info','Código copiado!', 'info');
     }
   }
 

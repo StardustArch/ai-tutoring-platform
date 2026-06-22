@@ -8,7 +8,7 @@
   import { goto } from '$app/navigation';
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { notifications } from '$lib/store/notifications';
+  import { notify } from '$lib/store/toaster';
   import { 
     Brain, Zap, ArrowLeft, CheckCircle2, Circle, 
     BookOpen, Layers, Play, Target, Sparkles, 
@@ -75,7 +75,7 @@
       }
 
     } catch (err) {
-      notifications.send('Erro ao carregar contexto de estudo.', 'error');
+      notify('Erro','Erro ao carregar contexto de estudo.', 'error');
     } finally {
       isLoading = false;
     }
@@ -149,7 +149,7 @@
 
   async function startSession() {
     if (config.selectedTopics.length === 0) {
-      notifications.send('Selecione pelo menos um tópico para começar.', 'warning');
+      notify('Atenção','Selecione pelo menos um tópico para começar.', 'warning');
       return;
     }
 
@@ -185,7 +185,7 @@
         throw new Error();
       }
     } catch (err) {
-      notifications.send('Erro ao iniciar a sessão.', 'error');
+      notify('Erro','Erro ao iniciar a sessão.', 'error');
       isSubmitting = false;
     }
   }

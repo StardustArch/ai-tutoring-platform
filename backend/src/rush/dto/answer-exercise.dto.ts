@@ -8,15 +8,15 @@ import {
 export class AnswerExerciseDto {
   @IsInt()
   @IsNotEmpty()
-  alunoId: number;
+  alunoId!: number;
 
   @IsInt()
   @IsNotEmpty()
-  exercicioId: number; // id vindo do servidor
+  exercicioId!: number; // id vindo do servidor
 
   @IsString()
   @IsNotEmpty()
-  respostaAluno: string;
+  respostaAluno!: string;
 
   @IsInt()
   @IsOptional()

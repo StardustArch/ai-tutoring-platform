@@ -4,7 +4,7 @@
   import { goto } from '$app/navigation';
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { notifications } from '$lib/store/notifications';
+  import { notify } from '$lib/store/toaster';
   import { confirm } from '$lib/store/confirm';
   import { 
     ArrowLeft, Save, Trash2, AlertTriangle, 
@@ -44,7 +44,7 @@
         throw new Error('Erro ao carregar turma');
       }
     } catch (err) {
-      notifications.send('Erro ao carregar dados.', 'error');
+      notify('Erro','Erro ao carregar dados.', 'error');
       goBack();
     } finally {
       isLoading = false;
@@ -54,7 +54,7 @@
   // --- ACÇÕES ---
   async function guardarAlteracoes() {
     if (!formData.nome.trim()) {
-        notifications.send('O nome da turma não pode estar vazio.', 'warning');
+        notify('Atenção','O nome da turma não pode estar vazio.', 'warning');
         return;
     }
 
@@ -66,13 +66,13 @@
       });
 
       if (res.ok) {
-        notifications.send('Turma atualizada com sucesso!', 'success');
+        notify('Salvo','Turma atualizada com sucesso!', 'success');
         goBack();
       } else {
         throw new Error('Falha ao atualizar');
       }
     } catch (err) {
-      notifications.send('Erro ao guardar alterações.', 'error');
+      notify('Erro','Erro ao guardar alterações.', 'error');
     } finally {
       isSaving = false;
     }
@@ -94,13 +94,13 @@
       });
 
       if (res.ok) {
-        notifications.send('Turma arquivada com sucesso.', 'success');
+        notify('Salvo','Turma arquivada com sucesso.', 'success');
         goto('/dashboard/teacher/class');
       } else {
         throw new Error('Falha ao arquivar');
       }
     } catch (err) {
-      notifications.send('Erro ao arquivar turma.', 'error');
+      notify('Erro','Erro ao arquivar turma.', 'error');
     } finally {
       isDeleting = false;
     }

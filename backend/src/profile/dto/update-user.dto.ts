@@ -4,15 +4,15 @@ export class UpdateUserDto {
   @IsString()
   @MinLength(2, { message: 'O nome deve ter pelo menos 2 caracteres' })
   @MaxLength(50, { message: 'O nome não pode ter mais de 50 caracteres' })
-  nome: string;
+  nome!: string;
 
   @IsString()
   @MinLength(2, { message: 'O sobrenome deve ter pelo menos 2 caracteres' })
   @MaxLength(50, { message: 'O sobrenome não pode ter mais de 50 caracteres' })
-  sobrenome: string;
+  sobrenome!: string;
 
   @IsEmail({}, { message: 'Email inválido' })
-  email: string;
+  email!: string;
 
   @IsOptional()
   @IsString()

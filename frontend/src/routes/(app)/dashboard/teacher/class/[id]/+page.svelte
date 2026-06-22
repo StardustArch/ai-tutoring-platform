@@ -4,7 +4,7 @@
   import { goto } from '$app/navigation';
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
-  import { notifications } from '$lib/store/notifications';
+  import { notify } from '$lib/store/toaster';
   import { confirm } from '$lib/store/confirm';
   import { 
     ArrowLeft, Users, Settings, Copy, BookOpen, 
@@ -44,7 +44,7 @@
 
     } catch (err: any) {
       console.error(err);
-      notifications.send('Não foi possível carregar os dados da turma.', 'error');
+      notify('Erro','Não foi possível carregar os dados da turma.', 'error');
     } finally {
       isLoading = false;
     }
@@ -54,7 +54,7 @@
   function copiarCodigo() {
     if (turma?.codigo) {
       navigator.clipboard.writeText(turma.codigo);
-      notifications.send('Código copiado!', 'success');
+      notify('Info','Código copiado!', 'info');
     }
   }
 
@@ -76,12 +76,12 @@
         if (res.ok) {
             const data = await res.json();
             turma.codigo = data.codigo; 
-            notifications.send('Novo código gerado com sucesso!', 'success');
+            notify('Salvo','Novo código gerado com sucesso!', 'success');
         } else {
             throw new Error('Falha ao renovar código');
         }
     } catch (error) {
-        notifications.send('Erro ao renovar o código.', 'error');
+        notify('Erro','Erro ao renovar o código.', 'error');
     } finally {
         isRenewing = false;
     }
@@ -104,14 +104,14 @@
       });
 
       if (res.ok) {
-        notifications.send('Aluno removido com sucesso.', 'success');
+        notify('Salvo','Aluno removido com sucesso.', 'success');
         alunos = alunos.filter(a => a.id !== alunoId);
         if (turma._count) turma._count.alunos = Math.max(0, turma._count.alunos - 1);
       } else {
         throw new Error('Falha ao remover aluno');
       }
     } catch (error) {
-      notifications.send('Erro ao remover aluno.', 'error');
+      notify('Erro','Erro ao remover aluno.', 'error');
     }
   }
 

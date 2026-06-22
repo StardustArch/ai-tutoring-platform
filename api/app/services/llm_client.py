@@ -127,7 +127,7 @@ _FORBIDDEN = [
     "conceito", "realizar", "portanto", "verificar", "calcular",
     "representar", "identificar", "correspondente", "observa", "analisa",
     "efectuar", "determinar", "procedimento", "estratégia", "equação",
-    "método", "processo", "algarismo", "sequência", "valor posicional",
+    "método", "processo", "algarismo", "sequência", "valor posicional", "transporta", "□",
 ]
 
 _REQUIRED_BY_PHASE = {
@@ -188,6 +188,12 @@ def _validate(obj: dict, phase: str) -> list[str]:
         if {o.strip().lower() for o in opts} != {"verdadeiro", "falso"}:
             errors.append("TRUE_FALSE: opções devem ser exactamente ['Verdadeiro', 'Falso']")
 
+    # 8. TEST — tem de conter uma pergunta real (pelo menos uma mensagem com "?")
+    if phase == "TEST":
+        has_question = any("?" in str(m) for m in msgs)
+        if not has_question:
+            errors.append("TEST: nenhuma mensagem contém uma pergunta (?) — o modelo explicou em vez de perguntar")
+
     return errors
 
 
@@ -210,6 +216,8 @@ RULES:
    - "sequência" → "fila de números"
    - "algarismo" → "número"
    - "decompor" / "decomposição" → "separar em partes"
+   - "transporta" → "vai"
+   - "□" → "x"
 6. If phase is TEST and correct_answer is missing or empty, infer it from the options (first option is correct by convention).
 7. Keep sentences short — max 12 words each.
 """
@@ -240,7 +248,7 @@ async def _run_validator(obj: dict, errors: list[str], phase: str) -> dict:
                 {"role": "user",   "content": prompt},
             ],
             temperature=0.1,   # baixa temperatura — queremos correcção determinística
-            max_tokens=1024,
+            max_tokens=1500,
             response_format={"type": "json_object"},
         )
         fixed = safe_load_json(resp.choices[0].message.content)
@@ -270,7 +278,7 @@ async def generate_tutor_response(
     5. Se ainda falhar → fallback OpenRouter → fallback GitHub
     """
     messages = [{"role": "system", "content": system_prompt}]
-    for msg in (history or [])[-6:]:
+    for msg in (history or [])[-12:]:
         role = "assistant" if msg.get("role") in ("assistant", "model", "ai") else "user"
         text = msg.get("text", "")
         if isinstance(text, str) and text.strip():
@@ -294,9 +302,9 @@ async def generate_tutor_response(
             return obj
         print(f"⚠️ [Validator] Ainda {len(errors_after)} erro(s) após correcção", flush=True)
 
-    # ── Tentativa 2: fallback OpenRouter (Qwen3-32b ou Llama) ─
-    print("🔄 [Tutor] Fallback → OpenRouter", flush=True)
-    obj = await _call_openrouter(messages, temperature=0.6)
+    # ── Tentativa 2: fallback GitHub (GPT-4o-mini) ──────────
+    print("🔄 [Tutor] Fallback → GitHub", flush=True)
+    obj = await _call_github(messages, temperature=0.6)
     if obj:
         errors = _validate(obj, phase)
         if not errors:
@@ -305,9 +313,9 @@ async def generate_tutor_response(
         if not _validate(obj, phase):
             return obj
 
-    # ── Tentativa 3: fallback GitHub (GPT-4o-mini) ──────────
-    print("🔄 [Tutor] Fallback → GitHub", flush=True)
-    obj = await _call_github(messages, temperature=0.6)
+    # ── Tentativa 3: fallback OpenRouter (Qwen3-32b ou Llama) ─
+    print("🔄 [Tutor] Fallback → OpenRouter", flush=True)
+    obj = await _call_openrouter(messages, temperature=0.6)
     if obj:
         return obj  # aceita sem validar — último recurso
 
@@ -334,7 +342,7 @@ async def _call_groq(messages: list, model: str, temperature: float = 0.6) -> di
             model=model,
             messages=messages,
             temperature=temperature,
-            max_tokens=1024,
+            max_tokens=1500,
             response_format={"type": "json_object"},
         )
         raw = resp.choices[0].message.content
@@ -410,7 +418,7 @@ async def generate_groq_response(
     history: list = [],
 ) -> dict:
     messages = [{"role": "system", "content": system_prompt}]
-    for msg in (history or [])[-6:]:
+    for msg in (history or [])[-12:]:
         role = "assistant" if msg.get("role") in ("assistant", "model", "ai") else "user"
         content = str(msg.get("text", ""))
         if content:

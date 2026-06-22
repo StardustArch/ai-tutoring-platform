@@ -3,7 +3,7 @@
   import { apiFetch } from '$lib/utils/api';
   import { PUBLIC_API_URL_HOST } from '$env/static/public';
   import { X, Save, CheckCircle2, Circle, Loader2 } from 'lucide-svelte';
-  import { notifications } from '$lib/store/notifications';
+  import { notify } from '$lib/store/toaster';
 
   export let turmaId: number;
   export let isOpen = false;
@@ -27,7 +27,7 @@
       if (res.ok) {
         topics = await res.json();
       } else {
-        notifications.send('Erro ao carregar tópicos.', 'error');
+        notify('Erro','Erro ao carregar tópicos.', 'error');
         close();
       }
     } catch (e) {
@@ -59,14 +59,14 @@
       });
 
       if (res.ok) {
-        notifications.send('Conteúdos atualizados com sucesso!', 'success');
+        notify('Salvo','Conteúdos atualizados com sucesso!', 'success');
         dispatch('saved'); // Avisa o pai para recarregar se necessário
         close();
       } else {
-        notifications.send('Erro ao salvar.', 'error');
+        notify('Erro','Erro ao salvar.', 'error');
       }
     } catch (e) {
-      notifications.send('Erro de conexão.', 'error');
+      notify('Erro','Erro de conexão.', 'error');
     } finally {
       isSaving = false;
     }

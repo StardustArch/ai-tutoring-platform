@@ -47,7 +47,7 @@
 	import { goto } from '$app/navigation';
 	import { PUBLIC_API_URL_HOST } from '$env/static/public';
 	import SessionTimer from '$lib/components/SessionTimer.svelte';
-	import { notifications } from '$lib/store/notifications';
+	import { notify } from '$lib/store/toaster';
 	import { rushStore } from '$lib/store/rush';
 
 	// --- PARÂMETROS ---
@@ -354,7 +354,7 @@
 			if (res.ok) {
 				const data = await res.json();
 				if (data.jaConcluido) {
-					notifications.send('Diagnóstico concluído! A iniciar treino...', 'success');
+					notify('Salvo','Diagnóstico concluído! A iniciar treino...', 'success');
 					startGame(subject, $rushStore.selectedSubtopic);
 					return;
 				}
@@ -437,7 +437,7 @@
 				})
 			});
 			playCorrect();
-			notifications.send('Diagnóstico completo!', 'info');
+			notify('Info','Diagnóstico completo!', 'info');
 			startGame($rushStore.selectedSubject, $rushStore.selectedSubtopic);
 		} catch {
 			$rushStore.currentState = 'MENU';

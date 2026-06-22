@@ -4,15 +4,15 @@ export class JoinClassDto {
   @IsNotEmpty()
   @IsString()
   @Length(6, 6) // O código tem sempre 6 caracteres
-  codigo: string;
+  codigo!: string;
 }
 
 export class AddStudentDto {
   @IsNotEmpty()
   @IsString()
-  codigo: string;
+  codigo!: string;
 
   @IsNotEmpty()
   @IsInt()
-  alunoId: number;
+  alunoId!: number;
 }

@@ -19,65 +19,55 @@ import { ConfigService } from '@nestjs/config';
 //   FEEDBACK → Kani reage à resposta do aluno (assessment calculado no Python)
 //
 // Transições:
-//   EXPLAIN  + "Entendi" / "Percebeste" / confirmação   → TEST
-//   EXPLAIN  + "Não percebi" / dúvida                   → EXPLAIN (nova analogia)
-//   TEST     + qualquer resposta                         → FEEDBACK
-//   FEEDBACK (CORRECT)  + "Mais um desafio"             → TEST
-//   FEEDBACK (CORRECT)  + "Avançar"                     → EXPLAIN
-//   FEEDBACK (INCORRECT) → TEST automático (retry)
+//   EXPLAIN  + "Entendi" / confirmação     → TEST
+//   EXPLAIN  + "Não percebi" / dúvida      → EXPLAIN (nova analogia)
+//   TEST     + qualquer resposta           → FEEDBACK
+//   FEEDBACK (CORRECT)  + "Avançar"        → EXPLAIN (novo slot)
+//   FEEDBACK (CORRECT)  + "Mais desafio"   → TEST
+//   FEEDBACK (INCORRECT)                   → TEST (retry automático)
 //
-// O frontend envia `phase` = fase actual antes de processar a mensagem.
-// O NestJS calcula a PRÓXIMA fase com base na resposta + fase actual.
-// O Python recebe a fase calculada e usa o prompt correcto.
+// ⚠️  O estado (phase, slot, lastCorrectAnswer…) é derivado 100% da BD.
+//     O frontend NÃO envia nem guarda estado de sessão.
 
 type Phase = 'EXPLAIN' | 'TEST' | 'FEEDBACK';
 
 const CONFIRM_KEYWORDS = [
-  'entendi',
-  'percebi',
-  'sim',
-  'ok',
-  'continua',
-  'avança',
-  'pronto',
-  'claro',
+  'entendi', 'percebi', 'sim', 'ok', 'continua', 'avança', 'pronto', 'claro',
 ];
 const DOUBT_KEYWORDS = [
-  'não percebi',
-  'nao percebi',
-  'dúvida',
-  'duvida',
-  'não entendi',
-  'nao entendi',
-  'explica',
-  'não percebo',
+  'não percebi', 'nao percebi', 'dúvida', 'duvida',
+  'não entendi', 'nao entendi', 'explica', 'não percebo','outro exemplo', 'mais exemplo', 'preciso de', 'não ficou claro', 'nao ficou claro', 'não bateu', 'nao bateu',
 ];
 const ADVANCE_KEYWORDS = [
-  'avançar',
-  'avançar matéria',
-  'aprender',
-  'próximo',
-  'novo',
+  'avançar', 'avançar matéria', 'aprender', 'próximo', 'novo',
 ];
 const CHALLENGE_KEYWORDS = ['desafio', 'mais um', 'outra'];
+const GREETING_KEYWORDS = [
+  'ola', 'olá', 'oi', 'bom dia', 'boa tarde', 'boa noite',
+  'tudo bem', 'salve', 'o que e', 'o que é', 'o que isso', 'vamos a isso', 'vamos lá',
+];
+const RETRY_KEYWORDS = ['tentar', 'tentar de novo', 'repetir', 'de novo'];
 
 function _calcNextPhase(
   currentPhase: Phase,
   userQuery: string,
   lastAssessment?: string,
-  hasLastCorrectAnswer?: boolean,  // ← NOVO parâmetro
+  hasLastCorrectAnswer?: boolean,
 ): Phase {
   const q = userQuery.trim().toLowerCase();
+  if (!q) return 'EXPLAIN';
+  if (q === 'iniciar_sessao') return 'EXPLAIN';
+  if (RETRY_KEYWORDS.some((k) => q.includes(k))) return currentPhase;
 
   switch (currentPhase) {
     case 'EXPLAIN':
+      if (GREETING_KEYWORDS.some((k) => q.includes(k))) return 'EXPLAIN';
       if (CONFIRM_KEYWORDS.some((k) => q.includes(k))) return 'TEST';
       if (DOUBT_KEYWORDS.some((k) => q.includes(k))) return 'EXPLAIN';
       return 'TEST';
 
     case 'TEST':
-      // Se não há correct_answer guardada, ainda não houve pergunta real
-      // → manter em TEST para o Python gerar a pergunta primeiro
+      // Sem correct_answer ainda não houve pergunta real → Python gera a pergunta
       if (!hasLastCorrectAnswer) return 'TEST';
       return 'FEEDBACK';
 
@@ -125,10 +115,11 @@ export class ChatService {
         throw new ForbiddenException('Aluno não pertence a esta turma.');
     }
 
-    // 2. Resolver Tópico e regras da IA
+    // 2. Resolver Tópico, regras da IA e âncoras
     let aiContextRules = '';
     let currentTopicoId: number | null = null;
     let currentAncoras: string[] = [];
+    let topicoMetadata: any = null;
 
     if (dto.topic && dto.subject) {
       const topicoDb = await this.prisma.topico.findFirst({
@@ -137,18 +128,13 @@ export class ChatService {
           nivelClasse: aluno.classe,
           disciplina: { nome: dto.subject },
         },
-        select: {
-          id: true,
-          metadata: true,
-          ancoras: true, // 🆕 Buscar âncoras na BD
-        },
+        select: { id: true, metadata: true, ancoras: true },
       });
       if (topicoDb) {
         currentTopicoId = topicoDb.id;
-        const meta = topicoDb.metadata as any;
-        if (meta?.ai_rules) aiContextRules = meta.ai_rules;
+        topicoMetadata  = topicoDb.metadata as any;
+        if (topicoMetadata?.ai_rules) aiContextRules = topicoMetadata.ai_rules;
 
-        // 🆕 Garantir que currentAncoras é sempre um array de strings
         const rawAncoras = (topicoDb as any).ancoras;
         if (Array.isArray(rawAncoras)) {
           currentAncoras = rawAncoras.map((a) => String(a));
@@ -159,11 +145,7 @@ export class ChatService {
     // 3. Memória contextual — tópicos problemáticos recentes
     const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const errosRecentes = await this.prisma.exercicioResultado.findMany({
-      where: {
-        alunoId: aluno.id,
-        acertou: false,
-        timestamp: { gte: seteDiasAtras },
-      },
+      where: { alunoId: aluno.id, acertou: false, timestamp: { gte: seteDiasAtras } },
       orderBy: { timestamp: 'desc' },
       take: 20,
       select: { topico: { select: { nome: true } } },
@@ -188,96 +170,135 @@ export class ChatService {
         `Se for um tópico diferente, não precisas de mencionar os outros.`;
     }
 
-    // 4. Histórico — isolado por turmaId (não mistura sessões autónomas)
+    // 4. Histórico — isolado por sessão e tópico
     const rawHistory = await this.prisma.chatMensagem.findMany({
       where: {
         alunoId: aluno.id,
         ...(currentTopicoId ? { topicoId: currentTopicoId } : {}),
         turmaId: dto.turmaId || null,
+        ...(dto.sessaoId ? { sessaoId: dto.sessaoId } : {}),
       },
       orderBy: { timestamp: 'desc' },
       take: 6,
       select: { mensagemAluno: true, respostaIa: true, tipoInteracao: true },
     });
-    const formattedHistory = this.formatarHistoricoParaIA(rawHistory.reverse());
+    // rawHistory está em ordem DESC — reverter para cronológico antes de formatar
+    const rawHistoryCrono = [...rawHistory].reverse();
+    const formattedHistory = this.formatarHistoricoParaIA(rawHistoryCrono);
 
-    // 5. State machine — calcula a fase a enviar ao Python
-    const currentPhase = (dto.phase as Phase) || 'EXPLAIN';
-    const lastMensagem = rawHistory[rawHistory.length - 1];
+    // 5. Estado derivado 100% da BD — o frontend não envia nem guarda estado
+    let currentPhase: Phase = 'EXPLAIN';
     let lastAssessment: string | undefined;
-    if (lastMensagem?.respostaIa) {
+    let lastCorrectAnswer: string | undefined;
+    let lastQuestion: string | undefined;
+    let lastInteractionType: string | undefined;
+    let currentSlotNumber = 1;
+
+    // Última mensagem → fase actual, assessment e slot
+    const lastMsg = rawHistoryCrono[rawHistoryCrono.length - 1];
+    if (lastMsg?.respostaIa) {
       try {
-        const parsed = JSON.parse(lastMensagem.respostaIa);
-        lastAssessment = parsed.assessment ?? undefined;
-      } catch {
-        /* ignora */
-      }
+        const p = JSON.parse(lastMsg.respostaIa);
+        currentPhase      = (p.phase as Phase) || 'EXPLAIN';
+        lastAssessment    = p.assessment   ?? undefined;
+        currentSlotNumber = p.slot_number  ?? 1;
+      } catch { /* ignora JSON inválido */ }
+    }
+
+    // Última mensagem de fase TEST → pergunta + resposta correcta
+    const lastTestMsg = [...rawHistoryCrono].reverse().find((m) => {
+      try { return JSON.parse(m.respostaIa)?.phase === 'TEST'; }
+      catch { return false; }
+    });
+    if (lastTestMsg?.respostaIa) {
+      try {
+        const p    = JSON.parse(lastTestMsg.respostaIa);
+        const msgs = p.messages || [];
+        lastQuestion        = msgs[msgs.length - 1];
+        lastCorrectAnswer   = p.correct_answer;
+        lastInteractionType = p.interaction_type;
+      } catch { /* ignora */ }
     }
 
     const nextPhase: Phase = _calcNextPhase(
       currentPhase,
       dto.userQuery,
       lastAssessment,
-       !!dto.lastCorrectAnswer,
+      !!lastCorrectAnswer,
     );
 
     this.logger.log(
-      `💬 Chat: Fase Atual [${currentPhase}] -> Próxima Fase [${nextPhase}]. Âncoras ativas: ${currentAncoras.length}`,
+      `💬 Chat: [${currentPhase}] → [${nextPhase}] | slot=${currentSlotNumber} | âncoras=${currentAncoras.length}`,
     );
+
+    // 5.5. Slot activo — avança se FEEDBACK(CORRECT) → EXPLAIN
+    const advancing =
+      nextPhase === 'EXPLAIN' &&
+      currentPhase === 'FEEDBACK' &&
+      lastAssessment === 'CORRECT';
+    const activeSlotNumber = advancing ? currentSlotNumber + 1 : currentSlotNumber;
+
+    // Extrai a estrutura do slot activo a partir dos metadados do tópico
+    let currentStructure: string | undefined;
+    if (topicoMetadata?.lesson_plan) {
+      const slotIndex = activeSlotNumber - 1;
+      currentStructure = topicoMetadata.lesson_plan[slotIndex]?.structure;
+    }
 
     // 6. Payload para o Python
     const aiRequest: MicroserviceChatRequestDto = {
-      student_id: aluno.id,
-      student_class: aluno.classe,
-      user_query: dto.userQuery,
-      mode: 'tutor',
-      history: formattedHistory,
-      subject: dto.subject || 'Geral',
-      topic: dto.topic || 'Geral',
-      context_rules: aiContextRules + memoriaContexto,
-      phase: nextPhase,
-      last_question: dto.lastQuestion,
-      last_correct_answer: dto.lastCorrectAnswer,
-      last_interaction_type: dto.lastInteractionType,
-      ancoras: currentAncoras, // ⬅️ Array enviado perfeitamente para o Python
+      student_id:           aluno.id,
+      student_class:        aluno.classe,
+      user_query:           dto.userQuery,
+      mode:                 'tutor',
+      history:              formattedHistory,
+      subject:              dto.subject || 'Geral',
+      topic:                dto.topic   || 'Geral',
+      context_rules:        aiContextRules + memoriaContexto,
+      phase:                nextPhase,
+      last_question:        lastQuestion,
+      last_correct_answer:  lastCorrectAnswer,
+      last_interaction_type: lastInteractionType,
+      ancoras:              currentAncoras,
+      current_structure:    currentStructure,
+      session_id:           dto.sessaoId,
+      slot_number:          activeSlotNumber,
     };
 
     // 7. Chamada ao Python
     let finalResponse: string;
     try {
       const response = await firstValueFrom(
-        this.httpService.post(this.aiServiceUrl, aiRequest).pipe(
-          timeout(30_000), // 30 segundos máximo
-        ),
+        this.httpService.post(this.aiServiceUrl, aiRequest).pipe(timeout(40_000)),
       );
       finalResponse = response.data.response_text;
+
+      // Sanitizar opções + injectar slot_number na resposta (persiste na BD)
       try {
         const parsed = JSON.parse(finalResponse);
-        if (
-          parsed.interaction_data &&
-          Array.isArray(parsed.interaction_data.options)
-        ) {
-          parsed.interaction_data.options =
-            parsed.interaction_data.options.filter((opt: string) => {
+
+        // Injctar slot_number para que a próxima leitura da BD o encontre
+        parsed.slot_number = activeSlotNumber;
+
+        // Limpar opções com instrução interna do modelo
+        if (parsed.interaction_data && Array.isArray(parsed.interaction_data.options)) {
+          parsed.interaction_data.options = parsed.interaction_data.options.filter(
+            (opt: string) => {
               const s = opt.trim().toLowerCase();
-              // Remove se começar com parênteses ou contiver verbos de instrução interna
               if (s.startsWith('(') || s.startsWith('[')) return false;
-              if (
-                s.includes('avalia tu') ||
-                s.includes('escolhe') ||
-                s.includes('usa a')
-              )
+              if (s.includes('avalia tu') || s.includes('escolhe') || s.includes('usa a'))
                 return false;
               return true;
-            });
-          // Se o filtro apagar todas as opções por acidente, coloca um fallback de segurança
+            },
+          );
           if (parsed.interaction_data.options.length === 0) {
             parsed.interaction_data.options = ['Continuar'];
           }
-          finalResponse = JSON.stringify(parsed);
         }
+
+        finalResponse = JSON.stringify(parsed);
       } catch (e: any) {
-        this.logger.warn(`Falha ao sanitizar opções do chat: ${e.message}`);
+        this.logger.warn(`Falha ao sanitizar resposta: ${e.message}`);
       }
     } catch (error: any) {
       this.logger.error(`ERRO IA: ${error.message}`);
@@ -287,6 +308,7 @@ export class ChatService {
         interaction_type: 'CHIPS',
         assessment: null,
         phase: nextPhase,
+        slot_number: activeSlotNumber,
         interaction_data: { options: ['Tentar'] },
       });
     }
@@ -298,30 +320,23 @@ export class ChatService {
       const itype = jsonResp.interaction_type;
       if (
         nextPhase === 'TEST' ||
-        ['CHIPS', 'CLOZE', 'TRUE_FALSE', 'DIRECT_INPUT', 'DRAG_DROP'].includes(
-          itype,
-        )
+        ['CHIPS', 'CLOZE', 'TRUE_FALSE', 'DIRECT_INPUT', 'DRAG_DROP'].includes(itype)
       ) {
         tipoSalvo = 'PERGUNTA';
-      } else if (
-        nextPhase === 'FEEDBACK' &&
-        jsonResp.assessment === 'CORRECT'
-      ) {
+      } else if (nextPhase === 'FEEDBACK' && jsonResp.assessment === 'CORRECT') {
         tipoSalvo = 'PERGUNTA';
       }
-    } catch {
-      /* assume EXPLICACAO */
-    }
+    } catch { /* assume EXPLICACAO */ }
 
     await this.prisma.chatMensagem.create({
       data: {
-        alunoId: aluno.id,
+        alunoId:       aluno.id,
         mensagemAluno: dto.userQuery,
-        respostaIa: finalResponse,
+        respostaIa:    finalResponse,
         tipoInteracao: tipoSalvo,
-        topicoId: currentTopicoId,
-        turmaId: dto.turmaId || null,
-        sessaoId: dto.sessaoId || null,
+        topicoId:      currentTopicoId,
+        turmaId:       dto.turmaId  || null,
+        sessaoId:      dto.sessaoId || null,
       },
     });
 
@@ -338,18 +353,14 @@ export class ChatService {
         let textoParaIA = entry.respostaIa;
         try {
           const parsed = JSON.parse(entry.respostaIa);
+          // Remove campos internos que não devem ir para o modelo
           delete parsed.audio_url;
           delete parsed.phase;
+          delete parsed.slot_number;
           textoParaIA = JSON.stringify(parsed);
-        } catch {
-          /* mantém o texto original se não for JSON válido */
-        }
+        } catch { /* mantém texto original */ }
 
-        history.push({
-          role: 'model',
-          text: textoParaIA,
-          type: entry.tipoInteracao,
-        });
+        history.push({ role: 'model', text: textoParaIA, type: entry.tipoInteracao });
       }
     }
     return history;
