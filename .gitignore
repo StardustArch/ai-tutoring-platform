@@ -6,3 +6,4 @@ api/app/utils/__pycache__
 api/app/__pycache__/
 api/static/
 .online.env
+api/app/session_slots.json

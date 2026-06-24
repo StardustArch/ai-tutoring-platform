@@ -1,36 +1,59 @@
 # Adaptive AI Tutoring Platform
 
-A web-based educational platform designed for primary school students (ages 8–10) in Mozambique. It provides an AI-powered tutoring experience aligned with the MINEDH curriculum, combining guided learning and gamified practice modes under a multi-role system for students, guardians, and teachers.
-
-This project was developed as a Final Year Project (TCC) at [your institution].
-
----
+Most educational software is built for contexts where infrastructure is reliable 
+and devices are modern. This project was built for Mozambique. Adaptive AI Tutoring 
+Platform gives primary school students (ages 8–10) access to a curriculum-aligned 
+AI tutor through a mobile-first interface designed to work in low-resource 
+environments. Teachers control what students learn. Guardians track their children's 
+progress. The AI adapts to each student's proficiency. Built as a Final Year Project 
+at Catholic University of Mozambique, this system integrates multiple LLM providers with 
+automatic key rotation, streaming responses, and gamified XP mechanics — deployed 
+via Docker with three independently scalable services.
 
 ## Domain Model
 
 The platform is built around five core entities and their relationships:
 
-**Usuario** is the base authentication record shared by all human actors. A usuario carries role information and can be linked to one of three profiles: `Encarregado` (guardian), `Professor` (teacher), or the platform `Admin`.
+**Usuario** is the base authentication record shared by all human actors. A usuario 
+carries role information and can be linked to one of three profiles: Encarregado 
+(guardian), Professor (teacher), or the platform Admin.
 
-**Aluno** (student) is a dependent entity managed by a guardian. A student does not authenticate directly — access to the AI tutor is mediated through the guardian's session. Each student accumulates XP, tracks topic proficiency, and has an independent session history.
+**Aluno** (student) is a dependent entity managed by a guardian. A student does not 
+authenticate directly — access to the AI tutor is mediated through the guardian's 
+session. Each student accumulates XP, tracks topic proficiency, and has an 
+independent session history.
 
-**Turma** (class) is created by a teacher and scoped to a discipline and school grade. Students join via a unique invite code. A teacher controls which curriculum topics are available within each class, and the platform enforces that scope during AI sessions.
+**Turma** (class) is created by a teacher and scoped to a discipline and school 
+grade. Students join via a unique invite code. A teacher controls which curriculum 
+topics are available within each class, and the platform enforces that scope during 
+AI sessions.
 
-**Topico** (topic) maps to the MINEDH primary school curriculum for Matemática and Português. Topics are ordered and gated by proficiency: a student must demonstrate mastery of a topic before the next one unlocks. Each topic carries anchor concepts used to guide the AI's explanatory strategy.
+**Topico** (topic) maps to the MINEDH primary school curriculum for Matemática and 
+Português. Topics are ordered and gated by proficiency: a student must demonstrate 
+mastery of a topic before the next one unlocks. Each topic carries anchor concepts 
+used to guide the AI's explanatory strategy.
 
-**SessaoEstudo** records every learning interaction — mode used, topic covered, XP earned, and exercise results. These records feed the analytics dashboards exposed to teachers and guardians.
-
----
+**SessaoEstudo** records every learning interaction — mode used, topic covered, XP 
+earned, and exercise results. These records feed the analytics dashboards exposed 
+to teachers and guardians.
 
 ## Architecture
 
-The platform follows a microservices architecture with three independently deployable services communicating over an internal Docker network.
+The platform follows a microservices architecture with three independently 
+deployable services communicating over an internal Docker network.
 
-The **frontend** (SvelteKit) handles all UI rendering with a mobile-first layout. It communicates with the backend via REST for data operations and calls the AI service directly for streaming tutor interactions and audio asset delivery.
+The **frontend** (SvelteKit) handles all UI rendering with a mobile-first layout. 
+It communicates with the backend via REST for data operations and calls the AI 
+service directly for streaming tutor interactions and audio asset delivery.
 
-The **core backend** (NestJS) owns authentication, authorisation, user and class management, progress tracking, and PDF report generation. It is the only service with write access to the database.
+The **core backend** (NestJS) owns authentication, authorisation, user and class 
+management, progress tracking, and PDF report generation. It is the only service 
+with write access to the database.
 
-The **AI service** (FastAPI/Python) is a stateless bridge between the application and the language model providers. It receives structured prompts from the frontend, applies curriculum context and topic anchors, calls the LLM, and streams the response back. It also manages a local audio cache for TTS output.
+The **AI service** (FastAPI/Python) is a stateless bridge between the application 
+and the language model providers. It receives structured prompts from the frontend, 
+applies curriculum context and topic anchors, calls the LLM, and streams the 
+response back. It also manages a local audio cache for TTS output.
 
 ```
 Browser
@@ -42,33 +65,48 @@ Browser
                                audio_cache/
 ```
 
-**Tech stack:** SvelteKit · TypeScript · Tailwind CSS · Skeleton UI · NestJS · Prisma ORM · Passport.js (JWT + OAuth2) · Python 3.12 · FastAPI · PostgreSQL · Docker / Podman
-
----
+**Tech stack:** SvelteKit · TypeScript · Tailwind CSS · Skeleton UI · NestJS · 
+Prisma ORM · Passport.js (JWT + OAuth2) · Python 3.12 · FastAPI · PostgreSQL · 
+Docker / Podman
 
 ## Features
 
-**AI tutor with two interaction modes.** The *Tutor* mode conducts open-ended guided dialogue, using topic anchors to steer explanations toward curriculum concepts. The *Rush* mode presents timed multiple-choice exercises generated by the LLM and scored in real time, awarding XP on correct answers.
+**AI tutor with two interaction modes.** The Tutor mode conducts open-ended guided 
+dialogue, using topic anchors to steer explanations toward curriculum concepts. 
+The Rush mode presents timed multiple-choice exercises generated by the LLM and 
+scored in real time, awarding XP on correct answers.
 
-**Lesson mode.** A structured sub-mode of Rush that walks a student through a topic sequentially before opening free practice.
+**Lesson mode.** A structured sub-mode of Rush that walks a student through a topic 
+sequentially before opening free practice.
 
-**Multi-role dashboards.** Guardians register and manage their children, monitor session history, and join classes via invite code. Teachers create and configure classes, select which curriculum topics are active, and access per-student and per-class performance reports. Admins manage users, topics, and system state.
+**Multi-role dashboards.** Guardians register and manage their children, monitor 
+session history, and join classes via invite code. Teachers create and configure 
+classes, select which curriculum topics are active, and access per-student and 
+per-class performance reports. Admins manage users, topics, and system state.
 
-**Curriculum-scoped sessions.** When a student starts a session within a class context, the AI is constrained to the topics the teacher has enabled for that class. Sessions outside a class use the student's grade-level curriculum directly.
+**Curriculum-scoped sessions.** When a student starts a session within a class 
+context, the AI is constrained to the topics the teacher has enabled for that class. 
+Sessions outside a class use the student's grade-level curriculum directly.
 
-**Proficiency and XP system.** Each topic has a proficiency level tracked per student (`NAO_DIAGNOSTICADO` → assessed levels). Topic unlock follows a linear sequence within each discipline. XP is persistent across sessions and displayed on the student's dashboard.
+**Proficiency and XP system.** Each topic has a proficiency level tracked per 
+student (NAO_DIAGNOSTICADO → assessed levels). Topic unlock follows a linear 
+sequence within each discipline. XP is persistent across sessions and displayed 
+on the student's dashboard.
 
-**Diagnostic assessment.** An initial diagnostic session establishes baseline proficiency across topics before adaptive tutoring begins.
+**Diagnostic assessment.** An initial diagnostic session establishes baseline 
+proficiency across topics before adaptive tutoring begins.
 
-**Email verification and password recovery.** Account activation requires email confirmation. Password reset uses a JWT signed with the user's current password hash, so the link is automatically invalidated after a successful reset.
+**Email verification and password recovery.** Account activation requires email 
+confirmation. Password reset uses a JWT signed with the user's current password 
+hash, so the link is automatically invalidated after a successful reset.
 
-**Hybrid authentication.** Local email/password login and Google OAuth2, with JWT access tokens (15 min) and hashed refresh tokens (7 days) stored in the database.
+**Hybrid authentication.** Local email/password login and Google OAuth2, with JWT 
+access tokens (15 min) and hashed refresh tokens (7 days) stored in the database.
 
-**PDF reports.** Teachers and guardians can generate downloadable progress reports per student or class.
+**PDF reports.** Teachers and guardians can generate downloadable progress reports 
+per student or class.
 
 **Dark mode.** Native system-preference dark mode throughout the UI.
-
----
 
 ## Getting Started
 
@@ -104,8 +142,6 @@ Once running:
 | Backend API | http://localhost:3000 |
 | AI Service (OpenAPI docs) | http://localhost:8000/docs |
 
----
-
 ## Project Structure
 
 ```
@@ -117,12 +153,5 @@ Once running:
 └── compose.yml
 ```
 
+
 ---
-TODO:
-- [x] **Layer 1 — Seed Management**: replace hardcoded prompt strings with one YAML file per topic + Pydantic validation (Still waiting merge...)
-- [ ] **Layer 2 — Backend State**: move session state from frontend to backend, frontend sends only `session_id`
-- [ ] **Layer 3 — Semantic Validation**: replace string equality with 3-tier pipeline (exact → normalized → MiniLM similarity)
-- [ ] **Layer 4 — Prompt Builder**: generate compact prompts (~400 tokens) from seed data instead of static ~1600-token blocks
-- [ ] **Layer 5 — Mastery Tracking**: persist `attempts`, `correct`, `consecutive_errors` per student per topic across sessions
-- [ ] **Layer 6 — Adaptive Engine**: use mastery score to drive difficulty, re-explain on 2 errors, skip explain when mastery > 0.85
-- [ ] **Layer 7 — Observability**: structured logging for every LLM call, validation result, and adaptive decision
