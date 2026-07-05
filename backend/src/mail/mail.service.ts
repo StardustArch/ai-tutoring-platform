@@ -79,9 +79,16 @@ private async sendViaApi(to: string, subject: string, htmlContent: string) {
     return this.sendViaApi(email, 'Recuperação de Senha - KMind', htmlTemplate);
 
     } catch (error) {
+
+  if (error instanceof Error) {
+
       this.logger.error(`Erro ao enviar email para ${email}`, error);
       console.log(`Erro ao enviar email para ${email}`, error);
       this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
+  } else {
+
+    console.error('Service Error:', error);
+  }
 
       return false;
     }
@@ -104,8 +111,14 @@ private async sendViaApi(to: string, subject: string, htmlContent: string) {
          return this.sendViaApi(email, 'Bem-vindo ao KMind!', htmlTemplate);
 
     } catch (error) {
-      this.logger.error(`Erro ao enviar boas-vindas para ${email}`, error);
-      this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
+
+  if (error instanceof Error) {
+    this.logger.error(`Erro ao enviar boas-vindas para ${email}`, error);
+    this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
+  } else {
+    console.error('IA Service Error:', error);
+  }
+
     }
   }
 
@@ -129,7 +142,13 @@ private async sendViaApi(to: string, subject: string, htmlContent: string) {
     try {
           return this.sendViaApi(email, 'Activar conta KMind', html);
     } catch (error) {
-      this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
+
+  if (error instanceof Error) {
+    this.logger.error(`Falha total no envio para ${email}: ${error.message}`);
+  } else {
+    console.error('IA Service Error:', error);
+  }
+
     }
   }
 }

@@ -174,7 +174,13 @@ this.logger.log(`🎲 [Rush âncora] ancoras=${ancoras.length} usarAncora=${usar
       };
 
     } catch (err) {
-      this.logger.error(`Erro no motor de questões: ${err.message}`);
+      
+  if (err instanceof Error) {
+    this.logger.error(`Erro no motor de questões: ${err.message}`);
+  } else {
+    console.error('IA Service Error:', err);
+  }
+
       
       // 🔥 Fallback de emergência: Tenta buscar qualquer exercício deste tópico na BD
       const fallbackExercicio = await this.prisma.exercicio.findFirst({
