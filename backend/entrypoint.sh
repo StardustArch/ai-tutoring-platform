@@ -8,4 +8,4 @@ echo "🌱 Populando banco..."
 npx tsx prisma/seed.ts
 
 echo "🚀 Starting NestJS dev server..."
-exec npm run start:dev
+exec npm run start:prod
