@@ -21,6 +21,7 @@ COPY . .
 RUN npx prisma generate
 
 RUN npm run build
+RUN echo "=== DIST ===" && find dist -type f
 
 RUN npx puppeteer install chrome
 
